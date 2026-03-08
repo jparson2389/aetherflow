@@ -9,6 +9,11 @@ Constraints:
 - Signed manifest plus SHA-256 validation.
 - One-click install with streamed logs.
 
+SLA and re-poll guidance:
+
+- If no response is received within 24 hours, proceed with the fallback.
+- Re-poll once per day until a human decision is recorded.
+
 Fallback if deadline is missed:
 
 - Implement a signed archive with internal `bundle.json` metadata.

@@ -17,3 +17,5 @@ def test_resource_details_modal_shows_lock_state_and_install_action() -> None:
 
     assert model.lock_state == "locked"
     assert "install" in model.actions
+    assert "upgrade" in model.actions
+    assert model.required_tier == "vision"

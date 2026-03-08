@@ -6,3 +6,11 @@ def test_driver_panel_actions_are_reversible() -> None:
 
     assert panel.actions == ["repair", "disable_masking"]
     assert "reversible" in panel.message
+
+
+def test_driver_panel_marks_failure_state() -> None:
+    panel = DriverStatusPanelModel.for_failed_driver()
+
+    assert panel.installed is False
+    assert "retry" in panel.actions
+    assert "failed" in panel.message.lower()

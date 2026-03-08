@@ -24,4 +24,9 @@ class ResourceManifest:
 
     version: str
     signature: str
+    signature_scheme: str | None = None
+    digest_algorithm: str | None = None
+    rsa_key_bits: int | None = None
+    publisher_thumbprint: str | None = None
+    trust_root_thumbprint: str | None = None
     resources: list[ResourceEntry] = field(default_factory=list)

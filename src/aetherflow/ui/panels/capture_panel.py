@@ -12,6 +12,7 @@ class CaptureModeSelector:
     """Mode selector view model for a capture device."""
 
     available_fps: list[int]
+    available_resolutions: list[tuple[int, int]]
     unavailable_reason: str
 
 
@@ -31,5 +32,8 @@ class CapturePanelModel:
         modes = self.plugin.supported_modes(stable_device_id)
         return CaptureModeSelector(
             available_fps=sorted({mode.capture_fps for mode in modes}),
+            available_resolutions=sorted(
+                {(mode.capture_width, mode.capture_height) for mode in modes}
+            ),
             unavailable_reason="Bandwidth and backend limits",
         )

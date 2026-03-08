@@ -12,6 +12,7 @@ class RenderMode:
     mode_id: str
     latency_priority: str
     cpu_load: str
+    requires_restart: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,11 +30,13 @@ class RenderModePanelModel:
                     mode_id="render.cpu",
                     latency_priority="lowest",
                     cpu_load="highest",
+                    requires_restart=False,
                 ),
                 RenderMode(
                     mode_id="render.gpu",
                     latency_priority="balanced",
                     cpu_load="lower",
+                    requires_restart=True,
                 ),
             ]
         )

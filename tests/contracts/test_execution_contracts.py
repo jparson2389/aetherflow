@@ -18,6 +18,21 @@ def test_capture_proto_defines_required_control_plane_messages() -> None:
     assert "rpc ExportDiagnostics" in proto_text
 
 
+def test_capture_proto_docs_define_timeout_and_retry_posture() -> None:
+    doc_text = (PROJECT_ROOT / "docs" / "proto" / "capture.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "StartCapture" in doc_text
+    assert "StopCapture" in doc_text
+    assert "ReportHeartbeat" in doc_text
+    assert "ForwardWorkerLog" in doc_text
+    assert "ReportPluginLoadResult" in doc_text
+    assert "ExportDiagnostics" in doc_text
+    assert "timeout" in doc_text.lower()
+    assert "retry" in doc_text.lower()
+
+
 def test_plugin_system_contract_defines_trust_and_runtime_states() -> None:
     header_text = (PROJECT_ROOT / "include" / "plugin_system.hpp").read_text(
         encoding="utf-8"
@@ -27,6 +42,9 @@ def test_plugin_system_contract_defines_trust_and_runtime_states() -> None:
     assert "kGrace" in header_text
     assert "kLocked" in header_text
     assert "SignaturePolicy" in header_text
+    assert "Authenticode" in header_text
+    assert "SHA-256" in header_text
+    assert "kRequiredRsaKeyBits" in header_text
     assert "rsa_key_bits" in header_text
     assert "publisher_thumbprint" in header_text
 
@@ -42,3 +60,6 @@ def test_shared_memory_layout_defines_ring_metadata_and_overflow_policy() -> Non
     assert "sequence_number" in layout_text
     assert "timestamp_ns" in layout_text
     assert "ring_slot_count" in layout_text
+    assert "producer_cursor" in layout_text
+    assert "consumer_cursor" in layout_text
+    assert "overflow_count" in layout_text

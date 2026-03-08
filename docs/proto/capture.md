@@ -16,3 +16,17 @@ The PRD runtime budgets apply to this surface:
 - worker escalates after 3 consecutive missed heartbeats
 
 Generated Python modules should be placed under `src/aetherflow/core/ipc/`.
+
+## Timeouts And Retry Posture
+
+All control-plane RPCs default to a 750 ms unary timeout unless explicitly
+overridden by the caller.
+
+| RPC | Timeout | Retry Posture |
+| --- | --- | --- |
+| `StartCapture` | 750 ms | Retry once on transient transport errors. |
+| `StopCapture` | 750 ms | Retry once on transient transport errors. |
+| `ReportHeartbeat` | 750 ms | No automatic retries. |
+| `ForwardWorkerLog` | 750 ms | No automatic retries. |
+| `ReportPluginLoadResult` | 750 ms | Retry once on transient transport errors. |
+| `ExportDiagnostics` | 750 ms | No automatic retries. |

@@ -4,6 +4,14 @@ from aetherflow.plugins.catalog import CatalogLockState
 from aetherflow.plugins.manifest import PluginManifest, PluginType, PluginVersion
 from aetherflow.plugins.registry import PluginRegistry
 
+DEFAULT_SIGNATURE = {
+    "signature_scheme": "Authenticode",
+    "digest_algorithm": "SHA-256",
+    "rsa_key_bits": 3072,
+    "publisher_thumbprint": "aetherflow-publisher",
+    "trust_root_thumbprint": "aetherflow-root",
+}
+
 
 def make_manifest(
     plugin_id: str,
@@ -22,6 +30,7 @@ def make_manifest(
         premium=premium,
         required_entitlements=["vision"] if premium else [],
         requires_worker=False,
+        **DEFAULT_SIGNATURE,
     )
 
 

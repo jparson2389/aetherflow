@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from aetherflow.core.entitlements import EntitlementState
 from aetherflow.core.services import AppServices
 from aetherflow.plugins.catalog import CatalogEntry, CatalogLockState
 from aetherflow.plugins.manifest import PluginManifest, PluginType, PluginVersion
+
+
+@dataclass(frozen=True, slots=True)
+class CaptureFormatSelector:
+    """Format selector for premium capture backends."""
+
+    formats: list[str]
+    unavailable_reason: str | None = None
 
 
 class MediaFoundationCapturePlugin:
@@ -30,6 +40,11 @@ class MediaFoundationCapturePlugin:
             premium=True,
             required_entitlements=["vision"],
             requires_worker=False,
+            signature_scheme="Authenticode",
+            digest_algorithm="SHA-256",
+            rsa_key_bits=3072,
+            publisher_thumbprint="aetherflow-publisher",
+            trust_root_thumbprint="aetherflow-root",
         )
 
     def is_available(self) -> bool:
@@ -56,3 +71,12 @@ class MediaFoundationCapturePlugin:
             purchase_cta=None if self.is_available() else "Upgrade to unlock",
             allowed_roles=tuple(role.name for role in self._services.roles),
         )
+
+    def format_selector(self) -> CaptureFormatSelector:
+        """Return available format options based on entitlement state."""
+        if not self.is_available():
+            return CaptureFormatSelector(
+                formats=[],
+                unavailable_reason="Upgrade to unlock",
+            )
+        return CaptureFormatSelector(formats=["NV12", "YUY2", "MJPEG"])

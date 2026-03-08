@@ -1,4 +1,5 @@
 from aetherflow.core.entitlements import EntitlementState
+from aetherflow.core.runtime_state import RuntimeState
 from aetherflow.ui.status_hud import StatusHUDModel
 
 
@@ -10,8 +11,9 @@ def test_status_hud_exposes_core_runtime_state() -> None:
         display_plugin="render.cpu",
         measured_fps=120.0,
         jitter_ms=1.4,
-        worker_health="RUNNING",
+        worker_health=RuntimeState.RUNNING,
         entitlement_state=EntitlementState.GRACE,
+        runtime_state=RuntimeState.DEGRADED,
     )
 
     payload = hud.to_payload()
@@ -19,3 +21,4 @@ def test_status_hud_exposes_core_runtime_state() -> None:
     assert payload["plugins"]["capture"] == "capture.opencv"
     assert payload["telemetry"]["measured_fps"] == 120.0
     assert payload["entitlements"]["state"] == "GRACE"
+    assert payload["runtime_state"] == "DEGRADED"

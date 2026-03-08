@@ -17,6 +17,11 @@ def test_signed_plugin_loads_and_appears_in_catalog() -> None:
         premium=False,
         required_entitlements=[],
         requires_worker=False,
+        signature_scheme="Authenticode",
+        digest_algorithm="SHA-256",
+        rsa_key_bits=3072,
+        publisher_thumbprint="aetherflow-publisher",
+        trust_root_thumbprint="aetherflow-root",
     )
 
     result = registry.register(manifest)

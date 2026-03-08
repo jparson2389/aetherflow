@@ -18,6 +18,11 @@ def test_locked_premium_plugin_never_becomes_selectable() -> None:
         premium=True,
         required_entitlements=["vision"],
         requires_worker=False,
+        signature_scheme="Authenticode",
+        digest_algorithm="SHA-256",
+        rsa_key_bits=3072,
+        publisher_thumbprint="aetherflow-publisher",
+        trust_root_thumbprint="aetherflow-root",
     )
 
     registry.register(manifest)

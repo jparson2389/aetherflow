@@ -50,3 +50,11 @@ class PluginManifest:
     premium: bool
     required_entitlements: list[str]
     requires_worker: bool
+    signature_scheme: str | None = None
+    digest_algorithm: str | None = None
+    rsa_key_bits: int | None = None
+    publisher_thumbprint: str | None = None
+    trust_root_thumbprint: str | None = None
+    revoked: bool = False
+    expired: bool = False
+    tampered: bool = False

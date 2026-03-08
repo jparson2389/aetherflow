@@ -4,6 +4,10 @@
 
 namespace aetherflow::plugins {
 
+inline constexpr const char* kRequiredSignatureScheme = "Authenticode";
+inline constexpr const char* kRequiredDigestAlgorithm = "SHA-256";
+inline constexpr std::uint32_t kRequiredRsaKeyBits = 3072;
+
 enum class PluginType : std::uint8_t {
     kInput = 0,
     kOutput = 1,
@@ -42,6 +46,8 @@ struct SignaturePolicy {
     const char* digest_algorithm;
     std::uint32_t rsa_key_bits;
     const char* publisher_thumbprint;
+    const char* trust_root_thumbprint;
+    bool require_publisher_chain;
 };
 
 struct PluginLoadDecision {

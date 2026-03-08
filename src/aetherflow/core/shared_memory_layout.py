@@ -41,6 +41,15 @@ class FrameMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class RingBufferCursors:
+    """Producer/consumer cursors and overflow count."""
+
+    producer_cursor: int
+    consumer_cursor: int
+    overflow_count: int
+
+
+@dataclass(frozen=True, slots=True)
 class SharedMemoryLayout:
     """Shared memory ring-buffer contract."""
 

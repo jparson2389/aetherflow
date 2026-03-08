@@ -43,3 +43,16 @@ def test_plan_splits_phase_zero_and_tracks_new_contract_work() -> None:
     assert "shared-memory ring semantics" in plan_text
     assert "Publish signing and runtime-state ABI" in plan_text
     assert "failure-UX state model" in plan_text
+
+
+def test_plan_signoff_packets_define_sla_and_fallbacks() -> None:
+    auth_text = (
+        PROJECT_ROOT / "docs" / "sign-offs" / "auth-provider.md"
+    ).read_text(encoding="utf-8")
+    bundle_text = (
+        PROJECT_ROOT / "docs" / "sign-offs" / "bundle-format.md"
+    ).read_text(encoding="utf-8")
+
+    for text in (auth_text, bundle_text):
+        assert "Fallback" in text
+        assert "24 hours" in text or "24-hour" in text
