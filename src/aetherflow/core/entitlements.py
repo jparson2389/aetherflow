@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-class EntitlementState(str, Enum):
+class EntitlementState(StrEnum):
     """Supported entitlement states for plugin gating."""
 
     LOADED = "LOADED"
@@ -15,7 +15,7 @@ class EntitlementState(str, Enum):
     GRACE = "GRACE"
 
 
-class RoleName(str, Enum):
+class RoleName(StrEnum):
     """Role names defined by the PRD."""
 
     POWER_GAMER = "power_gamer"
@@ -60,6 +60,7 @@ class UserRole:
     capabilities: tuple[str, ...] = field(init=False)
 
     def __post_init__(self) -> None:
+        """Populate the derived role capabilities."""
         object.__setattr__(self, "capabilities", ROLE_CAPABILITIES[self.name])
 
 

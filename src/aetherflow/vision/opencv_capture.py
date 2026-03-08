@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,11 +31,11 @@ class CaptureMode:
 class OpenCVCapturePlugin:
     """Default OpenCV-based capture provider."""
 
-    _DEVICES = (
+    _DEVICES: ClassVar[tuple[CaptureDevice, ...]] = (
         CaptureDevice(stable_id="device-elgato-4kx", name="Elgato 4K X"),
         CaptureDevice(stable_id="device-obs-virtual", name="OBS Virtual Camera"),
     )
-    _MODES = {
+    _MODES: ClassVar[dict[str, list[CaptureMode]]] = {
         "device-elgato-4kx": [
             CaptureMode(1280, 720, 60, "NV12", "BGR", False, False, "USB 3.0"),
             CaptureMode(1920, 1080, 120, "NV12", "BGR", False, False, "USB 3.0"),

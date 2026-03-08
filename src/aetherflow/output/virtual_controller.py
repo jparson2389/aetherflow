@@ -13,6 +13,7 @@ class VirtualControllerService:
 
         Args:
             masking_service: Device masking state provider.
+
         """
         self._masking_service = masking_service
 

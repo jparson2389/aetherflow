@@ -1,6 +1,7 @@
 # Bundle Format Sign-Off
 
 Status: Pending human sign-off. Decision deadline: before `AF-04-02`.
+Blocking phase: Phase 4 Environment Management.
 
 Constraints:
 

@@ -15,7 +15,7 @@ class AdminPanelModel:
     audit_entries: list[object]
 
     @classmethod
-    def from_audit_log(cls, log: AuditLog) -> "AdminPanelModel":
+    def from_audit_log(cls, log: AuditLog) -> AdminPanelModel:
         """Build an admin panel model from the audit log."""
         return cls(
             actions=[

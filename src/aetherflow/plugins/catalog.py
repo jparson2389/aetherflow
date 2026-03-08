@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from aetherflow.core.entitlements import RoleName
 
 
-class CatalogLockState(str, Enum):
+class CatalogLockState(StrEnum):
     """Catalog lock states."""
 
     AVAILABLE = "AVAILABLE"

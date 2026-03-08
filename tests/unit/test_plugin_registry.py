@@ -1,5 +1,5 @@
 from aetherflow.core.entitlements import EntitlementState, RoleName, UserRole
-from aetherflow.core.services import AppServices, create_default_services
+from aetherflow.core.services import create_default_services
 from aetherflow.plugins.catalog import CatalogLockState
 from aetherflow.plugins.manifest import PluginManifest, PluginType, PluginVersion
 from aetherflow.plugins.registry import PluginRegistry

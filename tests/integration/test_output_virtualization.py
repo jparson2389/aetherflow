@@ -1,4 +1,4 @@
-from aetherflow.output.device_masking import DeviceMaskState, DeviceMaskingService
+from aetherflow.output.device_masking import DeviceMaskingService, DeviceMaskState
 from aetherflow.output.virtual_controller import VirtualControllerService
 
 

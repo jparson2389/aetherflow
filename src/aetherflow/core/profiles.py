@@ -17,7 +17,7 @@ class InputProfile:
     deadzone: float = 0.05
 
     @classmethod
-    def default(cls, name: str) -> "InputProfile":
+    def default(cls, name: str) -> InputProfile:
         """Create the default profile.
 
         Args:
@@ -25,10 +25,11 @@ class InputProfile:
 
         Returns:
             A default profile.
+
         """
         return cls(profile_id=str(uuid4()), name=name)
 
-    def clone(self, name: str) -> "InputProfile":
+    def clone(self, name: str) -> InputProfile:
         """Clone the profile under a new identity.
 
         Args:
@@ -36,6 +37,7 @@ class InputProfile:
 
         Returns:
             A cloned profile instance.
+
         """
         clone = deepcopy(self)
         clone.profile_id = str(uuid4())
@@ -50,6 +52,7 @@ class InputProfile:
 
         Returns:
             Translated output events.
+
         """
         translated: dict[str, bool | float] = {}
         for key, value in events.items():

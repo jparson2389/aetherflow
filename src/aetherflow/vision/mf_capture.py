@@ -16,6 +16,7 @@ class MediaFoundationCapturePlugin:
 
         Args:
             services: Shared application services for entitlement checks.
+
         """
         self._services = services
         self._manifest = PluginManifest(

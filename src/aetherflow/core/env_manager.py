@@ -32,6 +32,7 @@ class EnvironmentManager:
 
         Returns:
             The created environment record.
+
         """
         record = EnvironmentRecord(name=name, python_version=python_version)
         self._records[name] = record

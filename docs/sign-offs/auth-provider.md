@@ -1,6 +1,7 @@
 # Auth Provider Sign-Off
 
 Status: Pending human sign-off. Decision deadline: before `AF-05-01`.
+Blocking phase: Phase 5 Online Resources.
 
 Constraints:
 

@@ -22,7 +22,7 @@ class CapturePanelModel:
     plugin: OpenCVCapturePlugin
 
     @classmethod
-    def from_plugin(cls, plugin: OpenCVCapturePlugin) -> "CapturePanelModel":
+    def from_plugin(cls, plugin: OpenCVCapturePlugin) -> CapturePanelModel:
         """Build a panel model from a capture plugin."""
         return cls(plugin=plugin)
 

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class PluginType(str, Enum):
+class PluginType(StrEnum):
     """Supported plugin categories."""
 
     INPUT = "input"
@@ -26,12 +26,13 @@ class PluginVersion:
     patch: int
 
     @classmethod
-    def parse(cls, raw: str) -> "PluginVersion":
+    def parse(cls, raw: str) -> PluginVersion:
         """Parse a semantic version string."""
         major, minor, patch = (int(part) for part in raw.split("."))
         return cls(major=major, minor=minor, patch=patch)
 
     def __str__(self) -> str:
+        """Return the dotted semantic version."""
         return f"{self.major}.{self.minor}.{self.patch}"
 
 

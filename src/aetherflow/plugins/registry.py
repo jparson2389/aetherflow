@@ -27,6 +27,7 @@ class PluginRegistry:
 
         Args:
             services: Shared application services for trust and entitlement checks.
+
         """
         self._services = services
         self._plugins: dict[str, PluginManifest] = {}

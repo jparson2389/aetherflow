@@ -11,56 +11,66 @@ Source anchors verified in-repo on March 8, 2026:
 
 Rules for this plan:
 
-- Canonical product/package name is `Aetherflow`; Phase 0 must remove stale `Aetherlink` references from docs/rules before feature work.
-- Scope is Windows v1 `P0` only. Deferred from this plan: `PRD-§5.7`, `PRD-§5.8.1`, `PRD-§5.8.2`, `PRD-§5.11.3`.
-- Frozen contracts after Phase 0: `include/plugin_system.hpp`, `proto/capture.proto`, `src/aetherflow/core/shared_memory_layout.py`.
-- Entitlement state machine freezes after Phase 4: `src/aetherflow/core/entitlements.py`.
-- Forbidden changes: no `src/plugins/*`, no unsigned artifact execution, no premium DLL load without valid/GRACE entitlement, no worker-to-host bypass of gRPC + shared memory.
-- Mandatory validations for every completed item: `uv run ruff check .` and `uv run pytest`.
+- Canonical product/package name is `Aetherflow`.
+- Python lives under `src/aetherflow/`; C++ lives only under `host/` and
+  `include/`.
+- Scope is Windows v1 `P0` only. Deferred: `PRD-§9.6`, `PRD-§14` protected-model
+  cryptosystem work, remote-play, and high-frequency scripting.
+- Frozen contracts after Phase 0: `include/plugin_system.hpp`,
+  `proto/capture.proto`, `src/aetherflow/core/shared_memory_layout.py`.
+- Entitlement state machine freezes after Phase 4:
+  `src/aetherflow/core/entitlements.py`.
+- Mandatory validation for completed work remains `uv run ruff check .` and
+  `uv run pytest`.
 - TDD is required on every work item.
 
 ## Assumptions And Sign-Off Gates
 
-- `[ASM-01]` `src/aetherflow/` is the canonical package root; stale `aetherlink` references are documentation debt, not implementation truth.
-- `[ASM-02]` `proto/` is the authoritative proto source in this repo; generated Python should land under `src/aetherflow/core/ipc/`.
-- `[ASM-03]` Native C++20 code must stay under repo-root `host/` and `include/`; no C++ source or headers belong under `src/`.
-- `[ASM-04]` Auth provider selection remains unresolved. Decision deadline: before `AF-05-01` starts. If no sign-off is supplied, implement only a provider-agnostic OAuth interface plus a disabled `MockOAuthProvider` to unblock resources UI/tests without shipping a real provider binding.
-- `[ASM-05]` Aetherflow environment bundle term/extension/schema remains unresolved. Decision deadline: before `AF-04-02` starts. If no sign-off is supplied, implement a signed archive with internal `bundle.json` metadata and leave the external bundle extension unfrozen until human sign-off.
-- `[ASM-06]` Phase 0 must verify a Windows-hosted `uv` workflow because the current shell wrapper could not execute `uv` directly.
+- `[ASM-01]` `proto/` remains the authoritative proto source; generated Python
+  lands under `src/aetherflow/core/ipc/`.
+- `[ASM-02]` Auth provider selection remains product-open until before
+  `AF-05-01`. Fallback: provider-agnostic OAuth interface plus disabled
+  `MockOAuthProvider`.
+- `[ASM-03]` Bundle extension naming remains product-open until before
+  `AF-04-02`. Fallback: signed archive with internal `bundle.json` metadata.
+- `[ASM-04]` Protected model cryptosystem stays out of v1 implementation unless
+  separately approved.
+- `[ASM-05]` Windows-hosted `uv` execution must be verified during Phase 0
+  before contract freeze is treated as complete.
 
 ## Public Interfaces / Contracts
 
-- `plugin_system.hpp`: native plugin ABI for identity, lifecycle, capabilities, and entitlement/worker policy.
-- `proto/capture.proto`: gRPC control-plane contract for capture control, worker health, logs, and results.
-- `shared_memory_layout.py`: frame ring-buffer schema for the data plane.
-- `entitlements.py`: entitlement token, GRACE/LOCKED/LOADED transitions, role model, TTL cache rules.
-- Bundle schema and resource-auth contract are Phase 0 sign-off artifacts with explicit fallback behavior if sign-off misses the deadlines above.
+- `include/plugin_system.hpp`: native plugin trust, runtime state, and gating
+  ABI.
+- `proto/capture.proto`: normative control-plane contract for capture, worker
+  heartbeats, logs, diagnostics export, and plugin load results.
+- `src/aetherflow/core/shared_memory_layout.py`: ring-buffer metadata, pixel
+  formats, stride semantics, and overflow policy.
+- `src/aetherflow/core/entitlements.py`: `LOADED`, `GRACE`, `LOCKED` semantics.
+- `docs/PRD.md`: runtime budgets, failure UX, and validated capture guarantees.
 
 ## Requirement Ledger
 
 | ID | PRD Ref | Type | Summary | Dependencies | Verification |
 | --- | --- | --- | --- | --- | --- |
-| `REQ-01` | `§1`, `§4.1-§4.5` | Constraint | Windows-only microkernel host; plugin-everything model; frozen contracts and guardrails enforced | none | contract tests + docs parity |
-| `REQ-02` | `§2.1`, `§5.1`, `§7` | Functional/Security | Signed native plugin system with premium gating, GRACE handling, runtime load/unload, locked catalog UX | `REQ-01` | plugin loader + entitlement tests |
-| `REQ-03` | `§3`, `§5.12` | Functional | Role-based access boundaries for gamer, tinkerer, modder, and admin/operator | `REQ-02` | RBAC tests |
-| `REQ-04` | `§5.2` | Functional | Profiles, mapping, translation, fast switching, latency diagnostics | `REQ-01` | unit + integration mapping tests |
-| `REQ-05` | `§5.3` | Functional/UX | Virtual output, masking, driver status, install/repair flows | `REQ-04` | integration + UI tests |
-| `REQ-06` | `§5.4` | Functional/UX | OpenCV default capture, capability matrix, OBS fixed plugin, premium MF/DS plugins, stability metrics | `REQ-02` | capture integration tests |
-| `REQ-07` | `§5.5`, `§6` | Functional/UX | CPU/GPU render modes and always-visible status HUD | `REQ-02`, `REQ-06` | UI tests |
-| `REQ-08` | `§5.6` | Functional | XInput, PlayStation, legacy PS, and KBM ingestion plugins | `REQ-04` | device-plugin tests |
-| `REQ-09` | `§5.9` | Functional/Ops | Out-of-process Python workers with gRPC control plane, shared memory, supervision, restart/backoff, UI logs/health | `REQ-01` | integration + stress tests |
-| `REQ-10` | `§5.10` | Functional/UX | UI-managed uv environments and one-click signed bundle install with streamed logs | `REQ-09` | env manager + bundle tests |
-| `REQ-11` | `§5.11.1`, `§5.11.2`, `§5.11.4` | Functional/Security | Signed resource manifest, artifact install, premium lock state, OAuth-ready auth support | `REQ-02`, `REQ-10` | resource/security tests |
-| `REQ-12` | `§5.12`, `§7` | Functional/Security | Admin dashboard for users, roles, entitlements, revocations, audit log | `REQ-03` | admin tests |
-| `REQ-13` | `§8`, `§9` | Operations | Windows packaging, updater/rollback, diagnostics export, success-metric evidence artifacts | `REQ-02`, `REQ-09`, `REQ-10`, `REQ-12` | packaging + evidence tests |
-| `REQ-14` | `§2.2` | Non-goal | Exclude non-goals and deferred P1 features from MVP implementation | none | traceability review |
+| `REQ-01` | `§5` | Constraint | Windows-only microkernel host and frozen contracts | none | contract and docs tests |
+| `REQ-02` | `§6`, `§7`, `§8` | Security | Numeric budgets, trust baseline, premium gating | `REQ-01` | contract and policy tests |
+| `REQ-03` | `§9.1`, `§9.9` | Functional | Signed plugin and resource loading with explicit trust checks | `REQ-02` | loader and security tests |
+| `REQ-04` | `§9.2`, `§9.6` | Functional | Profiles, mapping, translation, input devices | `REQ-01` | profile and mapping tests |
+| `REQ-05` | `§9.3`, `§10.1` | Functional/UX | Virtual output, masking, host-safe plugin failure handling | `REQ-04` | output and host survivability tests |
+| `REQ-06` | `§9.4`, `§10.3` | Functional/Performance | Capture 60 baseline, 120 validated path, capability-bound 240 | `REQ-02`, `REQ-03` | capture compliance tests |
+| `REQ-07` | `§9.5`, `§11` | UX | CPU/GPU render modes and always-visible status HUD | `REQ-03`, `REQ-06` | UI tests |
+| `REQ-08` | `§9.7`, `§10.2` | Functional/Ops | Worker supervision, escalation ceilings, failure UX | `REQ-02` | worker stress tests |
+| `REQ-09` | `§9.8`, `§9.9` | Functional | Environment management and bundle validation | `REQ-08` | env and bundle tests |
+| `REQ-10` | `§9.10`, `§12`, `§13` | Operations | Admin, diagnostics, packaging, evidence artifacts | `REQ-03`, `REQ-08`, `REQ-09` | integration and e2e tests |
 
-## Phase 0 - Canonical Foundation And Contract Freeze
+## Phase 0 - Canonical Identity And Execution Contracts
 
-- [ ] `AF-00-01` Canonicalize repo identity and path rules. `PRD Refs:` `§1`, `§4.4`, `§4.5`, `REQ-01`, `REQ-14`. `Preconditions:` none. `Target Files:` `docs/PRD.md`, `AGENTS.md`, `.agents/rules/project-specific.md`, `README.md`, `src/aetherflow/main.py`, top-level `main.py`. `Test Files:` `tests/contracts/test_canonical_identity.py`. `Behavior:` remove stale `Aetherlink`/path references, declare `src/aetherflow/` + `proto/` as canonical, and eliminate duplicate entrypoint ambiguity. `Validation:` `uv run pytest tests/contracts/test_canonical_identity.py`. `Evidence:` docs and tests agree on product/package/path names. `ARP Trigger:` if canonical paths conflict with active user files, stop and capture the conflicting path map.
-- [ ] `AF-00-02` Verify Windows toolchain and native boundary. `PRD Refs:` `§4.4`, `§4.5`, `REQ-01`. `Preconditions:` `AF-00-01`. `Target Files:` `host/`, `include/`, `scripts/build-native.ps1`, `tests/contracts/test_frozen_contracts.py`. `Behavior:` verify the repo-root native boundary, add a repeatable Windows harness script, and prove the toolchain assumptions without freezing any contracts yet. `Validation:` `uv run pytest tests/contracts/test_frozen_contracts.py -k build_script`. `Evidence:` host/include boundaries exist and the build harness references the canonical contract inputs. `ARP Trigger:` if `uv` or the Windows shell cannot execute from the expected host, stop before freezing contracts and capture the failing environment details.
-- [ ] `AF-00-03` Freeze ABI, proto, and shared-memory contracts. `PRD Refs:` `§4.4`, `§5.1.2`, `§5.1.5`, `§5.9`, `REQ-01`, `REQ-02`, `REQ-09`. `Preconditions:` `AF-00-02`. `Target Files:` `include/plugin_system.hpp`, `proto/capture.proto`, `src/aetherflow/core/shared_memory_layout.py`, `docs/breaking-changes/abi.md`, `docs/breaking-changes/proto.md`, `docs/breaking-changes/shmem.md`. `Behavior:` define the initial frozen contracts and their breaking-change ledgers only after the boundary/tooling checks pass. `Validation:` `uv run pytest tests/contracts/test_frozen_contracts.py -k frozen_contract_files_exist or test_breaking_change_logs_exist_for_frozen_contracts`. `Evidence:` all frozen files and ledgers exist together in one checkpoint. `ARP Trigger:` if any contract shape is still unstable, do not publish the freeze; capture the unresolved contract diff and stop.
-- [ ] `AF-00-04` Create bounded sign-off packets for auth and bundle decisions. `PRD Refs:` `§5.10`, `§5.11.4`, `§10`, `REQ-10`, `REQ-11`. `Preconditions:` `AF-00-03`. `Target Files:` `docs/sign-offs/auth-provider.md`, `docs/sign-offs/bundle-format.md`, `docs/PLAN.md`. `Behavior:` define the decision deadline, blocking scope, and fallback path for auth-provider selection and bundle schema so downstream agents do not stall indefinitely. `Validation:` `uv run pytest tests/contracts/test_canonical_identity.py tests/contracts/test_frozen_contracts.py`. `Evidence:` each unresolved decision has an owner-independent fallback path and phase gate. `ARP Trigger:` if a sign-off item still has no fallback, mark the downstream item blocked explicitly in the plan before proceeding.
+- [ ] `AF-00-01` Canonicalize repo identity and self-contained docs. `PRD Refs:` `§1`, `§2`, `REQ-01`. `Preconditions:` none. `Target Files:` `docs/PRD.md`, `README.md`, `.agents/rules/project-specific.md`, `tests/contracts/test_canonical_identity.py`, `tests/contracts/test_prd_execution_readiness.py`. `Behavior:` remove stale aliases, keep PRD self-contained, and enforce canonical Python/C++ boundaries. `Validation:` `uv run pytest tests/contracts/test_canonical_identity.py tests/contracts/test_prd_execution_readiness.py -k self_contained`. `Evidence:` docs are citation-free and path-correct. `ARP Trigger:` if any canonical path conflicts with active repo structure, stop and capture the conflict.
+- [ ] `AF-00-02` Verify Windows toolchain and native boundary. `PRD Refs:` `§5.3`, `REQ-01`. `Preconditions:` `AF-00-01`. `Target Files:` `host/`, `include/`, `scripts/build-native.ps1`, `tests/contracts/test_frozen_contracts.py`. `Behavior:` prove the Windows/native boundary and build harness without freezing contracts yet. `Validation:` `uv run pytest tests/contracts/test_frozen_contracts.py -k build_script`. `Evidence:` host/include boundaries and harness are present. `ARP Trigger:` if `uv` or Windows shell execution fails, capture environment details before any freeze work.
+- [ ] `AF-00-03` Publish control-plane proto surface and shared-memory ring semantics. `PRD Refs:` `§6`, `§7`, `REQ-01`, `REQ-02`, `REQ-08`. `Preconditions:` `AF-00-02`. `Target Files:` `proto/capture.proto`, `src/aetherflow/core/shared_memory_layout.py`, `docs/proto/capture.md`, `tests/contracts/test_execution_contracts.py`. `Behavior:` publish the normative gRPC message surface, timeout/retry expectations, ring metadata, pixel labels, and overflow policy. `Validation:` `uv run pytest tests/contracts/test_execution_contracts.py -k proto or overflow`. `Evidence:` proto and shmem contracts match PRD execution semantics. `ARP Trigger:` if control-plane or ring semantics remain ambiguous, do not freeze them.
+- [ ] `AF-00-04` Publish signing and runtime-state ABI, then freeze contracts. `PRD Refs:` `§5.3`, `§7`, `§8`, `REQ-02`, `REQ-03`. `Preconditions:` `AF-00-03`. `Target Files:` `include/plugin_system.hpp`, `docs/breaking-changes/abi.md`, `docs/breaking-changes/proto.md`, `docs/breaking-changes/shmem.md`, `tests/contracts/test_execution_contracts.py`, `tests/contracts/test_frozen_contracts.py`. `Behavior:` publish Authenticode/RSA-3072 trust semantics, plugin runtime states, and freeze ABI/proto/shmem in one checkpoint. `Validation:` `uv run pytest tests/contracts/test_execution_contracts.py tests/contracts/test_frozen_contracts.py`. `Evidence:` trust and state semantics are documented and frozen together. `ARP Trigger:` if trust policy or runtime states are still in flux, stop instead of publishing the freeze.
+- [ ] `AF-00-05` Publish bounded sign-off packets and failure-UX state model. `PRD Refs:` `§8.3`, `§10`, `§14`, `REQ-02`, `REQ-08`, `REQ-09`. `Preconditions:` `AF-00-04`. `Target Files:` `docs/sign-offs/auth-provider.md`, `docs/sign-offs/bundle-format.md`, `docs/PLAN.md`, `tests/contracts/test_prd_execution_readiness.py`. `Behavior:` encode auth/bundle deadlines, fallbacks, and the host/plugin/worker degraded-state model so agents do not stall. `Validation:` `uv run pytest tests/contracts/test_prd_execution_readiness.py -k plan`. `Evidence:` unresolved product decisions have explicit fallbacks and phase gates. `ARP Trigger:` if a sign-off packet lacks fallback behavior, downstream work remains blocked.
 
 ### Phase 0 Exit Criteria
 
@@ -70,22 +80,22 @@ uv run pytest tests/contracts
 powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
 ```
 
-## Phase 1 - Host Kernel, Trust, Entitlements, And Shell
+## Phase 1 - Trust, Entitlements, And Shell Resilience
 
-- [ ] `AF-01-01` Build service container, plugin registry, trust verification, and catalog models. `PRD Refs:` `§4.1`, `§5.1.1-§5.1.4`, `REQ-02`. `Preconditions:` `AF-00-02`. `Target Files:` `src/aetherflow/core/services.py`, `src/aetherflow/plugins/manifest.py`, `src/aetherflow/plugins/registry.py`, `src/aetherflow/plugins/trust.py`, `src/aetherflow/plugins/catalog.py`. `Test Files:` `tests/unit/test_plugin_registry.py`, `tests/integration/test_signed_plugin_loading.py`. `Behavior:` discover plugins, verify signature + compatibility before load, block unsigned/tampered DLLs, and expose catalog metadata for locked/unlocked state. `Validation:` `uv run pytest tests/unit/test_plugin_registry.py tests/integration/test_signed_plugin_loading.py`. `Evidence:` signed plugins load, unsigned plugins fail before registration. `ARP Trigger:` capture failing manifest/signature payload and stop if unsigned execution is possible.
-- [ ] `AF-01-02` Implement entitlement state machine, RBAC domain, and shell/status HUD skeleton. `PRD Refs:` `§3`, `§5.1.3-§5.1.5`, `§6`, `§7`, `REQ-02`, `REQ-03`, `REQ-07`. `Preconditions:` `AF-01-01`. `Target Files:` `src/aetherflow/core/entitlements.py`, `src/aetherflow/ui/shell.py`, `src/aetherflow/ui/router.py`, `src/aetherflow/ui/status_hud.py`, `src/aetherflow/ui/panels/plugin_catalog_panel.py`. `Test Files:` `tests/unit/test_entitlements.py`, `tests/integration/test_plugin_catalog_locking.py`, `tests/ui/test_status_hud.py`. `Behavior:` enforce LOADED/LOCKED/GRACE transitions, cache TTL, role-based visibility, and locked premium CTA flows in the UI shell. `Validation:` `uv run pytest tests/unit/test_entitlements.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py`. `Evidence:` premium plugins never register UI/services unless entitled or in GRACE. `ARP Trigger:` if a locked premium plugin becomes selectable or loadable, stop and attach the entitlement trace.
+- [ ] `AF-01-01` Implement trust verification and plugin/resource catalog policy. `PRD Refs:` `§8.1`, `§9.1`, `§9.9`, `REQ-02`, `REQ-03`. `Preconditions:` `AF-00-04`. `Target Files:` `src/aetherflow/plugins/trust.py`, `src/aetherflow/plugins/registry.py`, `src/aetherflow/plugins/catalog.py`, `tests/unit/test_plugin_registry.py`, `tests/integration/test_signed_plugin_loading.py`, `tests/test_security.py`. `Behavior:` enforce Authenticode-rooted trust semantics and block unsigned/tampered/untrusted content before load or install. `Validation:` `uv run pytest tests/unit/test_plugin_registry.py tests/integration/test_signed_plugin_loading.py tests/test_security.py`. `Evidence:` load/install refusal occurs before registration or activation. `ARP Trigger:` any reachable unsigned path blocks the phase.
+- [ ] `AF-01-02` Implement entitlement runtime states and shell-safe degradation model. `PRD Refs:` `§8.2`, `§8.3`, `§10.1`, `REQ-02`, `REQ-07`. `Preconditions:` `AF-01-01`. `Target Files:` `src/aetherflow/core/entitlements.py`, `src/aetherflow/ui/shell.py`, `src/aetherflow/ui/router.py`, `src/aetherflow/ui/status_hud.py`, `tests/unit/test_entitlements.py`, `tests/integration/test_plugin_catalog_locking.py`, `tests/ui/test_status_hud.py`. `Behavior:` implement `LOCKED`, `GRACE`, `DEGRADED`, `FAILED`, and HUD semantics without allowing plugin faults to take down the shell. `Validation:` `uv run pytest tests/unit/test_entitlements.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py`. `Evidence:` shell remains alive when plugins degrade or unload. `ARP Trigger:` if plugin failure can terminate the shell, stop and capture the crash path.
 
 ### Phase 1 Exit Criteria
 
 ```text
 uv run ruff check .
-uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py tests/integration/test_signed_plugin_loading.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py
+uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py tests/integration/test_signed_plugin_loading.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py tests/test_security.py
 ```
 
 ## Phase 2 - Controller Core, Input Layer, And Output Virtualization
 
-- [ ] `AF-02-01` Deliver profiles, mapping pipeline, diagnostics, and baseline input plugins. `PRD Refs:` `§5.2`, `§5.6`, `REQ-04`, `REQ-08`. `Preconditions:` `AF-01-02`. `Target Files:` `src/aetherflow/core/profiles.py`, `src/aetherflow/input/xinput.py`, `src/aetherflow/input/playstation.py`, `src/aetherflow/input/kbm.py`, `src/aetherflow/core/diagnostics.py`. `Test Files:` `tests/unit/test_profiles.py`, `tests/integration/test_mapping_pipeline.py`, `tests/integration/test_input_plugins.py`. `Behavior:` create/clone/export/import profiles, fast switching, per-button mapping, curves/deadzones, translation hooks, and event-rate/latency metrics. `Validation:` `uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py`. `Evidence:` profile CRUD and mapping pipeline pass deterministically across provider types. `ARP Trigger:` if latency sampling or provider normalization is nondeterministic, capture sample traces and halt.
-- [ ] `AF-02-02` Add virtual output, masking service, and driver status/install UX. `PRD Refs:` `§5.3`, `§6`, `REQ-05`. `Preconditions:` `AF-02-01`. `Target Files:` `src/aetherflow/output/virtual_controller.py`, `src/aetherflow/output/device_masking.py`, `src/aetherflow/ui/panels/driver_status_panel.py`. `Test Files:` `tests/integration/test_output_virtualization.py`, `tests/ui/test_driver_panel.py`. `Behavior:` implement driver-backed output, optional masking, reversible install/repair actions, and clear status/error messaging. `Validation:` `uv run pytest tests/integration/test_output_virtualization.py tests/ui/test_driver_panel.py`. `Evidence:` double-input prevention is controllable and UI repair flows are testable. `ARP Trigger:` if output requires unsigned artifacts or irreversible system changes, stop and document the blocker.
+- [ ] `AF-02-01` Deliver profiles, mapping, translation, diagnostics, and input plugins. `PRD Refs:` `§6.1`, `§9.2`, `§9.6`, `REQ-04`. `Preconditions:` `AF-01-02`. `Target Files:` `src/aetherflow/core/profiles.py`, `src/aetherflow/core/diagnostics.py`, `src/aetherflow/input/xinput.py`, `src/aetherflow/input/playstation.py`, `src/aetherflow/input/kbm.py`, `tests/unit/test_profiles.py`, `tests/integration/test_mapping_pipeline.py`, `tests/integration/test_input_plugins.py`. `Behavior:` implement profile CRUD, deterministic mapping, latency telemetry, and baseline device-family support. `Validation:` `uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py`. `Evidence:` profile and mapping behaviors are deterministic across device families. `ARP Trigger:` if latency or translation cannot be measured consistently, capture sample traces and stop.
+- [ ] `AF-02-02` Add virtual output, masking, and plugin-failure-safe output UX. `PRD Refs:` `§9.3`, `§10.1`, `REQ-05`. `Preconditions:` `AF-02-01`. `Target Files:` `src/aetherflow/output/virtual_controller.py`, `src/aetherflow/output/device_masking.py`, `src/aetherflow/ui/panels/driver_status_panel.py`, `tests/integration/test_output_virtualization.py`, `tests/ui/test_driver_panel.py`. `Behavior:` implement reversible masking and output-driver UX while ensuring output-plugin failure degrades only that feature surface. `Validation:` `uv run pytest tests/integration/test_output_virtualization.py tests/ui/test_driver_panel.py`. `Evidence:` host survives output-plugin faults and retains diagnostics. `ARP Trigger:` if output failure can destabilize the shell, stop and capture the fault.
 
 ### Phase 2 Exit Criteria
 
@@ -94,22 +104,22 @@ uv run ruff check .
 uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py tests/integration/test_output_virtualization.py tests/ui/test_driver_panel.py
 ```
 
-## Phase 3 - Capture And Display Plugin Stack
+## Phase 3 - Capture And Display Compliance
 
-- [ ] `AF-03-01` Implement OpenCV capture, device enumeration, mode matrix, and OBS fixed plugin. `PRD Refs:` `§5.4.1`, `§5.4.2`, `§5.4.4`, `§5.4.5`, `REQ-06`. `Preconditions:` `AF-01-02`, `AF-02-01`. `Target Files:` `src/aetherflow/vision/opencv_capture.py`, `src/aetherflow/vision/obs_capture.py`, `src/aetherflow/ui/panels/capture_panel.py`, `src/aetherflow/core/capture_metrics.py`. `Test Files:` `tests/integration/test_capture_opencv.py`, `tests/ui/test_capture_mode_matrix.py`, `tests/integration/test_capture_stability.py`. `Behavior:` enumerate runtime devices with stable IDs, expose only supported FPS/resolution combinations, surface measured FPS/drops/jitter, and keep OBS as fixed-config start/stop behavior. `Validation:` `uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mode_matrix.py tests/integration/test_capture_stability.py`. `Evidence:` unsupported combinations are hidden/disabled with reasons; diagnostics exportable. `ARP Trigger:` if measured FPS or mode support cannot be derived deterministically from device state, capture hardware metadata and stop.
-- [ ] `AF-03-02` Add premium MF/DS capture plugins, CPU/GPU render modes, and fallback UX. `PRD Refs:` `§5.4.3`, `§5.5`, `§6`, `§7`, `REQ-02`, `REQ-06`, `REQ-07`. `Preconditions:` `AF-03-01`. `Target Files:` `src/aetherflow/vision/mf_capture.py`, `src/aetherflow/vision/ds_capture.py`, `src/aetherflow/ui/panels/render_mode_panel.py`, `src/aetherflow/ui/panels/capture_diagnostics_panel.py`. `Test Files:` `tests/integration/test_capture_premium_gating.py`, `tests/ui/test_render_modes.py`, `tests/ui/test_capture_fallback_actions.py`. `Behavior:` register MF/DS backends only when entitled, expose format dropdown for unlocked premium plugins, and deliver CPU/GPU render panels plus one-click fallback recommendations. `Validation:` `uv run pytest tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py`. `Evidence:` locked premium plugins never expose providers/panels; render modes surface correct latency/performance tradeoffs. `ARP Trigger:` if premium backends appear in selectors without entitlement, stop and attach the registry snapshot.
+- [ ] `AF-03-01` Implement OpenCV capture, mode matrix enforcement, and 60 FPS baseline validation. `PRD Refs:` `§6.4`, `§9.4`, `REQ-06`. `Preconditions:` `AF-02-01`, `AF-01-02`. `Target Files:` `src/aetherflow/vision/opencv_capture.py`, `src/aetherflow/ui/panels/capture_panel.py`, `src/aetherflow/core/capture_metrics.py`, `tests/integration/test_capture_opencv.py`, `tests/ui/test_capture_mode_matrix.py`, `tests/integration/test_capture_stability.py`. `Behavior:` implement supported-mode-only selection, sustained-drop detection, and 60 FPS compliance on supported hardware paths. `Validation:` `uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mode_matrix.py tests/integration/test_capture_stability.py`. `Evidence:` unsupported high-FPS modes are not implied by UI and 60 baseline behavior is measurable. `ARP Trigger:` if capability/UI mismatch occurs, capture hardware and mode diagnostics.
+- [ ] `AF-03-02` Add premium capture backends, CPU/GPU render modes, and one validated 120 FPS path. `PRD Refs:` `§9.4`, `§9.5`, `§11`, `REQ-06`, `REQ-07`. `Preconditions:` `AF-03-01`. `Target Files:` `src/aetherflow/vision/mf_capture.py`, `src/aetherflow/vision/ds_capture.py`, `src/aetherflow/ui/panels/render_mode_panel.py`, `src/aetherflow/ui/panels/capture_diagnostics_panel.py`, `tests/integration/test_capture_premium_gating.py`, `tests/ui/test_render_modes.py`, `tests/ui/test_capture_fallback_actions.py`, `tests/integration/test_capture_120fps_path.py`. `Behavior:` keep premium backends unloadable when locked, expose render tradeoffs clearly, and ship at least one validated 120 FPS path without promoting 240 FPS as guaranteed. `Validation:` `uv run pytest tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py tests/integration/test_capture_120fps_path.py`. `Evidence:` one 120 FPS evidence path exists and premium gating holds. `ARP Trigger:` if 120 validation is absent, phase stays incomplete even if 60 baseline passes.
 
 ### Phase 3 Exit Criteria
 
 ```text
 uv run ruff check .
-uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mode_matrix.py tests/integration/test_capture_stability.py tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py
+uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mode_matrix.py tests/integration/test_capture_stability.py tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py tests/integration/test_capture_120fps_path.py
 ```
 
 ## Phase 4 - Worker Supervision And Environment Management
 
-- [ ] `AF-04-01` Implement worker supervisor, gRPC control plane, shared-memory ring, and health/log UI. `PRD Refs:` `§5.1.5`, `§5.9`, `REQ-09`. `Preconditions:` `AF-00-02`, `AF-03-01`. `Target Files:` `src/aetherflow/core/ipc/`, `src/aetherflow/core/worker_supervisor.py`, `src/aetherflow/core/shared_memory_layout.py`, `src/aetherflow/ui/panels/worker_health_panel.py`. `Test Files:` `tests/integration/test_worker_supervisor.py`, `tests/stress/test_worker_crash_loop.py`. `Behavior:` start/stop/restart workers, track heartbeats, apply bounded backoff, transport frames via shared memory, and surface logs/health in UI. `Validation:` `uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py`. `Evidence:` host survives worker crashes and restarts within policy. `ARP Trigger:` if host death or worker unrecoverable loops occur, collect supervisor logs and crash dumps before retrying.
-- [ ] `AF-04-02` Deliver environment manager UX and bundle install workflow behind sign-off gates. `PRD Refs:` `§5.10`, `REQ-10`. `Preconditions:` `AF-04-01`, Phase-0 bundle sign-off. `Target Files:` `src/aetherflow/core/env_manager.py`, `src/aetherflow/core/bundle_installer.py`, `src/aetherflow/ui/panels/environment_panel.py`. `Test Files:` `tests/unit/test_env_manager.py`, `tests/test_bundle_installer.py`. `Behavior:` create/repair/recreate/delete envs, show metadata/validation state, and install signed one-click bundles with streamed logs and repair options. `Validation:` `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py`. `Evidence:` env state and bundle install outcomes are machine-verifiable. `ARP Trigger:` if bundle signature, hash, or import validation fails, capture manifest, logs, and failing import list; do not auto-bypass.
+- [ ] `AF-04-01` Implement worker supervision with restart ceilings and escalation UX. `PRD Refs:` `§6.2`, `§7`, `§9.7`, `§10.2`, `REQ-08`. `Preconditions:` `AF-00-03`, `AF-03-01`. `Target Files:` `src/aetherflow/core/worker_supervisor.py`, `src/aetherflow/ui/panels/worker_health_panel.py`, `tests/integration/test_worker_supervisor.py`, `tests/stress/test_worker_crash_loop.py`. `Behavior:` enforce heartbeat budgets, restart ceilings, escalation to `FAILED`, and host-safe worker degradation. `Validation:` `uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py`. `Evidence:` host survivability is a hard phase gate. `ARP Trigger:` if host death or uncontrolled restart loops occur, block the phase.
+- [ ] `AF-04-02` Deliver environment manager and bounded bundle validation workflow. `PRD Refs:` `§9.8`, `REQ-09`. `Preconditions:` `AF-00-05`, `AF-04-01`. `Target Files:` `src/aetherflow/core/env_manager.py`, `src/aetherflow/core/bundle_installer.py`, `src/aetherflow/ui/panels/environment_panel.py`, `tests/unit/test_env_manager.py`, `tests/test_bundle_installer.py`. `Behavior:` implement env create/repair/recreate/delete, required-import validation, optional GPU probe result shape, and bundle install fallback semantics from the sign-off packet. `Validation:` `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py`. `Evidence:` environment validation is consistent and bundle naming ambiguity does not block function. `ARP Trigger:` if bundle validation depends on unresolved naming, use the documented fallback and keep moving.
 
 ### Phase 4 Exit Criteria
 
@@ -120,8 +130,8 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
 
 ## Phase 5 - Online Resources, Admin, Packaging, And Evidence
 
-- [ ] `AF-05-01` Build signed Online Resources client and install surfaces. `PRD Refs:` `§5.11.1`, `§5.11.2`, `§5.11.4`, `§6`, `REQ-11`. `Preconditions:` `AF-01-02`, `AF-04-02`, auth sign-off. `Target Files:` `src/aetherflow/core/resources_manifest.py`, `src/aetherflow/core/resources_client.py`, `src/aetherflow/ui/panels/resources_panel.py`, `src/aetherflow/ui/panels/resource_details_modal.py`. `Test Files:` `tests/integration/test_resources_manifest.py`, `tests/ui/test_resource_details_modal.py`, `tests/test_security.py`. `Behavior:` fetch and verify signed manifests, display metadata/lock state, support one-click install for scripts/profiles/models/bundles, and keep auth provider integration abstract until provider sign-off lands. `Validation:` `uv run pytest tests/integration/test_resources_manifest.py tests/ui/test_resource_details_modal.py tests/test_security.py`. `Evidence:` unsigned or tampered resources never install; premium resources show required tier/add-on. `ARP Trigger:` if trust-root validation or premium lock state is bypassed, stop and capture manifest/signature chain.
-- [ ] `AF-05-02` Implement admin/operator surfaces, Windows packaging/update flows, diagnostics export, and success-metric collectors. `PRD Refs:` `§5.12`, `§7`, `§8`, `§9`, `REQ-03`, `REQ-12`, `REQ-13`. `Preconditions:` `AF-05-01`. `Target Files:` `src/aetherflow/ui/panels/admin_panel.py`, `src/aetherflow/core/audit_log.py`, `src/aetherflow/core/diagnostics_export.py`, `scripts/package-windows.ps1`, `scripts/run-e2e.ps1`. `Test Files:` `tests/integration/test_admin_dashboard.py`, `tests/integration/test_diagnostics_export.py`, `tests/e2e/test_onboarding_timing.py`. `Behavior:` deliver user/role/entitlement/session management with audit trails, package the Windows runtime, support staged update/rollback, and produce the evidence artifacts named in `PRD-§9`. `Validation:` `uv run pytest tests/integration/test_admin_dashboard.py tests/integration/test_diagnostics_export.py tests/e2e/test_onboarding_timing.py`. `Evidence:` `logs/onboarding_timing.json`, `logs/bundle_install_report.json`, `logs/survivability_report.json`, `logs/capture_stability.json`, `logs/entitlement_gate_report.json`, `logs/security_audit.json`. `ARP Trigger:` if evidence artifacts are missing or packaging breaks rollback guarantees, capture script logs and block release.
+- [ ] `AF-05-01` Build Online Resources trust flow with mock-provider fallback. `PRD Refs:` `§8.1`, `§9.9`, `REQ-03`, `REQ-09`. `Preconditions:` `AF-00-05`, `AF-01-02`, `AF-04-02`. `Target Files:` `src/aetherflow/core/resources_manifest.py`, `src/aetherflow/core/resources_client.py`, `src/aetherflow/ui/panels/resources_panel.py`, `src/aetherflow/ui/panels/resource_details_modal.py`, `tests/integration/test_resources_manifest.py`, `tests/ui/test_resource_details_modal.py`, `tests/test_security.py`. `Behavior:` validate signed manifests and artifact trust while using the provider-agnostic OAuth abstraction or disabled mock fallback if no auth provider is selected. `Validation:` `uv run pytest tests/integration/test_resources_manifest.py tests/ui/test_resource_details_modal.py tests/test_security.py`. `Evidence:` no real provider binding is required to complete v1 resource UI/tests safely. `ARP Trigger:` if resource trust depends on unresolved provider choice, use the fallback and document it.
+- [ ] `AF-05-02` Implement admin, diagnostics export, packaging, and evidence collectors. `PRD Refs:` `§12`, `§13`, `REQ-10`. `Preconditions:` `AF-05-01`. `Target Files:` `src/aetherflow/ui/panels/admin_panel.py`, `src/aetherflow/core/audit_log.py`, `src/aetherflow/core/diagnostics_export.py`, `scripts/package-windows.ps1`, `scripts/run-e2e.ps1`, `tests/integration/test_admin_dashboard.py`, `tests/integration/test_diagnostics_export.py`, `tests/e2e/test_onboarding_timing.py`. `Behavior:` ship admin/operator workflows, diagnostics export, Windows packaging, and evidence files for latency, survivability, bundle success, 60 FPS stability, and validated 120 FPS path. `Validation:` `uv run pytest tests/integration/test_admin_dashboard.py tests/integration/test_diagnostics_export.py tests/e2e/test_onboarding_timing.py`. `Evidence:` required release artifacts exist under `logs/`. `ARP Trigger:` missing evidence or rollback gaps block release readiness.
 
 ### Phase 5 Exit Criteria
 
@@ -135,35 +145,32 @@ powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 
 | ID | Area | Description | Mitigation | Related Items |
 | --- | --- | --- | --- | --- |
-| `RISK-01` | Canonical paths | Stale `Aetherlink` references cause implementation in the wrong package tree | Canonicalize first and add contract tests | `AF-00-01` |
-| `RISK-02` | Tooling | Windows/WSL execution mismatch prevents `uv` and native build reproducibility | Separate environment verification from contract freezing and gate the freeze on a passing harness check | `AF-00-02` |
-| `RISK-03` | Contract churn | ABI/proto/shmem changes after downstream work create cascading rework | Freeze contracts only after boundary/tooling verification and keep dedicated breaking-change logs | `AF-00-03` |
-| `RISK-04` | Security/Entitlements | Premium or unsigned artifacts become reachable before enforcement is complete | Implement trust verification and entitlement gating before feature plugins | `AF-01-01`, `AF-01-02`, `AF-05-01` |
+| `RISK-01` | Canonical paths | Repo/document drift causes implementation in the wrong tree | Canonicalize early and enforce via tests | `AF-00-01` |
+| `RISK-02` | Tooling | Windows/WSL mismatch breaks reproducibility | Verify boundary and shell behavior before freeze | `AF-00-02` |
+| `RISK-03` | Weak trust policy | Under-specified signing could allow weak verification | Freeze Authenticode + RSA-3072 semantics in ABI/docs/tests | `AF-00-04`, `AF-01-01` |
+| `RISK-04` | Performance ambiguity | Latency and capture compliance drift without numeric budgets | Encode budgets in PRD and phase validations | `AF-00-03`, `AF-03-01`, `AF-03-02` |
+| `RISK-05` | Failure UX regression | Plugin or worker faults destabilize the host shell | Publish and test host-safe degradation model | `AF-00-05`, `AF-01-02`, `AF-04-01` |
 
 ## Traceability Matrix
 
 | PRD Section | Requirement IDs | Work Item IDs | Status |
 | --- | --- | --- | --- |
-| `§1`, `G3`, `§4.1-§4.5` | `REQ-01` | `AF-00-01`, `AF-00-02`, `AF-00-03`, `AF-01-01` | Planned |
-| `§2.1` | `REQ-02`, `REQ-10`, `REQ-11` | `AF-01-01`, `AF-04-02`, `AF-05-01` | Planned |
-| `§2.2` | `REQ-14` | `AF-00-01` | Planned |
-| `§3` | `REQ-03`, `REQ-12` | `AF-01-02`, `AF-05-02` | Planned |
-| `§5.1` | `REQ-02` | `AF-00-03`, `AF-01-01`, `AF-01-02`, `AF-03-02` | Planned |
-| `§5.2` | `REQ-04` | `AF-02-01` | Planned |
-| `§5.3` | `REQ-05` | `AF-02-02` | Planned |
-| `§5.4` | `REQ-06` | `AF-03-01`, `AF-03-02` | Planned |
-| `§5.5`, `§6` | `REQ-07` | `AF-01-02`, `AF-03-02` | Planned |
-| `§5.6` | `REQ-08` | `AF-02-01` | Planned |
-| `§5.9` | `REQ-09` | `AF-00-03`, `AF-04-01` | Planned |
-| `§5.10` | `REQ-10` | `AF-04-02` | Planned |
-| `§5.11.1`, `§5.11.2`, `§5.11.4` | `REQ-11` | `AF-05-01` | Planned |
-| `§5.12`, `§7` | `REQ-03`, `REQ-12` | `AF-01-02`, `AF-05-02` | Planned |
-| `§8`, `§9` | `REQ-13` | `AF-05-02` | Planned |
-| `§10` | `ASM-04`, `ASM-05` | `AF-00-04`, `AF-04-02`, `AF-05-01` | Planned |
-| `§5.7`, `§5.8.1`, `§5.8.2`, `§5.11.3` | none | none | Deferred by scope |
+| `§5` | `REQ-01` | `AF-00-01`, `AF-00-02`, `AF-00-03`, `AF-00-04` | Planned |
+| `§6` | `REQ-02`, `REQ-06`, `REQ-08` | `AF-00-03`, `AF-03-01`, `AF-04-01` | Planned |
+| `§7` | `REQ-02`, `REQ-08` | `AF-00-03`, `AF-01-02`, `AF-04-01` | Planned |
+| `§8` | `REQ-02`, `REQ-03` | `AF-00-04`, `AF-01-01`, `AF-01-02` | Planned |
+| `§9.1`, `§9.9` | `REQ-03` | `AF-01-01`, `AF-05-01` | Planned |
+| `§9.2`, `§9.6` | `REQ-04` | `AF-02-01` | Planned |
+| `§9.3` | `REQ-05` | `AF-02-02` | Planned |
+| `§9.4` | `REQ-06` | `AF-03-01`, `AF-03-02` | Planned |
+| `§9.5`, `§11` | `REQ-07` | `AF-01-02`, `AF-03-02` | Planned |
+| `§9.7`, `§10.2` | `REQ-08` | `AF-04-01` | Planned |
+| `§9.8` | `REQ-09` | `AF-00-05`, `AF-04-02` | Planned |
+| `§9.10`, `§12`, `§13` | `REQ-10` | `AF-05-02` | Planned |
+| `§14` | `ASM-02`, `ASM-03`, `ASM-04` | `AF-00-05`, `AF-04-02`, `AF-05-01` | Planned |
 
 ## Next Recommended Implementation Order
 
-1. Start with `AF-00-01` to remove stale project identity/path ambiguity.
-2. Execute `AF-00-02`, `AF-00-03`, and `AF-00-04` in order so the native boundary, frozen contracts, and unresolved-decision fallbacks are all explicit before feature work.
-3. Move to `AF-01-01` and `AF-01-02`; no device, capture, worker, or resource work should begin before trust and entitlement gates exist.
+1. Complete `AF-00-01` through `AF-00-05` without skipping the contract-freeze sequence.
+2. Move to `AF-01-01` and `AF-01-02` so trust, entitlement, and host-safe degradation exist before feature delivery.
+3. Complete Phases 2 and 3 before worker, resource, and packaging phases so runtime evidence has real feature surfaces to validate.

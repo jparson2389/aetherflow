@@ -1,553 +1,477 @@
 # Product Requirements Document (PRD) — Aetherflow (Windows v1)
 
-**Document Date:** March 8th, 2026  
-**Status:** Draft v1.6 (Capture UX + premium plugin load gating update) **Platform (v1):** **Windows only** 🪟  
-**UI Tech:** **Qt for Python (PySide6 / Qt for Python 6.9.x)**  
-**Theme:** Dark UI with purple undertones 🟣  
-**Runtime:** Native DLL plugins + out-of-process Python workers; **gRPC (control plane) + shared memory (data plane)**  
-**Monetization:** Tiered entitlements; some plugins/resources are **Premium**  
-**Core thesis:** Microkernel host where **everything is a plugin**
+**Document Date:** March 8, 2026  
+**Status:** Draft v1.7 (Executable delivery revision)  
+**Platform (v1):** Windows only  
+**UI Tech:** Qt for Python (PySide6 6.9.x)  
+**Runtime:** Native DLL plugins + out-of-process Python workers via gRPC and
+shared memory  
+**Monetization:** Tiered entitlements with shipped-but-locked premium plugins  
+**Core thesis:** Microkernel host where everything is a plugin
 
 ---
 
 ## 1) Executive Summary
 
-Aetherflow is a high-performance controller adapter ecosystem for gaming. It provides low-latency input translation and output emulation, while enabling high-FPS “sensing” (capture + inference) and safe extensibility via out-of-process workers. The system is designed so features ship as **plugins** (capture backends, UI panels, input providers, inference engines, remote-play bridges, etc.), with optional **Premium** gating.
+Aetherflow is a Windows-first controller adapter ecosystem for gaming. The host
+must stay responsive and operational even when plugins or workers fail. Premium,
+capture, resource, and worker features all ship through explicit contracts so an
+agent can build and validate the product without relying on external upload
+references or undocumented behavior.
 
-This revision adds specific plugin-driven capability requirements derived from the provided plugin feature overview (display/capture backends, input device support, remote-play integrations, 1000 Hz scripting VM characteristics, and an online resources system that can distribute single-file environment bundles and protected model packages).
-
-## G3 Framework — Cognitive Anchor
-
-### Guidelines (Project Context + Intent)
-
-- **Core thesis:** Microkernel host where everything is a plugin. No exceptions.
-- **Platform:** Windows only (v1). No cross-platform abstractions.
-- **Tech stack:** C++20 (native plugins), Python 3.12 (workers + UI), PySide6 6.9.x (shell).
-- **IPC:** gRPC control plane + shared memory data plane. No alternatives.
-- **Monetization:** Tiered entitlements. Premium plugins ship locked, not absent.
-- **Priority order when requirements conflict:** Host Stability > Security/Signing > Feature Completeness > Performance > UX Polish
-
-### Guidance (Interpretive Logic)
-
-- When a PRD section is ambiguous, default to the most restrictive interpretation.
-- "Contract" items (ABI, proto, shared memory layout) are frozen after Phase 0. Any agent that modifies a frozen contract MUST log a breaking-change entry.
-- TDD is not optional. Tests are written first, executed to prove failure, then implementation is written, then tests are re-executed to prove passage.
-- File paths in PLAN are canonical. Do not rename or relocate without a traceability update.
-
-### Guardrails (Hard Boundaries + Automated Gates)
-
-- NEVER load a premium plugin DLL without a valid entitlement token. A grace-period token (GRACE state) is conditionally valid: loading is permitted but the user must be warned of imminent expiry.
-- NEVER execute an unsigned artifact.
-- NEVER modify `plugin_system.hpp` without a breaking-change log entry.
-- NEVER bypass gRPC for worker-to-host communication.
-- NEVER write to `src/plugins/*` — use `src/aetherflow/plugins/*`.
-- ASK FIRST: changes to `capture.proto`, `shared_memory_layout.py`, billing/entitlement state machine semantics, auth provider selection.
-- ALWAYS run `uv run ruff check && uv run pytest` before marking an item done.
-- ALWAYS use Loguru for logging — no print statements.
-- ALWAYS use Google-format docstrings on all public Python functions.
-- ALWAYS include type hints on all Python function signatures.
+This PRD is self-contained. All normative requirements, performance budgets,
+trust requirements, UI failure flows, and contract expectations needed for
+implementation are expressed here or in the frozen contract files referenced by
+this document.
 
 ---
 
-## 2) Goals and Non-Goals
+## 2) G3 Framework
 
-### 2.1 Goals ✅
+### Guidelines
 
-- **Easy setup (mandatory):** install → sign-in → baseline mapping working quickly.
-- **Deterministic I/O path:** input → mapping → output stays low-latency.
-- **Capability-based capture:** 60–240 FPS where supported; UI never exposes unsupported modes.
-- **Out-of-process vision/scripting:** safe, restartable, observable.
-- **In-app uv environments:** create/manage/remove isolated envs with no terminal.
-- **Online Resources:** install scripts/models/profiles/**environment bundles** with one click.
-- **Premium gating:** ship premium plugins with installer but lock until entitled.
+- Core thesis: microkernel host where everything is a plugin
+- Platform: Windows only for v1
+- Tech stack: C++20 in `host/` and `include/`, Python 3.12 in `src/aetherflow/`
+- IPC: gRPC control plane + shared memory data plane
+- Monetization: premium plugins ship with the product but stay locked until
+  entitlements allow load
+- Priority order when requirements conflict:
+  `Host Stability > Security/Signing > Feature Completeness > Performance > UX`
 
-### 2.2 Non-Goals (v1) ❌
+### Guidance
 
-- macOS/Linux support
-- In-app model training pipelines (inference only)
-- Supporting unsigned third-party native plugins
-- Anti-cheat bypass / covert cheating scenarios
+- Ambiguity defaults to the most restrictive safe behavior.
+- Frozen contracts may not change after their freeze point without a documented
+  breaking-change entry and human sign-off.
+- TDD is mandatory for implementation work.
+- File paths named in `docs/PLAN.md` are canonical and must not drift.
+
+### Guardrails
+
+- NEVER load a premium plugin DLL without valid or GRACE entitlement.
+- NEVER execute unsigned, tampered, expired, or revoked native plugins or
+  protected artifacts.
+- NEVER place C++ code under `src/`; C++ belongs only in `host/` and `include/`.
+- NEVER bypass gRPC for worker-to-host control traffic.
+- ALWAYS use Loguru, type hints, and Google-style docstrings in public Python
+  functions.
+- ALWAYS run `uv run ruff check .` and `uv run pytest` before marking work done.
 
 ---
 
-## 3) Role-Based Behavioral Models
+## 3) Goals And Non-Goals
 
-| Role | Access Scope | Entitlement Level | Key Behaviors |
+### 3.1 Goals
+
+- Easy setup: install, sign in, and achieve baseline mapping quickly.
+- Deterministic primary I/O path.
+- Capture that exposes only supported modes and validates 60 FPS baseline.
+- Safe out-of-process vision, scripting, and worker supervision.
+- In-app environment management with one-click signed bundle install.
+- Signed Online Resources with entitlement-aware lock states.
+- Premium gating that keeps locked features present but unloadable.
+
+### 3.2 Non-Goals
+
+- macOS or Linux support
+- In-app model training pipelines
+- Unsigned third-party native plugin support
+- Anti-cheat bypass or covert cheating scenarios
+- Protected model cryptosystem implementation in v1
+
+---
+
+## 4) Roles
+
+| Role | Access Scope | Entitlement Level | Hard Boundaries |
 | --- | --- | --- | --- |
-| **Power Gamer** | Profile CRUD, mapping, fast-switch | Free/Pro | No admin, no billing, no env management |
-| **Vision/ML Tinkerer** | Env create/delete, resource install, capture config | Pro/Vision | No billing admin, no user management |
-| **Accessibility Modder** | Scripting VM, calibration tooling, automation primitives | Pro | No capture premium features unless entitled |
-| **Admin/Operator** | Full entitlement + user management, audit log | Enterprise | Can revoke sessions, assign tiers, view all logs |
+| Power Gamer | Profiles, mapping, fast switching | Free / Pro | No admin, no env management |
+| Vision/ML Tinkerer | Capture config, envs, resources | Pro / Vision | No billing or user admin |
+| Accessibility Modder | Automation primitives, calibration | Pro | No premium capture without entitlement |
+| Admin/Operator | Entitlements, users, audit, sessions | Enterprise | Full admin scope |
 
 ---
 
-## 4) Architectural Principles (Hard Requirements)
+## 5) Architecture And Frozen Contracts
 
-### 4.1 Microkernel host
+### 5.1 Microkernel Host
 
-Host contains only:
+The host contains only:
 
-- plugin loader/registry
-- service container (logging/config/auth/telemetry)
-- UI shell/router (panels are plugins)
-- worker supervisor + IPC endpoints
+- plugin loader and registry
+- service container
+- UI shell and router
+- worker supervisor and IPC endpoints
 
-Everything else ships as plugins.
+Everything else ships as plugins or workers.
 
-### 4.2 Sensing vs Acting split
+### 5.2 Sensing vs Acting
 
-- **Sensing (PC):** capture, preview, metrics, inference (async).
-- **Acting (output):** virtual controller output (driver-backed); optional future hardware-bridge output.
+- Sensing: capture, preview, metrics, inference
+- Acting: virtual output and future bridge output
 
-### 4.3 Asynchronous execution
+### 5.3 Frozen Contracts
 
-- Primary IO loop must remain low-latency.
-- Inference and heavy CV run off the main dispatch path with bounded queues/backpressure.
-
-### 4.4 Frozen Contracts — DO NOT CHANGE
-
-The following are frozen after Phase 0 completion. No agent may modify these without an explicit breaking-change log entry and human sign-off:
-
-| File | Frozen After | Breaking Change Log Path |
+| File | Freeze Point | Breaking Change Log |
 | --- | --- | --- |
-| `include/plugin_system.hpp` | Phase 0 | `docs/breaking-changes/abi.md` |
-| `proto/capture.proto` | Phase 0 | `docs/breaking-changes/proto.md` |
-| `src/aetherflow/core/shared_memory_layout.py` | Phase 0 | `docs/breaking-changes/shmem.md` |
-| `src/aetherflow/core/entitlements.py` (state machine) | Phase 4 | `docs/breaking-changes/entitlements.md` |
+| `include/plugin_system.hpp` | End of Phase 0 | `docs/breaking-changes/abi.md` |
+| `proto/capture.proto` | End of Phase 0 | `docs/breaking-changes/proto.md` |
+| `src/aetherflow/core/shared_memory_layout.py` | End of Phase 0 | `docs/breaking-changes/shmem.md` |
+| `src/aetherflow/core/entitlements.py` | End of Phase 4 | `docs/breaking-changes/entitlements.md` |
 
-Agents that detect a required change to a frozen file MUST:
+If a frozen contract must change:
 
-1. Stop execution.
-2. Report: "FROZEN CONTRACT MODIFICATION REQUIRED: `file` — `reason`."
-3. Await human instruction before proceeding.
-
-### 4.5 Agent Boundary Rules
-
-**NEVER:**
-
-- Load premium plugin DLLs without a valid entitlement token
-- Execute unsigned artifacts (plugins, environment bundles, model packages)
-- Write to `src/plugins/*` (use `src/aetherflow/plugins/*`)
-- Bypass the gRPC control plane for worker-to-host communication
-- Commit secrets, API keys, or tokens
-- Use `print()` — use `loguru.logger` instead
-
-**ASK FIRST:**
-
-- Any modification to a frozen contract (see 4.4)
-- Changes to entitlement state machine semantics
-- Auth provider selection or changes
-- Database schema changes
-- Billing or pricing logic changes
-- Remote-play v1 vs v1.1 scoping decisions
-
-**ALWAYS:**
-
-- Run `uv run ruff check && uv run pytest` before marking a work item done
-- Write tests first (TDD) — prove failure before writing implementation
-- Use Google-format docstrings on all public Python functions
-- Use type hints on all Python function signatures
-- Log breaking-change entries before modifying frozen contracts
-- Document new gRPC endpoints in `docs/proto/`
+1. Stop work.
+2. Report `FROZEN CONTRACT MODIFICATION REQUIRED: <file> — <reason>`.
+3. Wait for human instruction.
 
 ---
 
-## 5) Functional Requirements
+## 6) Runtime Budgets And Operational SLOs
 
-## 5.1 Plugin System (Native DLLs) — P0
+These budgets are normative for v1 on supported Windows 11 hardware.
 
-### 5.1.1 Plugin categories
+### 6.1 Primary Path Latency
 
-- Input providers
-- Output providers
-- Capture providers
-- Display/render panels
-- Inference engines
-- Scripting engines
-- Remote-play integrations
-- Online Resources client (catalog + install)
-- Environment manager (uv)
-- Admin dashboard
-- Bridge plugins (optional future hardware)
+- Input-to-output latency median <= 8 ms
+- Input-to-output latency p95 <= 12 ms
+- Jitter p95 <= 2 ms during steady-state mapping
 
-### 5.1.2 Plugin contract (minimum)
+### 6.2 Worker Control Plane
+
+- gRPC unary control calls timeout after 750 ms by default
+- Worker heartbeat interval: 500 ms
+- Worker marked `DEGRADED` after 2 missed heartbeats
+- Worker restart begins after 3 consecutive missed heartbeats
+- Maximum restart frequency before escalation: 3 restart attempts within 60 s
+- If restart ceiling is exceeded, worker state becomes `FAILED`
+
+### 6.3 Queueing And Backpressure
+
+- Capture-to-worker queue depth: maximum 3 frames in flight per worker
+- Inference result queue depth: maximum 8 messages
+- Overflow policy for frame dispatch: drop oldest unconsumed frame and increment
+  overflow counter
+- Backpressure must never block the primary input-to-output path
+
+### 6.4 Capture Stability
+
+- 60 FPS baseline required on supported hardware
+- 120 FPS validated path required for at least one supported v1 hardware path
+- 240 FPS remains capability-based only
+- A sustained drop means measured FPS below 90% of target for >= 3 continuous
+  seconds or dropped frames > 2% over a rolling 5-second window
+
+---
+
+## 7) Execution Contracts
+
+### 7.1 Shared Memory Ring Buffer
+
+The shared memory frame ring buffer must define at minimum:
+
+- ring slot count
+- frame width and height
+- pixel format enum
+- stride in bytes
+- timestamp in nanoseconds
+- sequence number
+- producer and consumer cursors
+- overflow policy and overflow counter
+
+Default v1 contract:
+
+- ring slot count: 4
+- default frame shape: 1920x1080
+- supported v1 pixel labels: `BGR24`, `NV12`, `YUY2`, `MJPEG`, `RGB32`
+- overflow policy: drop oldest unconsumed frame
+
+### 7.2 Control Plane gRPC Surface
+
+The minimum control-plane schema must cover:
+
+- capture start
+- capture stop
+- worker heartbeat
+- worker log forwarding
+- plugin load result and load error
+- diagnostics export request and response
+
+Each control-plane operation must define timeout and retry posture in the proto
+documentation and tests.
+
+### 7.3 Runtime States
+
+User-visible runtime states are:
+
+- `RUNNING`
+- `DEGRADED`
+- `RECOVERING`
+- `FAILED`
+- `LOCKED`
+- `GRACE`
+
+These states must appear consistently across host logic, status HUD, logs, and
+failure UX.
+
+---
+
+## 8) Signing, Trust, And Entitlements
+
+### 8.1 Trust Baseline
+
+All shipped native plugins and protected artifacts must use:
+
+- Windows Authenticode
+- SHA-256 digest
+- RSA-3072 signing key
+- publisher-chain validation to a pinned Aetherflow trust root
+
+The host must block load or install when an artifact is:
+
+- unsigned
+- tampered
+- expired
+- revoked
+- signed by an untrusted publisher
+
+### 8.2 Premium Load Gating
+
+Premium plugins may be present on disk while locked, but when locked the host
+must:
+
+- refuse process load
+- refuse plugin registration
+- refuse panel, device, or service exposure
+- remove the plugin from activation selectors
+
+Allowed entitlement states:
+
+- `LOADED`: valid entitlement, normal operation
+- `GRACE`: temporary load allowed with warning
+- `LOCKED`: no load allowed
+
+### 8.3 GRACE Warning Semantics
+
+- HUD badge is always visible while in `GRACE`
+- Toast is shown on first premium load per session
+- Modal appears only when grace expires or renewal fails
+- Grace expiry mid-session must unload only the affected premium feature and keep
+  the host alive
+
+---
+
+## 9) Functional Requirements
+
+### 9.1 Plugin System — P0
+
+Plugin categories:
+
+- input providers
+- output providers
+- capture providers
+- display panels
+- inference engines
+- scripting engines
+- Online Resources client
+- environment manager
+- admin dashboard
 
 Each plugin must expose:
 
-- Identity: `plugin_id`, `name`, `version`, `api_version`, `plugin_type`
-- Lifecycle: `Initialize(Services*)`, `Start(Profile*)`, `Stop()`, `Shutdown()`
-- Capabilities: `GetCapabilities()` (structured, versioned)
-- Policy: `required_entitlements[]`, `requires_drivers[]`, `requires_worker(bool)`
+- `plugin_id`, `name`, `version`, `api_version`, `plugin_type`
+- lifecycle methods
+- structured capabilities
+- `required_entitlements[]`
+- `requires_drivers[]`
+- `requires_worker`
 
-### 5.1.3 Plugin trust, signing, and premium load gating
+### 9.2 Controller Core — P0
 
-- All shipped plugins must be **publisher-signed**.
-- The host must verify **signature + ABI/api compatibility** before any load attempt.
-- **Premium gating (hard rule):** premium plugins **must not be loadable** until the user completes a purchase and the entitlement check succeeds.
-  - “Not loadable” means:
-    - the DLL is not loaded into the process
-    - the plugin cannot register UI panels, devices, or services
-    - the plugin cannot be selected/activated in any dropdowns
-- UX for locked premium plugins:
-  - visible in the plugin catalog as **Premium (Locked)** with required tier/add-on
-  - attempts to activate show a purchase CTA and a brief capability summary
-  - after purchase, an entitlement refresh enables loading **without reinstall** (restart optional if the plugin requires it)
+- Profile create, clone, export, import, and fast switch
+- Per-button mapping
+- Deadzones, curves, smoothing, sensitivity layers
+- Translation across controller families and KBM ingestion
+- Diagnostics for event rate, output rate, latency, and jitter
 
-### 5.1.3 Trust, signing, and gating
+### 9.3 Output Virtualization — P0
 
-- All shipped plugins must be publisher-signed.
-- Premium plugins may ship with the installer, but they are **not loadable** until entitlement checks succeed.
-- Host blocks unsigned/tampered plugins and shows actionable errors.
+- Driver-backed virtual controller output
+- Optional device masking
+- Guided install, repair, and disable flows
+- Reversible actions only
 
-### 5.1.4 On-demand plugin loading
+### 9.4 Capture System — P0
 
-- User may load additional plugin DLLs at runtime from an approved directory if signed and policy-allowed.
-- If a selected DLL is **Premium** and the user is not entitled, the host must block loading and route the user to the purchase flow.
+#### OpenCV Capture
 
-### 5.1.5 Critical State Machines (TAR Format)
+- Default capture source plugin for v1
+- UI controls:
+  - capture source dropdown
+  - frame rate dropdown: 30, 60, 120, 240
+  - resolution dropdown: 720p, 1080p, 1440p
+- UI must show only supported combinations for the selected device
+- UI must show reason text for unavailable combinations
+- UI must show measured FPS, dropped frames, and jitter
 
-#### Entitlement / Premium Plugin Gating
+#### Capture Guarantees
 
-`[ENT-TAR-01] -> [PRD-§5.1.3, §7]`
+- 60 FPS baseline required on supported hardware
+- 120 FPS validated path required in release evidence
+- 240 FPS offered only where runtime capability matrix allows it
+- UI copy must never imply unsupported high-FPS paths
 
-| Trigger | Condition | Action | Result State |
-| --- | --- | --- | --- |
-| `Host::LoadPlugin(plugin_id)` called | Plugin is NOT premium | Load normally | `LOADED` |
-| `Host::LoadPlugin(plugin_id)` called | Plugin is premium, entitlement valid | Load plugin | `LOADED` |
-| `Host::LoadPlugin(plugin_id)` called | Plugin is premium, entitlement invalid | Block load, show purchase CTA | `LOCKED` |
-| `Host::LoadPlugin(plugin_id)` called | Plugin is premium, grace period active | Load plugin, warn user of expiry | `GRACE` |
-| `Host::LoadPlugin(plugin_id)` called | Plugin is premium, grace period expired | Block load, show renewal CTA | `LOCKED` |
-| Purchase completed | Entitlement token received | Refresh entitlement cache | `ELIGIBLE` |
-| Entitlement refresh | Token valid | Enable plugin without reinstall | `LOADED` |
-| TTL expires (offline) | Grace period active | Warn user, maintain access | `GRACE` |
-| TTL expires (offline) | Grace period expired | Lock premium features | `LOCKED` |
+#### Premium MF / DS Capture
 
-GRACE state: entitlement is conditionally valid; premium plugins may load with expiry warning. LOCKED state: entitlement invalid; premium load blocked.
+- Locked plugins appear in catalog as premium locked
+- Locked plugins do not register providers or panels
+- Unlocked plugins add a format selector
 
-#### Python Worker Lifecycle
+#### OBS Capture
 
-`[WRK-TAR-01] -> [PRD-§5.9]`
+- Fixed configuration
+- Start/stop only
+- Measured FPS and stability metrics visible
 
-| Trigger | Condition | Action | Result State |
-| --- | --- | --- | --- |
-| Worker start requested | Env valid, supervisor running | Spawn subprocess, start heartbeat | `STARTING` |
-| Heartbeat received | Within timeout | Update health state | `RUNNING` |
-| Heartbeat missed | Within retry window | Increment miss counter | `DEGRADED` |
-| Heartbeat missed | Retry window exceeded | Kill + restart with backoff | `RECOVERING` |
-| Worker crash detected | Any | Log crash, trigger restart | `RECOVERING` |
-| Restart succeeds | — | Resume heartbeat monitoring | `RUNNING` |
-| Restart fails 3x | — | Mark worker FAILED, alert UI | `FAILED` |
+### 9.5 Display Panels — P0
 
-#### Environment Bundle Install
+- CPU renderer: lowest latency, accurate FPS, fullscreen support
+- GPU renderer: lower CPU load, potentially higher latency, may require restart
+  on unload
 
-`[ENV-TAR-01] -> [PRD-§5.10.2]`
+### 9.6 Input Device Plugins — P0
 
-| Trigger | Condition | Action | Result State |
-| --- | --- | --- | --- |
-| Install initiated | SHA-256 valid, signature valid | Extract bundle, stream logs | `INSTALLING` |
-| Install initiated | SHA-256 mismatch | Reject, show error | `FAILED` |
-| `uv sync` completes | Exit 0 | Validate imports | `VERIFYING` |
-| Validation passes | All imports resolve | Mark env ready | `READY` |
-| Validation fails | Import error | Show failed deps, offer repair | `FAILED` |
+- XInput-class controllers
+- Modern PlayStation controllers
+- Legacy PlayStation controllers where relevant
+- Keyboard and mouse ingestion layer
 
----
+### 9.7 Out-of-Process Workers — P0
 
-## 5.2 Controller Adapter Core — P0
+- All Python scripts and vision processing run out of process
+- Supervisor handles start, stop, restart, heartbeat, and escalation
+- UI surfaces worker logs and health state
+- Worker failure must not crash the host
 
-- Profile system: create/clone/export/import; fast switching.
-- Mapping: per-button mapping; deadzones/curves/smoothing; sensitivity layers.
-- Translation: controller→controller; optional KBM ingestion; script-driven transforms.
-- Diagnostics: event rate, output rate, latency/jitter sampling.
+### 9.8 Environment Management — P0
 
----
+The environment manager must support create, repair, recreate, and delete.
 
-## 5.3 Windows Output Virtualization + Device Masking — P0
+Validation contract:
 
-- Virtual controller emulation (driver-backed).
-- Optional device masking/hiding to prevent double input.
-- UX:
-  - driver status panel
-  - guided install/repair flows
-  - explicit explanations and reversible actions
+- required imports resolve
+- dependency count is reported
+- Python version is reported
+- optional GPU probe returns one of `not-run`, `supported`, `unsupported`,
+  `error`
 
----
+### 9.9 Online Resources — P0
 
-## 5.4 Capture System (60–240 FPS) — P0
+Artifact types:
 
-### 5.4.1 Default capture plugin: OpenCV Capture (mandatory)
+- scripts
+- profiles
+- models and weights
+- environment bundles
 
-**Default behavior (v1):** The default capture source plugin is **OpenCV Capture**.
+Requirements:
 
-**UI contract (v1):** OpenCV Capture exposes exactly these controls:
+- manifest includes SHA-256, size, version, and signature
+- manifest trust chain pinned to the app trust root
+- premium resources show required tier or add-on
+- one-click install with logs and progress
 
-1. **Capture source** (dropdown)
-   - User selects a _capture device endpoint_ (e.g., capture card, OBS Virtual Camera, other camera endpoints).
-2. **Settings** (tab)
-   - **Frame rate** dropdown: **30, 60, 120, 240**
-   - **Resolution** dropdown:
-     - **720p** (1280×720)
-     - **1080p** (1920×1080)
-     - **1440p** (2560×1440)
+Auth provider remains product-open, but implementation must support a
+provider-agnostic OAuth interface.
 
-**Important constraint:** Not all devices can achieve all target FPS/resolution combinations. The UI must:
+### 9.10 Admin Dashboard — P0
 
-- only present supported combinations as selectable (others disabled or hidden)
-- show a clear reason when a choice is unavailable (bandwidth/connection/backend limitations)
-- show **measured FPS** + dropped frames/jitter after start
-
-**Device examples (non-exhaustive; for UX expectations only):**
-
-- Elgato “4K X” class (high performance; high-bandwidth USB-C class)
-- Elgato “4K S” class (high performance/value; USB 3.0 class)
-- Elgato “4K Pro” class (PCIe; **not** MK.2 variant per your constraint)
-- Elgato “HD60 X / S / S+ / Pro / 4K60 Pro MK.2” classes
-- AverMedia “Live Gamer HD 2 Ultra” class
-- OBS Virtual Camera endpoints
-
-> **Implementation requirement:** The Capture source dropdown must be populated from runtime device enumeration and include stable device identifiers so profiles remain valid across reboots (best-effort with friendly name + unique ID).
-
-### 5.4.2 Capability-based mode selection (mandatory)
-
-Capture plugins must advertise a **mode matrix** at runtime. The UI must only present modes that the active plugin reports as supported for the **currently selected device**.
-
-**Mode descriptor fields (minimum):**
-
-- `capture_width`, `capture_height`, `capture_fps`
-- `pixel_format_in` (e.g., NV12, YUY2, MJPEG, RGB32)
-- `pixel_format_out` (e.g., BGR) or a `conversion_pipeline` label
-- `zero_copy_supported` (bool)
-- `hdr_supported` (bool)
-- `passthrough_supported_modes[]` (optional separate list)
-- `notes` (driver/SDK constraints, bandwidth assumptions)
-
-### 5.4.3 Premium capture plugins: MF Capture / DS Capture (not loadable until purchase)
-
-**Premium gating (hard rule):** **MF Capture** and **DS Capture** are premium plugins and **must not be loadable** until a purchase is completed and entitlements validate.
-
-- While locked:
-  - the plugins appear in the plugin catalog as **Premium (Locked)**
-  - they do **not** appear as selectable capture providers
-  - they do **not** register UI panels or device endpoints
-- After purchase:
-  - the plugins become loadable and can be selected as the active capture provider
-  - entitlement refresh should unlock without reinstall (restart optional if required by backend)
-
-**When enabled (unlocked), MF/DS capture UI contract (v1):**
-
-- Same structure as OpenCV Capture:
-  - Capture source dropdown
-  - Settings tab: FPS + Resolution
-- Additional control:
-  - **Format** dropdown (conversion/bandwidth/latency tuning)
-
-**Format dropdown options (v1):**
-
-- **NV12 → BGR** — best for **120+ FPS on USB 3.0** (lower bandwidth)
-- **BGR Direct** — zero conversion; requires **high bandwidth** (PCIe / USB 3.2 class)
-- **YUY2 → BGR** — high quality 4:2:2; common default
-- **MJPEG → BGR** — for USB 2.0 or constrained bandwidth; **adds latency**
-- **RGB32 → BGR** — professional PCIe cards only; full 32-bit color
-
-### 5.4.4 OBS Capture plugin (fixed behavior)
-
-OBS Capture does **not** expose dropdown menus. It is a fixed-configuration capture plugin:
-
-- starts/stops capture
-- surfaces measured FPS and stability metrics
-- (optionally) provides only a status indicator and a “Configure in OBS” helper affordance
-
-### 5.4.5 Metrics and stability UX (mandatory)
-
-For all capture plugins:
-
-- Always show:
-  - target mode vs measured FPS
-  - dropped frames
-  - jitter
-- If stability drops below threshold:
-  - recommend supported fallback modes (one-click apply)
-  - provide a “copy diagnostics” action for support
-
-## 5.5 Display / Render Panels — P0 (as plugins)
-
-Aetherflow must provide at least two rendering strategies (as separate UI panel plugins), presented to users as “render modes” rather than exposing implementation names:
-
-- **CPU renderer:** lowest latency, accurate FPS, supports fullscreen; includes resolution/performance render modes.
-- **GPU renderer:** reduces CPU load and can support adjustable presentation FPS, but may have slightly higher latency; may require restart when unloaded.
+- create users
+- assign roles
+- assign entitlements
+- revoke sessions or devices
+- audit admin actions
 
 ---
 
-## 5.6 Input Device Plugins — P0
+## 10) Failure UX And Recovery
 
-Minimum device categories (plugin-based):
+### 10.1 Plugin Crash
 
-- XInput-class controllers (very low latency; should function without mandatory masking).
-- Direct support for modern PlayStation controllers (no third-party driver dependency).
-- Direct support for legacy PlayStation controllers where relevant.
-- Keyboard & mouse ingestion layer as a foundation for future KBM plugins.
+Plugin crash behavior:
 
----
+- unload the plugin
+- keep the host and shell alive
+- show status HUD `DEGRADED`
+- show a toast naming the failed plugin
+- expose a manual reload action
+- expose copy-diagnostics action
 
-## 5.7 Remote-Play Integrations — P1 (recommended, but spec’d now)
+### 10.2 Worker Unrecoverable Loop
 
-Remote-play integrations are plugins that:
+Worker unrecoverable loop behavior:
 
-- connect via platform APIs
-- support secure login flows
-- provide event-driven, low-latency input/capture pipelines
-- maintain low CPU usage where possible
+- mark worker `FAILED`
+- disable dependent plugin features
+- keep host alive
+- show blocking modal only for the affected feature surface
+- keep unrelated plugins and the shell operational
 
-> v1 decision: If remote-play ships in v1, it must still respect the core: deterministic I/O path, capability matrices, and the same worker supervision model.
+### 10.3 Capture Backend Failure
 
----
+If capture fails:
 
-## 5.8 Scripting + Inference Engines — P0/P1 (depending on SKU)
-
-### 5.8.1 High-frequency scripting VM (P1 recommended)
-
-Provide a local scripting engine capable of high-frequency execution (e.g., 1000 Hz class), using a secure bytecode format and designed to integrate with remote-play and mid-frame injection patterns.
-
-**Key requirement:** scripting execution must not block the primary I/O loop; it should run in a bounded worker thread or out-of-process if safety demands.
-
-### 5.8.2 Native inference engine (P1 recommended)
-
-Provide a C++ inference engine plugin that can run ONNX-style pipelines asynchronously and optionally produce an optimized engine artifact (“built” model), with support for protected/encrypted model packages. Aetherflow must not reuse third-party naming schemes for these packages.
+- stop capture cleanly
+- preserve shell, profiles, and non-capture features
+- show remediation guidance
+- expose copy-diagnostics action
 
 ---
 
-## 5.9 Out-of-Process Python Workers — P0
+## 11) UX Requirements
 
-- All Python scripts/vision run out-of-process.
-- IPC:
-  - gRPC control plane (commands/health/logs/results)
-  - shared memory frame ring buffer (data plane)
-- Supervisor:
-  - start/stop/restart
-  - heartbeat monitoring
-  - crash recovery with backoff
-- UI must surface worker logs + health state.
+- Dark theme with purple accents
+- Always-visible status HUD for active plugins, measured FPS/jitter, worker
+  health, and entitlement state
+- Online Resources details modal must show metadata, install action, progress,
+  logs, and final state
+- Failure surfaces must distinguish degraded, recovering, and failed states
 
 ---
 
-## 5.10 uv Environments in UI — P0
+## 12) Packaging, Updates, And Diagnostics
 
-### 5.10.1 Environment manager UX
-
-- Create / Repair / Recreate / Delete (with confirmation)
-- Show:
-  - Python version
-  - dependency count
-  - disk usage
-  - last updated
-  - validation status (imports, optional GPU check)
-
-### 5.10.2 Single-file environment bundles — P0
-
-Online Resources must support a single-file environment bundle format that:
-
-- defines Python version target
-- defines dependency set (pinned/locked)
-- supports multiple variants (CPU vs CUDA)
-- supports update by publishing a new bundle version
-- installs with **one click** and streams install logs in UI
-
-**Naming requirement:** do not adopt external names (e.g., “.henv”). Aetherflow must define its own bundle term and extension (TBD), while supporting the same workflow concept.
-
-**Compatibility note:** environment bundles are not required to be compatible with other ecosystems/tools.
+- Self-contained runtime layout for Windows
+- Dedicated updater with staged updates and rollback
+- Diagnostics export must include:
+  - plugin list and versions
+  - env list and metadata
+  - recent host and worker logs
+  - system summary
+  - overflow and restart counters
 
 ---
 
-## 5.11 Online Resources (CDN + Signed Manifest) — P0
-
-### 5.11.1 Artifact types
-
-- Scripts
-- Profiles
-- Models/weights (including protected/premium variants)
-- Environment bundles
-
-### 5.11.2 Integrity and trust
-
-- All artifacts require SHA-256 + size + version.
-- Manifest is signed and pinned to an app trust root.
-- Premium artifacts/resources show lock state and required tier/add-on.
-
-### 5.11.3 Publishing workflow (P1)
-
-- Role-gated “developer/publisher mode” for uploading scripts and environment bundles.
-- Support private resources and DRM-style locking for controlled distribution.
-
-### 5.11.4 Authentication for Online Resources
-
-Auth provider remains undecided globally, but the Online Resources system must support OAuth-style providers. A “social login” provider can be used for the resources ecosystem if selected.
-
----
-
-## 5.12 Admin Dashboard — P0
-
-- Create users
-- Assign roles
-- Assign entitlements (tiers + add-ons)
-- Revoke sessions/devices
-- Audit log for admin actions
-
----
-
-## 6) UX Requirements
-
-- Dark theme with purple accents.
-- Always-visible status HUD:
-  - active input/output/capture/display plugins
-  - measured FPS/jitter
-  - worker health
-  - entitlement state (when relevant)
-- Online Resources “details modal” must provide:
-  - artifact metadata
-  - one-click install
-  - streamed install logs + progress
-  - clear success/failure states
-
----
-
-## 7) Tiers and Entitlements
-
-- Tiers (example): Free / Pro / Vision / Enterprise
-- Add-ons: capture backend packs, inference packs, protected model packs
-- Offline grace:
-  - cache entitlements with TTL (7–30 days recommended)
-  - after TTL expiry offline: premium locks; base features remain usable
-
----
-
-## 8) Packaging, Updates, Diagnostics (Windows)
-
-- Self-contained runtime layout (exe + lib + plugins + styles + translations + content folders).
-- Dedicated updater with staged updates and rollback.
-- Diagnostics export includes:
-  - plugin list + versions
-  - env list + metadata
-  - recent logs (host + workers)
-  - basic system summary
-
----
-
-## 9) Success Metrics (Machine-Verifiable)
+## 13) Success Metrics
 
 | Metric | Target | Verification Method | Evidence Artifact |
 | --- | --- | --- | --- |
-| Install -> working baseline mapping | Median <= 5 min on clean Win11 VM | Automated e2e test script | `logs/onboarding_timing.json` |
-| Environment bundle install success rate | >= 95% over 100 simulated installs | `uv run pytest tests/test_bundle_installer.py --count=100` | `logs/bundle_install_report.json` |
-| Host survivability on worker crash | >= 99.9% (host stays running) | `uv run pytest tests/stress/test_worker_crash_loop.py -n 1000` | `logs/survivability_report.json` |
-| Capture stability at 60 FPS baseline | >= 95% sessions without sustained drops | `uv run pytest tests/integration/test_capture_stability.py` | `logs/capture_stability.json` |
-| Premium plugin blocked without entitlement | 100% block rate | `uv run pytest tests/test_plugin_loader.cpp` | `logs/entitlement_gate_report.json` |
+| Install -> baseline mapping | Median <= 5 min | Automated e2e test script | `logs/onboarding_timing.json` |
+| Primary path latency | median <= 8 ms, p95 <= 12 ms | Integration latency suite | `logs/latency_budget_report.json` |
+| Environment bundle installs | >= 95% over 100 simulated installs | `uv run pytest tests/test_bundle_installer.py --count=100` | `logs/bundle_install_report.json` |
+| Host survivability on worker crash | >= 99.9% host remains alive | `uv run pytest tests/stress/test_worker_crash_loop.py -n 1000` | `logs/survivability_report.json` |
+| Capture stability at 60 FPS | >= 95% sessions without sustained drops | `uv run pytest tests/integration/test_capture_stability.py` | `logs/capture_stability.json` |
+| Validated 120 FPS path | at least 1 passing supported path | `uv run pytest tests/integration/test_capture_120fps_path.py` | `logs/capture_120fps_report.json` |
+| Premium plugin blocking | 100% block rate without entitlement | `uv run pytest tests/test_plugin_loader.cpp` | `logs/entitlement_gate_report.json` |
 | Unsigned artifact execution | 0 occurrences | `uv run pytest tests/test_security.py` | `logs/security_audit.json` |
 
 ---
 
-## 10) Open Items
+## 14) Open Items
 
-- Auth provider selection (global)
+- Final auth provider selection
 - Final tier definitions and pricing
-- Protected model package cryptosystem + revocation UX details
+- Protected model package cryptosystem and revocation UX
 - Remote-play inclusion in v1 vs v1.1
-- Aetherflow-owned environment bundle extension and schema (TBD)
+- Final external bundle extension and branding

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class WorkerHealth(str, Enum):
+class WorkerHealth(StrEnum):
     """Worker health states."""
 
     STARTING = "STARTING"
@@ -33,6 +33,7 @@ class WorkerSupervisor:
 
         Args:
             max_restarts: Restart attempts allowed before failure.
+
         """
         self._records: dict[str, WorkerRecord] = {}
         self._max_restarts = max_restarts

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class DeviceMaskState(str, Enum):
+class DeviceMaskState(StrEnum):
     """Device masking states."""
 
     ENABLED = "ENABLED"

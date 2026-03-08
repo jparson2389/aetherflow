@@ -14,7 +14,7 @@ class DriverStatusPanelModel:
     message: str
 
     @classmethod
-    def installed(cls) -> "DriverStatusPanelModel":
+    def for_installed_driver(cls) -> DriverStatusPanelModel:
         """Return the installed-driver state."""
         return cls(
             installed=True,

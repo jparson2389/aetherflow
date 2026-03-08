@@ -30,6 +30,7 @@ def create_default_services(
 
     Returns:
         An initialized service container.
+
     """
     resolved_roles = roles or [UserRole(name=RoleName.POWER_GAMER)]
     logger.debug("Creating default application services.")

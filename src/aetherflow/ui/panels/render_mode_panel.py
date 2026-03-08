@@ -21,7 +21,7 @@ class RenderModePanelModel:
     modes: list[RenderMode]
 
     @classmethod
-    def default(cls) -> "RenderModePanelModel":
+    def default(cls) -> RenderModePanelModel:
         """Return the default render mode set."""
         return cls(
             modes=[
