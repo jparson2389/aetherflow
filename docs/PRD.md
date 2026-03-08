@@ -151,6 +151,7 @@ These budgets are normative for v1 on supported Windows 11 hardware.
 
 - Capture-to-worker queue depth: maximum 3 frames in flight per worker
 - Inference result queue depth: maximum 8 messages
+- Inference result latency: p95 <= 16 ms (1 frame interval)
 - Overflow policy for frame dispatch: drop oldest unconsumed frame and increment
   overflow counter
 - Backpressure must never block the primary input-to-output path
@@ -364,7 +365,7 @@ Validation contract:
 - dependency count is reported
 - Python version is reported
 - optional GPU probe returns one of `not-run`, `supported`, `unsupported`,
-  `error`
+  `error` (probe timeout: 5s)
 
 ### 9.9 Online Resources — P0
 
