@@ -1,0 +1,55 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+
+# --- Environment / Secrets (CRITICAL) ---
+.env
+.env.local
+.env.shared
+.env.test
+secrets.json
+*.pem
+*.key
+
+# --- C++ Build Outputs (Windows/MSVC/CMake) ---
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.lib
+*.dll
+*.exp
+build/
+out/
+x64/
+Release/
+Debug/
+
+# --- Environment / Secrets (CRITICAL) ---
+.env
+.env.local
+.env.shared
+.env.test
+secrets.json
+*.pem
+*.key
+
+# ruff stuff
+.ruff_cache/
+
+# Ignore all text files
+*.txt
+
+# --- gRPC Generated Files (Python & C++) ---
+# We keep .proto, but ignore the messy generated source
+*_pb2.py
+*_pb2_grpc.py
+*.pb.cc
+*.pb.h
+*.grpc.pb.cc
+*.grpc.pb.h

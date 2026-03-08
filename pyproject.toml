@@ -1,0 +1,82 @@
+[project]
+name = "aetherflow"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "grpcio>=1.78.0",
+    "grpcio-tools>=1.78.0",
+    "loguru>=0.7.3",
+    "mss>=10.1.0",
+    "numpy>=2.4.2",
+    "opencv-python>=4.13.0.92",
+    "protobuf>=6.33.5",
+    "pydantic>=2.12.5",
+    "pyside6==6.9.1",
+    "pyyaml>=6.0.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.9.0",
+]
+automation = [
+    "openai>=1.40.0",
+    "anyio>=4.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
+python_files = "test_*.py"
+pythonpath = ["src"]
+addopts = "-ra -q"
+
+[project.scripts]
+aetherflow = "aetherflow.main:main"
+
+[project.gui-scripts]
+aetherflow-gui = "aetherflow.main:main"
+
+[build-system]
+requires = ["uv_build>=0.10.2,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+fix = true
+src = ["src"]
+extend-exclude = ["*_pb2.py", "*_pb2_grpc.py", ".venv"]
+
+[tool.ruff.lint]
+select = ["F", "E", "I", "UP", "B", "RUF", "D",]
+ignore = [
+    "E203",
+    "D203",
+    "D213", # pick ONE of D212/D213; keep D212 behavior + silence warning
+    "D300", # allow single-quoted docstrings
+    "E501",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint.isort]
+known-first-party = ["aetherflow"]
+combine-as-imports = true
+
+[tool.ruff.lint.per-file-ignores]
+"tools/**/*.py" = ["D", "T201"]
+"tests/**/*.py" = ["D"]
+"src/**/__init__.py" = ["D104"]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+docstring-quotes = "single"
