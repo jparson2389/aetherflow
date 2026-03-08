@@ -1,0 +1,51 @@
+"""Plugin manifest models."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+
+
+class PluginType(str, Enum):
+    """Supported plugin categories."""
+
+    INPUT = "input"
+    OUTPUT = "output"
+    CAPTURE = "capture"
+    DISPLAY = "display"
+    WORKER = "worker"
+    RESOURCE = "resource"
+
+
+@dataclass(frozen=True, slots=True)
+class PluginVersion:
+    """Semantic version value object."""
+
+    major: int
+    minor: int
+    patch: int
+
+    @classmethod
+    def parse(cls, raw: str) -> "PluginVersion":
+        """Parse a semantic version string."""
+        major, minor, patch = (int(part) for part in raw.split("."))
+        return cls(major=major, minor=minor, patch=patch)
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+
+@dataclass(frozen=True, slots=True)
+class PluginManifest:
+    """Manifest for a single plugin."""
+
+    plugin_id: str
+    name: str
+    version: PluginVersion
+    api_version: str
+    plugin_type: PluginType
+    entrypoint: str
+    signed: bool
+    premium: bool
+    required_entitlements: list[str]
+    requires_worker: bool

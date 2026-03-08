@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package aetherflow.capture.v1;
+
+message CaptureRequest {
+  string capture_plugin_id = 1;
+  string device_id = 2;
+  uint32 target_width = 3;
+  uint32 target_height = 4;
+  uint32 target_fps = 5;
+}
+
+message WorkerHeartbeat {
+  string worker_id = 1;
+  string health = 2;
+  uint32 missed_heartbeats = 3;
+}
+
+message WorkerLog {
+  string worker_id = 1;
+  string level = 2;
+  string message = 3;
+}
+
+service CaptureControl {
+  rpc StartCapture(CaptureRequest) returns (WorkerHeartbeat);
+}
