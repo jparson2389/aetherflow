@@ -101,6 +101,21 @@ def test_load_or_initialize_plan_state_preserves_status_across_plan_reformat(
     assert state['items'][0]['notes'] == 'Certified'
 
 
+def test_verified_status_counts_as_complete_for_progression() -> None:
+    state = {
+        'items': [
+            {'id': 'af_00_01', 'phase': 'Phase 0', 'status': 'verified'},
+            {'id': 'af_00_02a', 'phase': 'Phase 0', 'status': 'missing'},
+            {'id': 'af_01_01', 'phase': 'Phase 1', 'status': 'missing'},
+        ]
+    }
+
+    phase, open_items = plan_exec.next_open_work_items(state)
+
+    assert phase == 'Phase 0'
+    assert [item['id'] for item in open_items] == ['af_00_02a']
+
+
 def test_prompt_placeholder_path_is_rejected() -> None:
     with pytest.raises(ValueError, match='Path not in allowed locations'):
         validate_writes_payload(

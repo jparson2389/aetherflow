@@ -26,6 +26,23 @@ Rules for this plan:
   `uv run pytest`.
 - TDD is required on every work item.
 
+## Completion Policy (All Work Items)
+
+To mark any work item `done`, it must satisfy *all* of the following:
+
+- **Behavior evidence:** real runtime behavior exists, not just static data or
+  model definitions.
+- **Test depth:** tests must exercise behavior, not only constants or field
+  presence.
+- **Artifacts:** when required, evidence files/logs are generated and reviewed.
+- **Disallowed evidence:** any of the following *alone* is insufficient:
+  - file presence or non-empty stubs
+  - dataclasses or model-only wrappers
+  - hard-coded "valid" signatures or fixed tables
+  - tests that only assert constant values
+
+When unsure, mark the item **partial** or **scaffolded** and document gaps.
+
 ---
 
 ## Atomic Recovery Protocol (ARP)
@@ -105,6 +122,10 @@ steps 1–3 first.
   > **Behavior:** remove stale aliases, keep PRD self-contained, and enforce canonical Python/C++ boundaries.
   > **Validation:** `uv run pytest tests/contracts/test_canonical_identity.py::test_canonical_package_root_is_aetherflow tests/contracts/test_canonical_identity.py::test_project_docs_reference_aetherflow_canonical_paths tests/contracts/test_prd_execution_readiness.py::test_prd_is_self_contained_and_citation_free`
   > **Evidence:** docs are citation-free and path-correct.
+  > **Completion Gates:**
+  > - PRD and README paths are canonical and citation-free.
+  > - Contract tests validate doc content and canonical package root.
+  > - No placeholder or alias references remain in docs.
   > **ARP Trigger:** if any canonical path conflicts with active repo structure, stop and capture the conflict.
 - [ ] `AF-00-02a` Verify Windows toolchain and `uv` environment.
   > **PRD Refs:** `§5.3`, `REQ-01`
@@ -114,6 +135,10 @@ steps 1–3 first.
   > **Behavior:** verify `uv`, `powershell`, and `cl.exe` (MSVC) are available and functional.
   > **Validation:** `uv run pytest tests/contracts/test_env_readiness.py`
   > **Evidence:** environment report generated.
+  > **Completion Gates:**
+  > - `scripts/verify-env.ps1` generates a report with tool availability.
+  > - Contract test passes and report is present in `logs/`.
+  > - No manual or mocked outputs used.
   > **ARP Trigger:** if toolchain is missing, halt execution until resolved.
 - [ ] `AF-00-02b` Establish native boundary and build harness.
   > **PRD Refs:** `§5.3`, `REQ-01`
@@ -125,6 +150,10 @@ steps 1–3 first.
   > **Behavior:** scaffold `host/` and `include/` structure, create build script, and verify compilation of a minimal dummy target.
   > **Validation:** `powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1`
   > **Evidence:** build artifacts present in `build/`.
+  > **Completion Gates:**
+  > - Build script produces `build/native_harness.exe`.
+  > - Contract test verifies build success without manual steps.
+  > - Native boundary is enforced (no C++ in `src/`).
   > **ARP Trigger:** if build fails, capture compiler output and stop.
 - [ ] `AF-00-03` Publish control-plane proto surface and shared-memory ring semantics.
   > **PRD Refs:** `§6`, `§7`, `REQ-01`, `REQ-02`, `REQ-08`
@@ -136,6 +165,10 @@ steps 1–3 first.
   > **Behavior:** publish the normative gRPC message surface, timeout/retry expectations, ring metadata, pixel labels, and overflow policy.
   > **Validation:** `uv run pytest tests/contracts/test_execution_contracts.py -k proto or overflow`
   > **Evidence:** proto and shmem contracts match PRD execution semantics.
+  > **Completion Gates:**
+  > - Proto and shared-memory fields match PRD contract semantics.
+  > - Contract tests verify ring metadata and control-plane messages.
+  > - Docs cover timeout and retry posture per RPC.
   > **ARP Trigger:** if control-plane or ring semantics remain ambiguous, do not freeze them.
 - [ ] `AF-00-04` Publish signing and runtime-state ABI, then freeze contracts.
   > **PRD Refs:** `§5.3`, `§7`, `§8`, `REQ-02`, `REQ-03`
@@ -149,6 +182,10 @@ steps 1–3 first.
   > **Behavior:** publish Authenticode/RSA-3072 trust semantics, plugin runtime states, and freeze ABI/proto/shmem in one checkpoint.
   > **Validation:** `uv run pytest tests/contracts/test_execution_contracts.py tests/contracts/test_frozen_contracts.py`
   > **Evidence:** trust and state semantics are documented and frozen together.
+  > **Completion Gates:**
+  > - ABI and breaking-change logs are present and non-placeholder.
+  > - Contract tests verify trust/state symbols and freeze logs.
+  > - No frozen-contract change without explicit sign-off entry.
   > **ARP Trigger:** if trust policy or runtime states are still in flux, stop instead of publishing the freeze.
 - [ ] `AF-00-05` Publish bounded sign-off packets and failure-UX state model.
   > **PRD Refs:** `§8.3`, `§10`, `§14`, `REQ-02`, `REQ-08`, `REQ-09`
@@ -159,6 +196,10 @@ steps 1–3 first.
   > **Behavior:** encode auth/bundle deadlines, fallbacks, and the host/plugin/worker degraded-state model so agents do not stall.
   > **Validation:** `uv run pytest tests/contracts/test_prd_execution_readiness.py -k plan`
   > **Evidence:** unresolved product decisions have explicit fallbacks and phase gates.
+  > **Completion Gates:**
+  > - Sign-off docs include fallback rules and SLA language.
+  > - Readiness tests confirm sign-off docs are present and referenced.
+  > - No placeholder or TBD sign-off content.
   > **ARP Trigger:** if a sign-off packet lacks fallback behavior, downstream work remains blocked.
 
 ### Phase 0 Exit Criteria
@@ -185,6 +226,10 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
   > **Behavior:** enforce Authenticode-rooted trust semantics and block unsigned/tampered/untrusted content before load or install.
   > **Validation:** `uv run pytest tests/unit/test_plugin_registry.py tests/integration/test_signed_plugin_loading.py tests/test_security.py`
   > **Evidence:** load/install refusal occurs before registration or activation.
+  > **Completion Gates:**
+  > - Trust verification is not hard-coded and validates real inputs.
+  > - Tests cover unsigned, tampered, revoked, and untrusted chains.
+  > - Catalog and registry enforce trust before activation.
   > **ARP Trigger:** any reachable unsigned path blocks the phase.
 - [ ] `AF-01-02` Implement entitlement runtime states and shell-safe degradation model.
   > **PRD Refs:** `§8.2`, `§8.3`, `§10.1`, `REQ-02`, `REQ-07`
@@ -199,6 +244,10 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
   > **Behavior:** implement `LOCKED`, `GRACE`, `DEGRADED`, `FAILED`, and HUD semantics without allowing plugin faults to take down the shell.
   > **Validation:** `uv run pytest tests/unit/test_entitlements.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py`
   > **Evidence:** shell remains alive when plugins degrade or unload.
+  > **Completion Gates:**
+  > - Entitlement state drives catalog, HUD, and failure UX behavior.
+  > - Tests cover GRACE expiry, LOCKED gating, and degraded UX states.
+  > - Host remains responsive under plugin failure paths.
   > **ARP Trigger:** if plugin failure can terminate the shell, stop and capture the crash path.
 
 ### Phase 1 Exit Criteria
@@ -226,6 +275,10 @@ uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py
   > **Behavior:** implement profile CRUD, deterministic mapping, latency telemetry, and baseline device-family support.
   > **Validation:** `uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py`
   > **Evidence:** profile and mapping behaviors are deterministic across device families.
+  > **Completion Gates:**
+  > - Input plugins ingest real device events or test fixtures.
+  > - Mapping pipeline includes latency telemetry outputs.
+  > - CRUD and import/export flows are covered by tests.
   > **ARP Trigger:** if latency or translation cannot be measured consistently, capture sample traces and stop.
 - [ ] `AF-02-02` Add virtual output, masking, and plugin-failure-safe output UX.
   > **PRD Refs:** `§9.3`, `§10.1`, `REQ-05`
@@ -238,6 +291,10 @@ uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py
   > **Behavior:** implement reversible masking and output-driver UX while ensuring output-plugin failure degrades only that feature surface.
   > **Validation:** `uv run pytest tests/integration/test_output_virtualization.py tests/ui/test_driver_panel.py`
   > **Evidence:** host survives output-plugin faults and retains diagnostics.
+  > **Completion Gates:**
+  > - Driver install/repair/masking flows are functional.
+  > - Failure of output plugin degrades only the output surface.
+  > - Tests verify reversibility and host survivability.
   > **ARP Trigger:** if output failure can destabilize the shell, stop and capture the fault.
 
 ### Phase 2 Exit Criteria
@@ -263,6 +320,10 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
   > **Behavior:** implement supported-mode-only selection, sustained-drop detection, and 60 FPS compliance on supported hardware paths.
   > **Validation:** `uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mode_matrix.py tests/integration/test_capture_stability.py`
   > **Evidence:** unsupported high-FPS modes are not implied by UI and 60 baseline behavior is measurable.
+  > **Completion Gates:**
+  > - Device probing and capture start/stop are implemented.
+  > - FPS and drop-rate measurements are real, not static tables.
+  > - Tests cover sustained drops and capability matrix enforcement.
   > **ARP Trigger:** if capability/UI mismatch occurs, capture hardware and mode diagnostics.
 - [ ] `AF-03-02` Add premium capture backends, CPU/GPU render modes, and one validated 120 FPS path.
   > **PRD Refs:** `§9.4`, `§9.5`, `§11`, `REQ-06`, `REQ-07`
@@ -278,6 +339,10 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
   > **Behavior:** keep premium backends unloadable when locked, expose render tradeoffs clearly, and ship at least one validated 120 FPS path without promoting 240 FPS as guaranteed.
   > **Validation:** `uv run pytest tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py tests/integration/test_capture_120fps_path.py`
   > **Evidence:** one 120 FPS evidence path exists and premium gating holds.
+  > **Completion Gates:**
+  > - Premium backends implement real capture behavior.
+  > - Render mode UI is wired to runtime selection.
+  > - 120 FPS evidence includes real measurement artifacts.
   > **ARP Trigger:** if 120 validation is absent, phase stays incomplete even if 60 baseline passes.
 
 ### Phase 3 Exit Criteria
@@ -301,6 +366,10 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   > **Behavior:** enforce heartbeat budgets, restart ceilings, escalation to `FAILED`, and host-safe worker degradation.
   > **Validation:** `uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py`
   > **Evidence:** host survivability is a hard phase gate.
+  > **Completion Gates:**
+  > - Worker supervision is integrated with real worker processes.
+  > - Escalation UX is wired and tested under fault injection.
+  > - Restart ceilings persist and emit evidence logs.
   > **ARP Trigger:** if host death or uncontrolled restart loops occur, block the phase.
 - [ ] `AF-04-02` Deliver environment manager and bounded bundle validation workflow.
   > **PRD Refs:** `§9.8`, `REQ-09`
@@ -313,6 +382,10 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   > **Behavior:** implement env create/repair/recreate/delete, required-import validation, optional GPU probe result shape, and bundle install fallback semantics from the sign-off packet.
   > **Validation:** `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py`
   > **Evidence:** environment validation is consistent and bundle naming ambiguity does not block function.
+  > **Completion Gates:**
+  > - Env create/repair/recreate operates on real environments.
+  > - Bundle signature verification is not hard-coded.
+  > - GPU probe executes and emits required status values.
   > **ARP Trigger:** if bundle validation depends on unresolved naming, use the documented fallback and keep moving.
 
 ### Phase 4 Exit Criteria
@@ -339,6 +412,10 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
   > **Behavior:** validate signed manifests and artifact trust while using the provider-agnostic OAuth abstraction or disabled mock fallback if no auth provider is selected.
   > **Validation:** `uv run pytest tests/integration/test_resources_manifest.py tests/ui/test_resource_details_modal.py tests/test_security.py`
   > **Evidence:** no real provider binding is required to complete v1 resource UI/tests safely.
+  > **Completion Gates:**
+  > - Manifest verification validates real signatures and trust roots.
+  > - Resource install flows are implemented and tested.
+  > - OAuth provider abstraction is functional (or explicit fallback).
   > **ARP Trigger:** if resource trust depends on unresolved provider choice, use the fallback and document it.
 - [ ] `AF-05-02` Implement admin, diagnostics export, packaging, and evidence collectors.
   > **PRD Refs:** `§12`, `§13`, `REQ-10`
@@ -354,6 +431,10 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
   > **Behavior:** ship admin/operator workflows, diagnostics export, Windows packaging, and evidence files for latency, survivability, bundle success, 60 FPS stability, and validated 120 FPS path.
   > **Validation:** `uv run pytest tests/integration/test_admin_dashboard.py tests/integration/test_diagnostics_export.py tests/e2e/test_onboarding_timing.py`
   > **Evidence:** required release artifacts exist under `logs/`.
+  > **Completion Gates:**
+  > - Admin workflows update real data models and audit logs.
+  > - Diagnostics export includes real logs and counters.
+  > - Evidence artifacts are generated by tests, not stubs.
   > **ARP Trigger:** missing evidence or rollback gaps block release readiness.
 
 ### Phase 5 Exit Criteria
@@ -395,6 +476,29 @@ powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 | `§9.8`                | `REQ-09`                     | `AF-00-05`, `AF-04-02`                                       | Planned |
 | `§9.10`, `§12`, `§13` | `REQ-10`                     | `AF-05-02`                                                   | Planned |
 | `§14`                 | `ASM-02`, `ASM-03`, `ASM-04` | `AF-00-05`, `AF-04-02`, `AF-05-01`                           | Planned |
+
+---
+
+## Follow-up Tasks For Scaffolded Areas
+
+These follow-ups are required before any phase can advance to "verified"
+status. They are evidence-driven and should become work items as needed.
+
+- **Trust/Security hardening**
+  - Replace hard-coded signature checks with real verification paths.
+  - Add tests for unsigned, revoked, expired, and tampered artifacts.
+- **Input/Output runtime wiring**
+  - Implement device ingestion and event pipeline for input plugins.
+  - Implement output driver install/repair and masking flows.
+- **Capture/runtime realism**
+  - Implement device probing and capture start/stop integration.
+  - Emit real FPS and drop-rate metrics with evidence artifacts.
+- **Environment/Resources workflows**
+  - Implement real env create/repair/recreate and GPU probe paths.
+  - Implement resource download/install with trust checks.
+- **Admin/Diagnostics evidence**
+  - Wire admin actions to audit logs and persistence.
+  - Expand diagnostics export to include real logs and counters.
 
 ---
 

@@ -267,6 +267,14 @@ class StateItem(BaseModel):
         return str(v).strip() or _now_iso()
 
 
+COMPLETE_STATUSES = {'done', 'verified'}
+
+
+def is_complete_status(status: Any) -> bool:
+    """Return whether a persisted status counts as complete for progression."""
+    return str(status).strip() in COMPLETE_STATUSES
+
+
 class PMWorkItem(BaseModel):
     """A single work item returned by the PM agent."""
 
@@ -554,7 +562,7 @@ def next_open_work_items(state: dict[str, Any]) -> tuple[str, list[dict[str, Any
     open_items = [
         item
         for item in items
-        if isinstance(item, dict) and item.get('status') != 'done'
+        if isinstance(item, dict) and not is_complete_status(item.get('status'))
     ]
     if not open_items:
         return '', []
@@ -575,7 +583,7 @@ def next_open_work_items(state: dict[str, Any]) -> tuple[str, list[dict[str, Any
         for item in items
         if isinstance(item, dict)
         and str(item.get('phase') or '').strip() == phase
-        and item.get('status') != 'done'
+        and not is_complete_status(item.get('status'))
     ]
     return phase, phase_items
 
@@ -1020,7 +1028,9 @@ def main(argv: list[str] | None = None) -> int:
     allowed_text = '\n'.join(allowed_lines)
 
     # Log progress
-    done_items = [i for i in state.get('items', []) if i.get('status') == 'done']
+    done_items = [
+        i for i in state.get('items', []) if is_complete_status(i.get('status'))
+    ]
     done_count = len(done_items)
     total_count = len(state.get('items', []))
     logger.info(
@@ -1586,11 +1596,11 @@ def main(argv: list[str] | None = None) -> int:
         break
 
     # Completed successfully
-    logger.success(f'Task Done: {selected_title} — all 3 layers passed.')
+    logger.success(f'Task Verified: {selected_title} — all 3 layers passed.')
     update_state_item(
         state,
         str(selected_id),
-        status='done',
+        status='verified',
         notes=parsed_verdict.notes,
         missing=[],
         evidence=changed,
@@ -1600,7 +1610,7 @@ def main(argv: list[str] | None = None) -> int:
         item_id=str(selected_id),
         phase=selected_phase,
         title=selected_title,
-        status='done',
+        status='verified',
         changed_files=changed,
         notes=parsed_verdict.notes,
     )
