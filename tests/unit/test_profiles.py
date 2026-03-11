@@ -15,6 +15,7 @@ def test_profile_clone_preserves_mapping_and_changes_identity() -> None:
 def test_profile_export_import_round_trip() -> None:
     profile = InputProfile.default('Default')
     profile.button_map['A'] = 'B'
+    profile.smoothing_alpha = 0.4
     profile.sensitivity_layers.append(SensitivityLayer(name='hip', multiplier=1.2))
 
     exported = profile.export()
@@ -22,6 +23,7 @@ def test_profile_export_import_round_trip() -> None:
 
     assert imported.name == 'Default'
     assert imported.button_map['A'] == 'B'
+    assert imported.smoothing_alpha == 0.4
     assert imported.sensitivity_layers[0].name == 'hip'
     assert imported.sensitivity_layers[0].multiplier == 1.2
 

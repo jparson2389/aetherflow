@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -77,7 +78,7 @@ class EnvironmentManager:
         dependency_count: int,
         python_version: str,
         gpu_probe_status: GpuProbeStatus,
-    ) -> dict[str, object]:
+    ) -> Mapping[str, object]:
         """Validate environment metadata and capture probe results."""
         record = self._records[name]
         missing = [key for key, ok in required_imports.items() if not ok]
@@ -88,7 +89,7 @@ class EnvironmentManager:
         record.validation_status = 'failed' if missing else 'validated'
         return self.summary(name)
 
-    def summary(self, name: str) -> dict[str, str | int]:
+    def summary(self, name: str) -> Mapping[str, object]:
         """Return a UI-friendly environment summary."""
         record = self._records[name]
         return {

@@ -7,6 +7,25 @@ from dataclasses import dataclass, field
 from uuid import uuid4
 
 
+def _coerce_float(value: object, *, field_name: str) -> float:
+    """Coerce a JSON-compatible payload value to ``float``.
+
+    Args:
+        value: Raw payload value.
+        field_name: Payload field name for error reporting.
+
+    Returns:
+        The coerced floating-point value.
+
+    Raises:
+        TypeError: If the payload value is not float-compatible.
+
+    """
+    if isinstance(value, (int, float, str)):
+        return float(value)
+    raise TypeError(f'{field_name} must be float-compatible.')
+
+
 @dataclass(frozen=True, slots=True)
 class SensitivityLayer:
     """Sensitivity multiplier layer for mapping profiles."""
@@ -28,7 +47,10 @@ class SensitivityLayer:
         """Create a layer from a serialized payload."""
         return cls(
             name=str(payload['name']),
-            multiplier=float(payload['multiplier']),
+            multiplier=_coerce_float(
+                payload['multiplier'],
+                field_name='multiplier',
+            ),
             active=bool(payload.get('active', True)),
         )
 
@@ -136,19 +158,34 @@ class InputProfile:
     @classmethod
     def import_profile(cls, payload: dict[str, object]) -> InputProfile:
         """Import a profile from a JSON-compatible payload."""
+        raw_layers = payload.get('sensitivity_layers')
+        layer_list = raw_layers if isinstance(raw_layers, list) else []
         layers = [
             SensitivityLayer.from_dict(raw)
-            for raw in payload.get('sensitivity_layers', [])
+            for raw in layer_list if isinstance(raw, dict)
         ]
-        return cls(
+        raw_button_map = payload.get('button_map')
+        button_map_dict = raw_button_map if isinstance(raw_button_map, dict) else {}
+        profile = cls(
             profile_id=str(payload['profile_id']),
             name=str(payload['name']),
-            button_map=dict(payload.get('button_map', {})),
-            deadzone=float(payload.get('deadzone', 0.05)),
-            curve_exponent=float(payload.get('curve_exponent', 1.0)),
-            smoothing_alpha=float(payload.get('smoothing_alpha', 1.0)),
+            button_map={str(k): str(v) for k, v in button_map_dict.items()},
+            deadzone=_coerce_float(
+                payload.get('deadzone', 0.05),
+                field_name='deadzone',
+            ),
+            curve_exponent=_coerce_float(
+                payload.get('curve_exponent', 1.0),
+                field_name='curve_exponent',
+            ),
+            smoothing_alpha=_coerce_float(
+                payload.get('smoothing_alpha', 1.0),
+                field_name='smoothing_alpha',
+            ),
             sensitivity_layers=layers,
         )
+        return profile
+
 
 
 @dataclass(slots=True)
