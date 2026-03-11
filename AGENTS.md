@@ -36,3 +36,14 @@
 | ALWAYS    | TDD — test first                                 |
 | ALWAYS    | `uv run ruff check && uv run pytest` before done |
 | ALWAYS    | Google-format docstrings + type hints            |
+
+## Markdown Docs
+
+- **MD013 (line length):** Aim for prose lines under 88 characters so docs match `ruff` guidance and keep markdownlint quiet; allow longer rows only for tables, URLs, or canonical identifiers and flag them with a short “line-grow” note in the same section.
+- **MD009 (trailing spaces):** Never rely on two trailing spaces for hard breaks—split into separate paragraphs or use an explicit `<br />`/`<br>` so linters stop complaining.
+- **MD022/MD023 (heading spacing):** Surround every heading and fenced code block with a blank line before and after to keep structure predictable.
+- **Lists & checklists:** Stick to `-` bullets for unordered lists, indent nested lists by two spaces, and keep ordered lists’ numbering consistent to avoid MD029/MD030 noise.
+- **Explicit rule relaxations:** Whenever we knowingly violate a markdownlint rule (e.g., a table row that must stay long), add a one-line rationale near the offending block so future readers know why it was exempted.
+- Use `*` for emphasis and strong text (`*italic*`, `**bold**`), not underscores; this keeps markdownlint MD050 happy.
+- Prefer ATX headings (`#`, `##`, `###`) with a single space after the hash and no trailing spaces.
+- Keep docs concise and evidence-based: when making claims about implementation, include concrete file paths or tests as evidence where practical.

@@ -59,3 +59,6 @@ logs/*.log
 # --- Personal / Machine-Specific Launchers ---
 start-loop2.ps1
 state/plan_state.json
+docs/requirements-report.md
+logs/verify-requirements-evidence.md
+reset_env.ps1

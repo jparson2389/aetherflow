@@ -36,16 +36,13 @@ def test_plan_reformat_produces_instruction_blocks_for_af_00_01() -> None:
     af_00_01 = items['af_00_01']
 
     assert af_00_01.instructions
-    assert (
-        extract_target_files(af_00_01.instructions)
-        == [
-            'docs/PRD.md',
-            'README.md',
-            '.agents/rules/project-specific.md',
-            'tests/contracts/test_canonical_identity.py',
-            'tests/contracts/test_prd_execution_readiness.py',
-        ]
-    )
+    assert extract_target_files(af_00_01.instructions) == [
+        'docs/PRD.md',
+        'README.md',
+        '.agents/rules/project-specific.md',
+        'tests/contracts/test_canonical_identity.py',
+        'tests/contracts/test_prd_execution_readiness.py',
+    ]
     assert extract_validation_command(af_00_01.instructions) == (
         'uv run pytest '
         'tests/contracts/test_canonical_identity.py::'
@@ -93,11 +90,9 @@ def test_load_or_initialize_plan_state_preserves_status_across_plan_reformat(
     monkeypatch.setattr(plan_exec, 'STATE_PATH', state_path)
 
     plan_items = plan_exec.extract_phase_work_items(
-        
-            '## Phase 0 - Canonical Identity And Execution Contracts\n\n'
-            '- [ ] `AF-00-01` Canonicalize repo identity and self-contained docs.\n'
-            '> **Target File:** `docs/PRD.md`\n'
-        
+        '## Phase 0 - Canonical Identity And Execution Contracts\n\n'
+        '- [ ] `AF-00-01` Canonicalize repo identity and self-contained docs.\n'
+        '> **Target File:** `docs/PRD.md`\n'
     )
     state = plan_exec.load_or_initialize_plan_state(plan_items)
 

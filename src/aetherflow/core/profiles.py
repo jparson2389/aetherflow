@@ -162,7 +162,8 @@ class InputProfile:
         layer_list = raw_layers if isinstance(raw_layers, list) else []
         layers = [
             SensitivityLayer.from_dict(raw)
-            for raw in layer_list if isinstance(raw, dict)
+            for raw in layer_list
+            if isinstance(raw, dict)
         ]
         raw_button_map = payload.get('button_map')
         button_map_dict = raw_button_map if isinstance(raw_button_map, dict) else {}
@@ -185,7 +186,6 @@ class InputProfile:
             sensitivity_layers=layers,
         )
         return profile
-
 
 
 @dataclass(slots=True)

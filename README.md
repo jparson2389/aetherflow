@@ -13,7 +13,25 @@ gRPC contracts live in `proto/`.
 - Shared memory contract: `src/aetherflow/core/shared_memory_layout.py`
 - Development entrypoint: `src/aetherflow/main.py`
 
-## Validation
+## Documentation
 
-- `uv run ruff check .`
-- `uv run pytest`
+- Product requirements: `docs/PRD.md`
+- Implementation plan: `docs/PLAN.md`
+- System architecture overview: `docs/architecture/system_overview.md`
+- Requirements coverage snapshot: `docs/requirements-report.md`
+
+## Getting Started
+
+Environment and tooling are Windows 11 + PowerShell with Python managed by `uv`:
+
+- Sync dependencies: `uv sync`
+- Launch the main application (CLI/GUI entrypoint): `uv run aetherflow`
+
+## Validation And Quality Gates
+
+Run the core validation commands before marking work complete:
+
+- Lint: `uv run ruff check .`
+- Tests: `uv run pytest`
+- Combined quality gate (lint, tests, and native build harness):  
+  `pwsh -ExecutionPolicy Bypass -File .cursor/workflows/check-quality.ps1`
