@@ -11,6 +11,7 @@ class OAuthProvider(Protocol):
 
     def is_enabled(self) -> bool:
         """Return whether the provider is enabled."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)
