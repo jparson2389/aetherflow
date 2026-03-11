@@ -50,7 +50,7 @@ target-version = "py312"
 line-length = 88
 fix = true
 src = ["src"]
-extend-exclude = ["*_pb2.py", "*_pb2_grpc.py", ".venv"]
+extend-exclude = ["*_pb2.py", "*_pb2_grpc.py", ".venv", "build"]
 
 [tool.ruff.lint]
 select = ["F", "E", "I", "UP", "B", "RUF", "D",]
@@ -60,11 +60,12 @@ ignore = [
     "D213", # pick ONE of D212/D213; keep D212 behavior + silence warning
     "D300", # allow single-quoted docstrings
     "E501",
+    "D100",
 ]
 
 [tool.ruff.format]
-quote-style = "double"
-line-ending = "auto"
+quote-style = "single"
+line-ending = "lf"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
@@ -80,3 +81,10 @@ combine-as-imports = true
 [tool.ruff.lint.flake8-quotes]
 inline-quotes = "single"
 docstring-quotes = "single"
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/node_modules", "**/__pycache__", ".venv"]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "basic"
