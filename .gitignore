@@ -54,3 +54,8 @@ secrets.json
 *.grpc.pb.cc
 *.grpc.pb.h
 logs/env_report.json
+logs/*.log
+
+# --- Personal / Machine-Specific Launchers ---
+start-loop2.ps1
+state/plan_state.json

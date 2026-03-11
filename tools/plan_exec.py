@@ -65,12 +65,11 @@ except ModuleNotFoundError:  # pragma: no cover
     )
 
 try:
-    from tools.context_utils import ContextMonitor, count_tokens, get_model_settings
+    from tools.context_utils import ContextMonitor, count_tokens
 except ModuleNotFoundError:  # pragma: no cover
     from context_utils import (  # type: ignore[no-redef]
         ContextMonitor,
         count_tokens,
-        get_model_settings,
     )
 
 try:
@@ -674,9 +673,8 @@ def call_json_with_retry(
     response fails to parse, a repair prompt is sent.  Raises ValueError
     if both attempts fail.
     """
-    from pathlib import Path as _Path  # avoid conflict with outer Path
 
-    debug_dir = _Path('logs')
+    debug_dir = ROOT / 'logs'
     debug_dir.mkdir(exist_ok=True)
     safe_stage = stage.replace('/', '_').replace('\\', '_')
     (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(system, encoding='utf-8')
@@ -898,8 +896,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog='tools.plan_exec')
     ap.add_argument('--max-doc-chars', type=int, default=32000)
     ap.add_argument('--state-only', action='store_true')
-    ap.add_argument('--plan', default='PLAN.md')
-    ap.add_argument('--prd', default='PRD.md')
+    ap.add_argument('--plan', default='docs/PLAN.md')
+    ap.add_argument('--prd', default='docs/PRD.md')
     ap.add_argument('--manifest', default='agent_manifest.json')
     args = ap.parse_args(argv if argv is not None else sys.argv[1:])
 
@@ -1120,7 +1118,7 @@ def main(argv: list[str] | None = None) -> int:
             if not _ctx_monitor.track_usage(
                 model_alias,
                 count_tokens(impl_prompt),
-                int(get_model_settings(model_alias).get('context_window', 16384)),
+                16384,
             ):
                 logger.warning(
                     f'[context] prompt near limit for {model_alias} - truncating'

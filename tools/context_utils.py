@@ -5,25 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-import yaml
 from loguru import logger
-
-
-def get_model_settings(model_name: str, router_path: Path | None = None) -> dict:
-    """Get optimized settings for a given model name from router.yaml"""
-    if router_path is None:
-        router_path = (
-            Path(__file__).parent.parent / '.cursor' / 'config' / 'router.yaml'
-        )
-    with open(router_path) as f:
-        router_data = yaml.safe_load(f)
-
-    # Find the model in model_list
-    for model in router_data.get('model_list', []):
-        if model['model_name'] == model_name:
-            return model.get('litellm_params', {})
-
-    raise ValueError(f'Model {model_name} not found in router.yaml')
 
 
 def count_tokens(text: str) -> int:
