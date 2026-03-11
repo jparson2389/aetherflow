@@ -12,19 +12,19 @@ class DiagnosticsExporter:
     def export(self) -> dict[str, object]:
         """Return a minimal diagnostics payload."""
         return {
-            "plugins": [],
-            "workers": [],
-            "envs": [],
-            "logs": {"recent": []},
-            "system": {"platform": "windows"},
-            "overflow_counters": {"frame_overflows": 0},
-            "restart_counters": {"worker_restarts": 0},
+            'plugins': [],
+            'workers': [],
+            'envs': [],
+            'logs': {'recent': []},
+            'system': {'platform': 'windows'},
+            'overflow_counters': {'frame_overflows': 0},
+            'restart_counters': {'worker_restarts': 0},
         }
 
     def write_report(self, path: Path) -> None:
         """Write a diagnostics report to disk."""
         payload = self.export()
-        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        path.write_text(json.dumps(payload, indent=2), encoding='utf-8')
 
 
 class SuccessMetrics:
@@ -47,7 +47,7 @@ class SuccessMetrics:
     def export_onboarding_report(self, path: Path) -> None:
         """Write onboarding timing evidence to disk."""
         payload = {
-            "runs": list(self._onboarding_times),
-            "within_target": self.onboarding_within_target(target_seconds=300),
+            'runs': list(self._onboarding_times),
+            'within_target': self.onboarding_within_target(target_seconds=300),
         }
-        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        path.write_text(json.dumps(payload, indent=2), encoding='utf-8')

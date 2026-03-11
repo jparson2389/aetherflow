@@ -9,8 +9,8 @@ from aetherflow.core.resources_manifest import ResourceManifest
 class ResourcesClient:
     """Validate signed Online Resources manifests."""
 
-    required_signature_scheme = "Authenticode"
-    required_digest_algorithm = "SHA-256"
+    required_signature_scheme = 'Authenticode'
+    required_digest_algorithm = 'SHA-256'
     required_rsa_key_bits = 3072
 
     def __init__(self, *, oauth_provider: OAuthProvider | None = None) -> None:
@@ -24,7 +24,7 @@ class ResourcesClient:
 
     def validate_manifest(self, manifest: ResourceManifest) -> bool:
         """Return whether a resource manifest is trusted."""
-        if manifest.signature != "valid":
+        if manifest.signature != 'valid':
             return False
         if manifest.signature_scheme != self.required_signature_scheme:
             return False

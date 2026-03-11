@@ -35,5 +35,5 @@ class CapturePanelModel:
             available_resolutions=sorted(
                 {(mode.capture_width, mode.capture_height) for mode in modes}
             ),
-            unavailable_reason="Bandwidth and backend limits",
+            unavailable_reason='Bandwidth and backend limits',
         )

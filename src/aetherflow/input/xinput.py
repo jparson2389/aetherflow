@@ -4,4 +4,4 @@
 class XInputPlugin:
     """Minimal XInput plugin descriptor."""
 
-    device_family = "xinput"
+    device_family = 'xinput'

@@ -19,10 +19,10 @@ class AdminPanelModel:
         """Build an admin panel model from the audit log."""
         return cls(
             actions=[
-                "create_user",
-                "assign_role",
-                "assign_entitlement",
-                "revoke_session",
+                'create_user',
+                'assign_role',
+                'assign_entitlement',
+                'revoke_session',
             ],
             audit_entries=list(log.entries),
         )

@@ -23,10 +23,10 @@ class VirtualControllerService:
     def status(self) -> dict[str, object]:
         """Return an output-driver status snapshot."""
         return {
-            "masking_state": self._masking_service.state,
-            "signed_driver_required": True,
-            "runtime_state": self._runtime_state,
-            "failure_reason": self._failure_reason,
+            'masking_state': self._masking_service.state,
+            'signed_driver_required': True,
+            'runtime_state': self._runtime_state,
+            'failure_reason': self._failure_reason,
         }
 
     def mark_failed(self, reason: str) -> None:

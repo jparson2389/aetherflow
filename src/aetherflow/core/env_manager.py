@@ -9,10 +9,10 @@ from enum import StrEnum
 class GpuProbeStatus(StrEnum):
     """GPU probe status values."""
 
-    NOT_RUN = "not-run"
-    SUPPORTED = "supported"
-    UNSUPPORTED = "unsupported"
-    ERROR = "error"
+    NOT_RUN = 'not-run'
+    SUPPORTED = 'supported'
+    UNSUPPORTED = 'unsupported'
+    ERROR = 'error'
 
 
 @dataclass(slots=True)
@@ -23,7 +23,7 @@ class EnvironmentRecord:
     python_version: str
     dependency_count: int = 0
     disk_usage_mb: int = 0
-    validation_status: str = "pending"
+    validation_status: str = 'pending'
     missing_imports: list[str] = field(default_factory=list)
     gpu_probe_status: GpuProbeStatus = GpuProbeStatus.NOT_RUN
 
@@ -53,7 +53,7 @@ class EnvironmentManager:
     def repair(self, name: str) -> EnvironmentRecord:
         """Mark an environment as repaired."""
         record = self._records[name]
-        record.validation_status = "repaired"
+        record.validation_status = 'repaired'
         return record
 
     def recreate(self, name: str, *, python_version: str) -> EnvironmentRecord:
@@ -85,17 +85,17 @@ class EnvironmentManager:
         record.dependency_count = dependency_count
         record.python_version = python_version
         record.gpu_probe_status = gpu_probe_status
-        record.validation_status = "failed" if missing else "validated"
+        record.validation_status = 'failed' if missing else 'validated'
         return self.summary(name)
 
     def summary(self, name: str) -> dict[str, str | int]:
         """Return a UI-friendly environment summary."""
         record = self._records[name]
         return {
-            "name": record.name,
-            "python_version": record.python_version,
-            "dependency_count": record.dependency_count,
-            "validation_status": record.validation_status,
-            "missing_imports": list(record.missing_imports),
-            "gpu_probe_status": record.gpu_probe_status.value,
+            'name': record.name,
+            'python_version': record.python_version,
+            'dependency_count': record.dependency_count,
+            'validation_status': record.validation_status,
+            'missing_imports': list(record.missing_imports),
+            'gpu_probe_status': record.gpu_probe_status.value,
         }

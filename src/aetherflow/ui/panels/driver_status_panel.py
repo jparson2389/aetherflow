@@ -21,8 +21,8 @@ class DriverStatusPanelModel:
         """Return the installed-driver state."""
         return cls(
             installed=True,
-            actions=["repair", "disable_masking"],
-            message="Driver installed; reversible masking actions available.",
+            actions=['repair', 'disable_masking'],
+            message='Driver installed; reversible masking actions available.',
             runtime_state=RuntimeState.RUNNING,
         )
 
@@ -31,7 +31,7 @@ class DriverStatusPanelModel:
         """Return the failed-driver state."""
         return cls(
             installed=False,
-            actions=["retry", "copy_diagnostics"],
-            message="Driver failed; output disabled until recovery.",
+            actions=['retry', 'copy_diagnostics'],
+            message='Driver failed; output disabled until recovery.',
             runtime_state=RuntimeState.FAILED,
         )

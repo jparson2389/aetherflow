@@ -1,0 +1,12 @@
+# Handle line endings automatically
+* text=auto
+
+# Explicitly set proto files to LF (Linux standard)
+*.proto text eol=lf
+*.py text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+
+# Keep Windows-specific files as CRLF if needed
+*.sln text eol=crlf
+*.vcxproj text eol=crlf

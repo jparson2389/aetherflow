@@ -8,9 +8,9 @@ from enum import StrEnum
 class RuntimeState(StrEnum):
     """User-visible runtime states."""
 
-    RUNNING = "RUNNING"
-    DEGRADED = "DEGRADED"
-    RECOVERING = "RECOVERING"
-    FAILED = "FAILED"
-    LOCKED = "LOCKED"
-    GRACE = "GRACE"
+    RUNNING = 'RUNNING'
+    DEGRADED = 'DEGRADED'
+    RECOVERING = 'RECOVERING'
+    FAILED = 'FAILED'
+    LOCKED = 'LOCKED'
+    GRACE = 'GRACE'

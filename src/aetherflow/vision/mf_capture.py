@@ -30,21 +30,21 @@ class MediaFoundationCapturePlugin:
         """
         self._services = services
         self._manifest = PluginManifest(
-            plugin_id="capture.mf",
-            name="MF Capture",
-            version=PluginVersion.parse("1.0.0"),
-            api_version="1.0",
+            plugin_id='capture.mf',
+            name='MF Capture',
+            version=PluginVersion.parse('1.0.0'),
+            api_version='1.0',
             plugin_type=PluginType.CAPTURE,
-            entrypoint="capture.mf.dll",
+            entrypoint='capture.mf.dll',
             signed=True,
             premium=True,
-            required_entitlements=["vision"],
+            required_entitlements=['vision'],
             requires_worker=False,
-            signature_scheme="Authenticode",
-            digest_algorithm="SHA-256",
+            signature_scheme='Authenticode',
+            digest_algorithm='SHA-256',
             rsa_key_bits=3072,
-            publisher_thumbprint="aetherflow-publisher",
-            trust_root_thumbprint="aetherflow-root",
+            publisher_thumbprint='aetherflow-publisher',
+            trust_root_thumbprint='aetherflow-root',
         )
 
     def is_available(self) -> bool:
@@ -68,7 +68,7 @@ class MediaFoundationCapturePlugin:
                 else CatalogLockState.LOCKED
             ),
             selectable=self.is_available(),
-            purchase_cta=None if self.is_available() else "Upgrade to unlock",
+            purchase_cta=None if self.is_available() else 'Upgrade to unlock',
             allowed_roles=tuple(role.name for role in self._services.roles),
         )
 
@@ -77,6 +77,6 @@ class MediaFoundationCapturePlugin:
         if not self.is_available():
             return CaptureFormatSelector(
                 formats=[],
-                unavailable_reason="Upgrade to unlock",
+                unavailable_reason='Upgrade to unlock',
             )
-        return CaptureFormatSelector(formats=["NV12", "YUY2", "MJPEG"])
+        return CaptureFormatSelector(formats=['NV12', 'YUY2', 'MJPEG'])

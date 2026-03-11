@@ -14,7 +14,7 @@ def test_onboarding_metric_exports_report(tmp_path: Path) -> None:
     metrics = SuccessMetrics()
     metrics.record_onboarding_time(240)
 
-    report_path = tmp_path / "onboarding_timing.json"
+    report_path = tmp_path / 'onboarding_timing.json'
     metrics.export_onboarding_report(report_path)
 
     assert report_path.exists()

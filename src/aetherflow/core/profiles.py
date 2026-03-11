@@ -18,18 +18,18 @@ class SensitivityLayer:
     def as_dict(self) -> dict[str, object]:
         """Return a JSON-serializable layer payload."""
         return {
-            "name": self.name,
-            "multiplier": self.multiplier,
-            "active": self.active,
+            'name': self.name,
+            'multiplier': self.multiplier,
+            'active': self.active,
         }
 
     @classmethod
     def from_dict(cls, payload: dict[str, object]) -> SensitivityLayer:
         """Create a layer from a serialized payload."""
         return cls(
-            name=str(payload["name"]),
-            multiplier=float(payload["multiplier"]),
-            active=bool(payload.get("active", True)),
+            name=str(payload['name']),
+            multiplier=float(payload['multiplier']),
+            active=bool(payload.get('active', True)),
         )
 
 
@@ -94,7 +94,7 @@ class InputProfile:
             mapped_key = self.button_map.get(key, key)
             if (
                 isinstance(value, float)
-                and key.startswith("L")
+                and key.startswith('L')
                 and abs(value) < self.deadzone
             ):
                 translated[mapped_key] = 0.0
@@ -122,13 +122,13 @@ class InputProfile:
     def export(self) -> dict[str, object]:
         """Export the profile to a JSON-serializable dictionary."""
         return {
-            "profile_id": self.profile_id,
-            "name": self.name,
-            "button_map": dict(self.button_map),
-            "deadzone": self.deadzone,
-            "curve_exponent": self.curve_exponent,
-            "smoothing_alpha": self.smoothing_alpha,
-            "sensitivity_layers": [
+            'profile_id': self.profile_id,
+            'name': self.name,
+            'button_map': dict(self.button_map),
+            'deadzone': self.deadzone,
+            'curve_exponent': self.curve_exponent,
+            'smoothing_alpha': self.smoothing_alpha,
+            'sensitivity_layers': [
                 layer.as_dict() for layer in self.sensitivity_layers
             ],
         }
@@ -138,15 +138,15 @@ class InputProfile:
         """Import a profile from a JSON-compatible payload."""
         layers = [
             SensitivityLayer.from_dict(raw)
-            for raw in payload.get("sensitivity_layers", [])
+            for raw in payload.get('sensitivity_layers', [])
         ]
         return cls(
-            profile_id=str(payload["profile_id"]),
-            name=str(payload["name"]),
-            button_map=dict(payload.get("button_map", {})),
-            deadzone=float(payload.get("deadzone", 0.05)),
-            curve_exponent=float(payload.get("curve_exponent", 1.0)),
-            smoothing_alpha=float(payload.get("smoothing_alpha", 1.0)),
+            profile_id=str(payload['profile_id']),
+            name=str(payload['name']),
+            button_map=dict(payload.get('button_map', {})),
+            deadzone=float(payload.get('deadzone', 0.05)),
+            curve_exponent=float(payload.get('curve_exponent', 1.0)),
+            smoothing_alpha=float(payload.get('smoothing_alpha', 1.0)),
             sensitivity_layers=layers,
         )
 
@@ -181,7 +181,7 @@ class ProfileStore:
     def switch_active(self, profile_id: str) -> None:
         """Fast-switch the active profile."""
         if profile_id not in self.profiles:
-            raise KeyError(f"Unknown profile: {profile_id}")
+            raise KeyError(f'Unknown profile: {profile_id}')
         self.active_profile_id = profile_id
 
     def export_profile(self, profile_id: str) -> dict[str, object]:

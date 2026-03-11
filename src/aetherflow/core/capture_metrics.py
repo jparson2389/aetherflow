@@ -27,9 +27,7 @@ class CaptureMetrics:
     @property
     def is_sustained_drop(self) -> bool:
         """Return whether the session violates sustained-drop thresholds."""
-        fps_drop = (
-            self.measured_fps < self.target_fps * 0.9 and self.duration_s >= 3.0
-        )
+        fps_drop = self.measured_fps < self.target_fps * 0.9 and self.duration_s >= 3.0
         drop_rate_violation = self.drop_rate > 0.02 and self.drop_window_s >= 5.0
         return fps_drop or drop_rate_violation
 
@@ -41,5 +39,5 @@ class CaptureMetrics:
     def recommended_fallback(self) -> str:
         """Recommend a safer fallback mode."""
         if self.target_fps >= 120:
-            return "1080p@60"
-        return "720p@30"
+            return '1080p@60'
+        return '720p@30'

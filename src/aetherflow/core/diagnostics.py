@@ -17,8 +17,8 @@ class PipelineDiagnostics:
     def as_dict(self) -> dict[str, float]:
         """Return a JSON-serializable diagnostics payload."""
         return {
-            "event_rate_hz": self.event_rate_hz,
-            "output_rate_hz": self.output_rate_hz,
-            "latency_ms": self.latency_ms,
-            "jitter_ms": self.jitter_ms,
+            'event_rate_hz': self.event_rate_hz,
+            'output_rate_hz': self.output_rate_hz,
+            'latency_ms': self.latency_ms,
+            'jitter_ms': self.jitter_ms,
         }

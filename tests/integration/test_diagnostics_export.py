@@ -6,9 +6,9 @@ def test_diagnostics_export_contains_expected_sections() -> None:
 
     payload = exporter.export()
 
-    assert "plugins" in payload
-    assert "workers" in payload
-    assert "envs" in payload
-    assert "logs" in payload
-    assert "overflow_counters" in payload
-    assert "restart_counters" in payload
+    assert 'plugins' in payload
+    assert 'workers' in payload
+    assert 'envs' in payload
+    assert 'logs' in payload
+    assert 'overflow_counters' in payload
+    assert 'restart_counters' in payload

@@ -11,11 +11,11 @@ from time import monotonic
 class WorkerHealth(StrEnum):
     """Worker health states."""
 
-    STARTING = "STARTING"
-    RUNNING = "RUNNING"
-    DEGRADED = "DEGRADED"
-    RECOVERING = "RECOVERING"
-    FAILED = "FAILED"
+    STARTING = 'STARTING'
+    RUNNING = 'RUNNING'
+    DEGRADED = 'DEGRADED'
+    RECOVERING = 'RECOVERING'
+    FAILED = 'FAILED'
 
 
 @dataclass(slots=True)

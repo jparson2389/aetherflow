@@ -7,19 +7,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_build_native_harness_creates_executable() -> None:
-    build_path = PROJECT_ROOT / "build" / "native_harness.exe"
+    build_path = PROJECT_ROOT / 'build' / 'native_harness.exe'
     if build_path.exists():
         build_path.unlink()
 
-    script_path = PROJECT_ROOT / "scripts" / "build-native.ps1"
+    script_path = PROJECT_ROOT / 'scripts' / 'build-native.ps1'
     assert script_path.exists()
 
     result = subprocess.run(
         [
-            "powershell",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
+            'powershell',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
             str(script_path),
         ],
         cwd=PROJECT_ROOT,

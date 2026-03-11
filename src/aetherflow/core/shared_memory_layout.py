@@ -9,17 +9,17 @@ from enum import StrEnum
 class FramePixelFormat(StrEnum):
     """Pixel formats supported by the v1 frame pipeline."""
 
-    BGR24 = "BGR24"
-    NV12 = "NV12"
-    YUY2 = "YUY2"
-    MJPEG = "MJPEG"
-    RGB32 = "RGB32"
+    BGR24 = 'BGR24'
+    NV12 = 'NV12'
+    YUY2 = 'YUY2'
+    MJPEG = 'MJPEG'
+    RGB32 = 'RGB32'
 
 
 class OverflowPolicy(StrEnum):
     """Ring-buffer overflow policy."""
 
-    DROP_OLDEST = "DROP_OLDEST"
+    DROP_OLDEST = 'DROP_OLDEST'
 
 
 RING_SLOT_COUNT = 4

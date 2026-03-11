@@ -44,12 +44,12 @@ class BundleInstaller:
             Installation result state and logs.
 
         """
-        logs = [f"Starting install for {manifest.bundle_id}."]
-        if manifest.signature != "valid-signature":
-            logs.append("Signature validation failed.")
-            return BundleInstallResult(state="FAILED", logs=logs)
+        logs = [f'Starting install for {manifest.bundle_id}.']
+        if manifest.signature != 'valid-signature':
+            logs.append('Signature validation failed.')
+            return BundleInstallResult(state='FAILED', logs=logs)
         if archive_hash != manifest.sha256:
-            logs.append("SHA256 mismatch detected.")
-            return BundleInstallResult(state="FAILED", logs=logs)
-        logs.append("Bundle verified and ready.")
-        return BundleInstallResult(state="READY", logs=logs)
+            logs.append('SHA256 mismatch detected.')
+            return BundleInstallResult(state='FAILED', logs=logs)
+        logs.append('Bundle verified and ready.')
+        return BundleInstallResult(state='READY', logs=logs)

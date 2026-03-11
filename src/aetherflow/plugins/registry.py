@@ -40,10 +40,10 @@ class PluginRegistry:
                 manifest,
                 lock_state=CatalogLockState.LOCKED,
                 selectable=False,
-                purchase_cta="Signed publisher certificate required",
+                purchase_cta='Signed publisher certificate required',
             )
             self._catalog.append(entry)
-            return RegistrationResult(loaded=False, reason="unsigned-plugin")
+            return RegistrationResult(loaded=False, reason='unsigned-plugin')
 
         entitlement_state = self._services.entitlements.evaluate(
             manifest.plugin_id,
@@ -55,12 +55,12 @@ class PluginRegistry:
                     manifest,
                     lock_state=CatalogLockState.LOCKED,
                     selectable=False,
-                    purchase_cta="Upgrade to unlock",
+                    purchase_cta='Upgrade to unlock',
                 )
             )
             return RegistrationResult(
                 loaded=False,
-                reason="locked-premium-plugin",
+                reason='locked-premium-plugin',
                 state=entitlement_state,
             )
 

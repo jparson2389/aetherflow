@@ -9,12 +9,12 @@ from enum import StrEnum
 class PluginType(StrEnum):
     """Supported plugin categories."""
 
-    INPUT = "input"
-    OUTPUT = "output"
-    CAPTURE = "capture"
-    DISPLAY = "display"
-    WORKER = "worker"
-    RESOURCE = "resource"
+    INPUT = 'input'
+    OUTPUT = 'output'
+    CAPTURE = 'capture'
+    DISPLAY = 'display'
+    WORKER = 'worker'
+    RESOURCE = 'resource'
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,12 +28,12 @@ class PluginVersion:
     @classmethod
     def parse(cls, raw: str) -> PluginVersion:
         """Parse a semantic version string."""
-        major, minor, patch = (int(part) for part in raw.split("."))
+        major, minor, patch = (int(part) for part in raw.split('.'))
         return cls(major=major, minor=minor, patch=patch)
 
     def __str__(self) -> str:
         """Return the dotted semantic version."""
-        return f"{self.major}.{self.minor}.{self.patch}"
+        return f'{self.major}.{self.minor}.{self.patch}'
 
 
 @dataclass(frozen=True, slots=True)

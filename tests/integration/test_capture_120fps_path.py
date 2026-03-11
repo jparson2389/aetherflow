@@ -17,4 +17,4 @@ def test_240fps_only_on_capability_device() -> None:
     for device in plugin.enumerate_devices():
         modes = plugin.supported_modes(device.stable_id)
         if any(mode.capture_fps == 240 for mode in modes):
-            assert device.stable_id == "device-elgato-4kx"
+            assert device.stable_id == 'device-elgato-4kx'

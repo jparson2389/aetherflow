@@ -8,8 +8,8 @@ from enum import StrEnum
 class DeviceMaskState(StrEnum):
     """Device masking states."""
 
-    ENABLED = "ENABLED"
-    DISABLED = "DISABLED"
+    ENABLED = 'ENABLED'
+    DISABLED = 'DISABLED'
 
 
 class DeviceMaskingService:

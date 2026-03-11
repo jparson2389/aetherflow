@@ -25,17 +25,17 @@ class StatusHUDModel:
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable HUD payload."""
         return {
-            "plugins": {
-                "input": self.input_plugin,
-                "output": self.output_plugin,
-                "capture": self.capture_plugin,
-                "display": self.display_plugin,
+            'plugins': {
+                'input': self.input_plugin,
+                'output': self.output_plugin,
+                'capture': self.capture_plugin,
+                'display': self.display_plugin,
             },
-            "telemetry": {
-                "measured_fps": self.measured_fps,
-                "jitter_ms": self.jitter_ms,
+            'telemetry': {
+                'measured_fps': self.measured_fps,
+                'jitter_ms': self.jitter_ms,
             },
-            "workers": {"health": self.worker_health.value},
-            "entitlements": {"state": self.entitlement_state.value},
-            "runtime_state": self.runtime_state.value,
+            'workers': {'health': self.worker_health.value},
+            'entitlements': {'state': self.entitlement_state.value},
+            'runtime_state': self.runtime_state.value,
         }

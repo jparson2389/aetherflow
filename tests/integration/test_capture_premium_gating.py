@@ -15,9 +15,9 @@ def test_media_foundation_capture_formats_locked_until_entitled() -> None:
 
     locked_selector = plugin.format_selector()
     assert locked_selector.formats == []
-    assert locked_selector.unavailable_reason == "Upgrade to unlock"
+    assert locked_selector.unavailable_reason == 'Upgrade to unlock'
 
-    services.entitlements.grant("capture.mf", ("vision",))
+    services.entitlements.grant('capture.mf', ('vision',))
     plugin = MediaFoundationCapturePlugin(services=services)
     unlocked_selector = plugin.format_selector()
-    assert "NV12" in unlocked_selector.formats
+    assert 'NV12' in unlocked_selector.formats

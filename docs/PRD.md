@@ -84,12 +84,12 @@ this document.
 
 ## 4) Roles
 
-| Role | Access Scope | Entitlement Level | Hard Boundaries |
-| --- | --- | --- | --- |
-| Power Gamer | Profiles, mapping, fast switching | Free / Pro | No admin, no env management |
-| Vision/ML Tinkerer | Capture config, envs, resources | Pro / Vision | No billing or user admin |
-| Accessibility Modder | Automation primitives, calibration | Pro | No premium capture without entitlement |
-| Admin/Operator | Entitlements, users, audit, sessions | Enterprise | Full admin scope |
+| Role                 | Access Scope                         | Entitlement Level | Hard Boundaries                        |
+| -------------------- | ------------------------------------ | ----------------- | -------------------------------------- |
+| Power Gamer          | Profiles, mapping, fast switching    | Free / Pro        | No admin, no env management            |
+| Vision/ML Tinkerer   | Capture config, envs, resources      | Pro / Vision      | No billing or user admin               |
+| Accessibility Modder | Automation primitives, calibration   | Pro               | No premium capture without entitlement |
+| Admin/Operator       | Entitlements, users, audit, sessions | Enterprise        | Full admin scope                       |
 
 ---
 
@@ -113,12 +113,12 @@ Everything else ships as plugins or workers.
 
 ### 5.3 Frozen Contracts
 
-| File | Freeze Point | Breaking Change Log |
-| --- | --- | --- |
-| `include/plugin_system.hpp` | End of Phase 0 | `docs/breaking-changes/abi.md` |
-| `proto/capture.proto` | End of Phase 0 | `docs/breaking-changes/proto.md` |
-| `src/aetherflow/core/shared_memory_layout.py` | End of Phase 0 | `docs/breaking-changes/shmem.md` |
-| `src/aetherflow/core/entitlements.py` | End of Phase 4 | `docs/breaking-changes/entitlements.md` |
+| File                                          | Freeze Point   | Breaking Change Log                     |
+| --------------------------------------------- | -------------- | --------------------------------------- |
+| `include/plugin_system.hpp`                   | End of Phase 0 | `docs/breaking-changes/abi.md`          |
+| `proto/capture.proto`                         | End of Phase 0 | `docs/breaking-changes/proto.md`        |
+| `src/aetherflow/core/shared_memory_layout.py` | End of Phase 0 | `docs/breaking-changes/shmem.md`        |
+| `src/aetherflow/core/entitlements.py`         | End of Phase 4 | `docs/breaking-changes/entitlements.md` |
 
 If a frozen contract must change:
 
@@ -309,9 +309,9 @@ Each plugin must expose:
 
 - Default capture source plugin for v1
 - UI controls:
-  - capture source dropdown
-  - frame rate dropdown: 30, 60, 120, 240
-  - resolution dropdown: 720p, 1080p, 1440p
+    - capture source dropdown
+    - frame rate dropdown: 30, 60, 120, 240
+    - resolution dropdown: 720p, 1080p, 1440p
 - UI must show only supported combinations for the selected device
 - UI must show reason text for unavailable combinations
 - UI must show measured FPS, dropped frames, and jitter
@@ -446,26 +446,26 @@ If capture fails:
 - Self-contained runtime layout for Windows
 - Dedicated updater with staged updates and rollback
 - Diagnostics export must include:
-  - plugin list and versions
-  - env list and metadata
-  - recent host and worker logs
-  - system summary
-  - overflow and restart counters
+    - plugin list and versions
+    - env list and metadata
+    - recent host and worker logs
+    - system summary
+    - overflow and restart counters
 
 ---
 
 ## 13) Success Metrics
 
-| Metric | Target | Verification Method | Evidence Artifact |
-| --- | --- | --- | --- |
-| Install -> baseline mapping | Median <= 5 min | Automated e2e test script | `logs/onboarding_timing.json` |
-| Primary path latency | median <= 8 ms, p95 <= 12 ms | Integration latency suite | `logs/latency_budget_report.json` |
-| Environment bundle installs | >= 95% over 100 simulated installs | `uv run pytest tests/test_bundle_installer.py --count=100` | `logs/bundle_install_report.json` |
-| Host survivability on worker crash | >= 99.9% host remains alive | `uv run pytest tests/stress/test_worker_crash_loop.py -n 1000` | `logs/survivability_report.json` |
-| Capture stability at 60 FPS | >= 95% sessions without sustained drops | `uv run pytest tests/integration/test_capture_stability.py` | `logs/capture_stability.json` |
-| Validated 120 FPS path | at least 1 passing supported path | `uv run pytest tests/integration/test_capture_120fps_path.py` | `logs/capture_120fps_report.json` |
-| Premium plugin blocking | 100% block rate without entitlement | `uv run pytest tests/test_plugin_loader.cpp` | `logs/entitlement_gate_report.json` |
-| Unsigned artifact execution | 0 occurrences | `uv run pytest tests/test_security.py` | `logs/security_audit.json` |
+| Metric                             | Target                                  | Verification Method                                            | Evidence Artifact                   |
+| ---------------------------------- | --------------------------------------- | -------------------------------------------------------------- | ----------------------------------- |
+| Install -> baseline mapping        | Median <= 5 min                         | Automated e2e test script                                      | `logs/onboarding_timing.json`       |
+| Primary path latency               | median <= 8 ms, p95 <= 12 ms            | Integration latency suite                                      | `logs/latency_budget_report.json`   |
+| Environment bundle installs        | >= 95% over 100 simulated installs      | `uv run pytest tests/test_bundle_installer.py --count=100`     | `logs/bundle_install_report.json`   |
+| Host survivability on worker crash | >= 99.9% host remains alive             | `uv run pytest tests/stress/test_worker_crash_loop.py -n 1000` | `logs/survivability_report.json`    |
+| Capture stability at 60 FPS        | >= 95% sessions without sustained drops | `uv run pytest tests/integration/test_capture_stability.py`    | `logs/capture_stability.json`       |
+| Validated 120 FPS path             | at least 1 passing supported path       | `uv run pytest tests/integration/test_capture_120fps_path.py`  | `logs/capture_120fps_report.json`   |
+| Premium plugin blocking            | 100% block rate without entitlement     | `uv run pytest tests/test_plugin_loader.cpp`                   | `logs/entitlement_gate_report.json` |
+| Unsigned artifact execution        | 0 occurrences                           | `uv run pytest tests/test_security.py`                         | `logs/security_audit.json`          |
 
 ---
 
@@ -473,6 +473,14 @@ If capture fails:
 
 - Final auth provider selection
 - Final tier definitions and pricing
-- Protected model package cryptosystem and revocation UX
-- Remote-play inclusion in v1 vs v1.1
+- Protected model package cryptosystem and revocation UX (deferred to v1.1 per §9.12)
+- Remote-play inclusion in v1 vs v1.1 (scoped as P1 in §9.13; decision required before Phase 6)
 - Final external bundle extension and branding
+
+## 15) Deferred To v1.1
+
+These features are fully specified in this document but are intentionally out of scope for v1 implementation. The agent must not implement them unless a separate approval is received.
+
+- Protected model package cryptosystem and revocation UX (§9.12)
+- Remote-play integrations, if not approved for v1 (§9.13)
+- Online Resources publisher/developer mode (§9.14)

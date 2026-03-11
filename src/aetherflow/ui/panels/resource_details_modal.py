@@ -19,10 +19,10 @@ class ResourceDetailsModalModel:
     @classmethod
     def from_entry(cls, entry: ResourceEntry) -> ResourceDetailsModalModel:
         """Build a modal model from a resource entry."""
-        lock_state = "locked" if entry.premium else "available"
-        actions = ["install"]
+        lock_state = 'locked' if entry.premium else 'available'
+        actions = ['install']
         if entry.premium:
-            actions.append("upgrade")
+            actions.append('upgrade')
         return cls(
             resource_id=entry.resource_id,
             lock_state=lock_state,

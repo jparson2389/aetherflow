@@ -8,21 +8,21 @@ def test_locked_premium_plugin_never_becomes_selectable() -> None:
     services = create_default_services()
     registry = PluginRegistry(services=services)
     manifest = PluginManifest(
-        plugin_id="capture.mf",
-        name="MF Capture",
-        version=PluginVersion.parse("1.0.0"),
-        api_version="1.0",
+        plugin_id='capture.mf',
+        name='MF Capture',
+        version=PluginVersion.parse('1.0.0'),
+        api_version='1.0',
         plugin_type=PluginType.CAPTURE,
-        entrypoint="capture.mf.dll",
+        entrypoint='capture.mf.dll',
         signed=True,
         premium=True,
-        required_entitlements=["vision"],
+        required_entitlements=['vision'],
         requires_worker=False,
-        signature_scheme="Authenticode",
-        digest_algorithm="SHA-256",
+        signature_scheme='Authenticode',
+        digest_algorithm='SHA-256',
         rsa_key_bits=3072,
-        publisher_thumbprint="aetherflow-publisher",
-        trust_root_thumbprint="aetherflow-root",
+        publisher_thumbprint='aetherflow-publisher',
+        trust_root_thumbprint='aetherflow-root',
     )
 
     registry.register(manifest)
@@ -30,4 +30,4 @@ def test_locked_premium_plugin_never_becomes_selectable() -> None:
 
     assert item.lock_state is CatalogLockState.LOCKED
     assert item.selectable is False
-    assert item.purchase_cta == "Upgrade to unlock"
+    assert item.purchase_cta == 'Upgrade to unlock'

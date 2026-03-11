@@ -32,20 +32,20 @@ class OpenCVCapturePlugin:
     """Default OpenCV-based capture provider."""
 
     _DEVICES: ClassVar[tuple[CaptureDevice, ...]] = (
-        CaptureDevice(stable_id="device-elgato-4kx", name="Elgato 4K X"),
-        CaptureDevice(stable_id="device-obs-virtual", name="OBS Virtual Camera"),
+        CaptureDevice(stable_id='device-elgato-4kx', name='Elgato 4K X'),
+        CaptureDevice(stable_id='device-obs-virtual', name='OBS Virtual Camera'),
     )
     _MODES: ClassVar[dict[str, list[CaptureMode]]] = {
-        "device-elgato-4kx": [
-            CaptureMode(1280, 720, 60, "NV12", "BGR", False, False, "USB 3.0"),
-            CaptureMode(1920, 1080, 120, "NV12", "BGR", False, False, "USB 3.0"),
+        'device-elgato-4kx': [
+            CaptureMode(1280, 720, 60, 'NV12', 'BGR', False, False, 'USB 3.0'),
+            CaptureMode(1920, 1080, 120, 'NV12', 'BGR', False, False, 'USB 3.0'),
             CaptureMode(
-                2560, 1440, 240, "MJPEG", "BGR", False, False, "High bandwidth"
+                2560, 1440, 240, 'MJPEG', 'BGR', False, False, 'High bandwidth'
             ),
         ],
-        "device-obs-virtual": [
-            CaptureMode(1280, 720, 30, "RGB32", "BGR", False, False, "Virtual camera"),
-            CaptureMode(1920, 1080, 60, "RGB32", "BGR", False, False, "Virtual camera"),
+        'device-obs-virtual': [
+            CaptureMode(1280, 720, 30, 'RGB32', 'BGR', False, False, 'Virtual camera'),
+            CaptureMode(1920, 1080, 60, 'RGB32', 'BGR', False, False, 'Virtual camera'),
         ],
     }
 

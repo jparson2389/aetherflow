@@ -13,9 +13,9 @@ def test_worker_supervisor_marks_failed_after_restart_budget_exhausted() -> None
     clock = FakeClock()
     supervisor = WorkerSupervisor(max_restarts=2, restart_window_s=60.0, clock=clock)
 
-    supervisor.start("vision-worker")
-    supervisor.record_crash("vision-worker")
-    supervisor.record_crash("vision-worker")
-    supervisor.record_crash("vision-worker")
+    supervisor.start('vision-worker')
+    supervisor.record_crash('vision-worker')
+    supervisor.record_crash('vision-worker')
+    supervisor.record_crash('vision-worker')
 
-    assert supervisor.status("vision-worker") is WorkerHealth.FAILED
+    assert supervisor.status('vision-worker') is WorkerHealth.FAILED

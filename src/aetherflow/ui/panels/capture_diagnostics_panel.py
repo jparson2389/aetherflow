@@ -15,4 +15,4 @@ class CaptureDiagnosticsPanelModel:
     @property
     def actions(self) -> list[str]:
         """Return available UI actions."""
-        return ["apply_recommendation", "copy_diagnostics"]
+        return ['apply_recommendation', 'copy_diagnostics']

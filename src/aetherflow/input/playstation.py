@@ -11,4 +11,4 @@ class PlayStationInputPlugin:
             legacy: Whether the descriptor targets a legacy device family.
 
         """
-        self.device_family = "playstation-legacy" if legacy else "playstation-modern"
+        self.device_family = 'playstation-legacy' if legacy else 'playstation-modern'

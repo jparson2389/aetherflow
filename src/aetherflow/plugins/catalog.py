@@ -11,9 +11,9 @@ from aetherflow.core.entitlements import RoleName
 class CatalogLockState(StrEnum):
     """Catalog lock states."""
 
-    AVAILABLE = "AVAILABLE"
-    LOCKED = "LOCKED"
-    GRACE = "GRACE"
+    AVAILABLE = 'AVAILABLE'
+    LOCKED = 'LOCKED'
+    GRACE = 'GRACE'
 
 
 @dataclass(frozen=True, slots=True)

@@ -33,7 +33,7 @@ def create_default_services(
 
     """
     resolved_roles = roles or [UserRole(name=RoleName.POWER_GAMER)]
-    logger.debug("Creating default application services.")
+    logger.debug('Creating default application services.')
     return AppServices(
         entitlements=EntitlementStore(),
         trust_verifier=PluginTrustVerifier(),

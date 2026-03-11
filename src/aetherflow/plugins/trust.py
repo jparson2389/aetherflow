@@ -8,8 +8,8 @@ from aetherflow.plugins.manifest import PluginManifest
 class PluginTrustVerifier:
     """Verify plugin trust and compatibility."""
 
-    required_signature_scheme = "Authenticode"
-    required_digest_algorithm = "SHA-256"
+    required_signature_scheme = 'Authenticode'
+    required_digest_algorithm = 'SHA-256'
     required_rsa_key_bits = 3072
 
     def verify(self, manifest: PluginManifest) -> bool:
@@ -26,4 +26,4 @@ class PluginTrustVerifier:
             return False
         if not manifest.publisher_thumbprint or not manifest.trust_root_thumbprint:
             return False
-        return manifest.api_version == "1.0"
+        return manifest.api_version == '1.0'

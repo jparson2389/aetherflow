@@ -16,4 +16,4 @@ class WorkerHealthPanelModel:
 
     def to_payload(self) -> dict[str, str]:
         """Return a JSON-serializable health payload."""
-        return {"worker_id": self.worker_id, "health": self.health.value}
+        return {'worker_id': self.worker_id, 'health': self.health.value}

@@ -10,7 +10,7 @@ def test_capture_metrics_flag_instability_and_offer_fallback() -> None:
     )
 
     assert metrics.is_stable is False
-    assert metrics.recommended_fallback() == "1080p@60"
+    assert metrics.recommended_fallback() == '1080p@60'
 
 
 def test_capture_metrics_flags_sustained_drop_by_fps() -> None:

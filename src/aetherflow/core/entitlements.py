@@ -9,45 +9,45 @@ from enum import StrEnum
 class EntitlementState(StrEnum):
     """Supported entitlement states for plugin gating."""
 
-    LOADED = "LOADED"
-    ELIGIBLE = "ELIGIBLE"
-    LOCKED = "LOCKED"
-    GRACE = "GRACE"
+    LOADED = 'LOADED'
+    ELIGIBLE = 'ELIGIBLE'
+    LOCKED = 'LOCKED'
+    GRACE = 'GRACE'
 
 
 class RoleName(StrEnum):
     """Role names defined by the PRD."""
 
-    POWER_GAMER = "power_gamer"
-    VISION_ML_TINKERER = "vision_ml_tinkerer"
-    ACCESSIBILITY_MODDER = "accessibility_modder"
-    ADMIN_OPERATOR = "admin_operator"
+    POWER_GAMER = 'power_gamer'
+    VISION_ML_TINKERER = 'vision_ml_tinkerer'
+    ACCESSIBILITY_MODDER = 'accessibility_modder'
+    ADMIN_OPERATOR = 'admin_operator'
 
 
 ROLE_CAPABILITIES: dict[RoleName, tuple[str, ...]] = {
-    RoleName.POWER_GAMER: ("profile.manage", "mapping.use", "profiles.switch"),
+    RoleName.POWER_GAMER: ('profile.manage', 'mapping.use', 'profiles.switch'),
     RoleName.VISION_ML_TINKERER: (
-        "profile.manage",
-        "mapping.use",
-        "capture.configure",
-        "env.manage",
-        "resources.install",
+        'profile.manage',
+        'mapping.use',
+        'capture.configure',
+        'env.manage',
+        'resources.install',
     ),
     RoleName.ACCESSIBILITY_MODDER: (
-        "profile.manage",
-        "mapping.use",
-        "automation.calibrate",
-        "scripts.manage",
+        'profile.manage',
+        'mapping.use',
+        'automation.calibrate',
+        'scripts.manage',
     ),
     RoleName.ADMIN_OPERATOR: (
-        "profile.manage",
-        "mapping.use",
-        "capture.configure",
-        "env.manage",
-        "resources.install",
-        "admin.manage_users",
-        "admin.audit",
-        "entitlements.assign",
+        'profile.manage',
+        'mapping.use',
+        'capture.configure',
+        'env.manage',
+        'resources.install',
+        'admin.manage_users',
+        'admin.audit',
+        'entitlements.assign',
     ),
 }
 
@@ -61,7 +61,7 @@ class UserRole:
 
     def __post_init__(self) -> None:
         """Populate the derived role capabilities."""
-        object.__setattr__(self, "capabilities", ROLE_CAPABILITIES[self.name])
+        object.__setattr__(self, 'capabilities', ROLE_CAPABILITIES[self.name])
 
 
 class EntitlementStore:

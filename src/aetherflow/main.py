@@ -10,5 +10,5 @@ def main() -> int:
         Process exit code.
 
     """
-    logger.info("Starting Aetherflow shell bootstrap.")
+    logger.info('Starting Aetherflow shell bootstrap.')
     return 0

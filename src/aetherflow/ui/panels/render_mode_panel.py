@@ -27,15 +27,15 @@ class RenderModePanelModel:
         return cls(
             modes=[
                 RenderMode(
-                    mode_id="render.cpu",
-                    latency_priority="lowest",
-                    cpu_load="highest",
+                    mode_id='render.cpu',
+                    latency_priority='lowest',
+                    cpu_load='highest',
                     requires_restart=False,
                 ),
                 RenderMode(
-                    mode_id="render.gpu",
-                    latency_priority="balanced",
-                    cpu_load="lower",
+                    mode_id='render.gpu',
+                    latency_priority='balanced',
+                    cpu_load='lower',
                     requires_restart=True,
                 ),
             ]

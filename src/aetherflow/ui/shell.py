@@ -11,7 +11,7 @@ from aetherflow.core.runtime_state import RuntimeState
 class ShellModel:
     """Top-level shell state."""
 
-    title: str = "Aetherflow"
+    title: str = 'Aetherflow'
     active_panels: list[str] = field(default_factory=list)
     runtime_state: RuntimeState = RuntimeState.RUNNING
     degraded_plugins: list[str] = field(default_factory=list)
