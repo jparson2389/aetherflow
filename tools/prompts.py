@@ -61,7 +61,7 @@ SYSTEM_JSON_WRITES = f"""
 Return exactly one valid JSON object with this EXACT structure:
 {{
   "writes": [
-    {{"path": "src/aetherflow/example.py", "content": "file contents..."}}
+    {{"path": "replace/with/real/path.py", "content": "file contents..."}}
   ],
   "notes": "one-sentence summary of changes"
 }}

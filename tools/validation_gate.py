@@ -36,6 +36,11 @@ from pathlib import Path
 
 from pydantic import BaseModel, model_validator
 
+try:
+    from tools.shell_utils import normalize_powershell_command
+except ModuleNotFoundError:  # pragma: no cover
+    from shell_utils import normalize_powershell_command  # type: ignore[no-redef]
+
 
 def normalize_docstring_quotes(content: str) -> str:
     '''Convert triple-double-quoted STRING tokens to triple-single-quoted.
@@ -285,9 +290,10 @@ def run_validation_command(
     heuristically to extract failing test identifiers, assertion
     excerpts and exception excerpts.
     """
+    normalized_command = normalize_powershell_command(command)
     try:
         result = subprocess.run(
-            command,
+            normalized_command,
             shell=True,
             cwd=repo_root,
             capture_output=True,
@@ -340,7 +346,7 @@ def run_validation_command(
             passed=passed,
             evidence=evidence,
             errors=errors,
-            command=command,
+            command=normalized_command,
             returncode=result.returncode,
             stdout_excerpt=stdout_excerpt,
             stderr_excerpt=stderr_excerpt,
@@ -352,15 +358,17 @@ def run_validation_command(
         return GateResult(
             layer=2,
             passed=False,
-            errors=[f'Validation command timed out after {timeout}s: {command}'],
-            command=command,
+            errors=[
+                f'Validation command timed out after {timeout}s: {normalized_command}'
+            ],
+            command=normalized_command,
         )
     except Exception as exc:
         return GateResult(
             layer=2,
             passed=False,
             errors=[f'Validation command raised exception: {exc}'],
-            command=command,
+            command=normalized_command,
         )
 
 

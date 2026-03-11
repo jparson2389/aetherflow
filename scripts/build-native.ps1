@@ -9,6 +9,11 @@ $sourcePath = "host/native_harness.cpp"
 $buildDir = "build"
 $outputPath = Join-Path $buildDir "native_harness.exe"
 $vswherePath = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+$cmdPath = if ($env:ComSpec) {
+    $env:ComSpec
+} else {
+    Join-Path $env:SystemRoot "System32\cmd.exe"
+}
 
 if (-not (Test-Path $headerPath)) {
     throw "Missing plugin_system.hpp contract."
@@ -39,6 +44,10 @@ if (-not (Test-Path $vswherePath)) {
     throw "vswhere.exe not found. Install Visual Studio Build Tools."
 }
 
+if (-not (Test-Path $cmdPath)) {
+    throw "cmd.exe not found."
+}
+
 $installPath = & $vswherePath -latest -products * `
     -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
     -property installationPath
@@ -53,7 +62,7 @@ if (-not (Test-Path $vcvarsPath)) {
 }
 
 $compileCommand = "call `"$vcvarsPath`" >nul && cl.exe /nologo /EHsc /std:c++20 /I include /Fe`"$outputPath`" `"$sourcePath`""
-$compileOutput = & cmd /c $compileCommand 2>&1
+$compileOutput = & $cmdPath /c $compileCommand 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host $compileOutput
     throw "Native harness build failed."

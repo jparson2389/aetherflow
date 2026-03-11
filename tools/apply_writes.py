@@ -36,6 +36,7 @@ DENIED_WRITE_PATHS: set[str] = {
 PLACEHOLDER_WRITE_PATHS: set[str] = {
     'relative/path',
     'path/to/file',
+    'replace/with/real/path.py',
     'file contents',
     'your/path/here',
 }

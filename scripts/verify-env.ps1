@@ -3,9 +3,18 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Resolve-Path "$PSScriptRoot\.."
 $logDir = Join-Path $projectRoot "logs"
 $reportPath = Join-Path $logDir "env_report.json"
+$cmdPath = if ($env:ComSpec) {
+    $env:ComSpec
+} else {
+    Join-Path $env:SystemRoot "System32\cmd.exe"
+}
 
 if (-not (Test-Path $logDir)) {
     New-Item -ItemType Directory -Path $logDir | Out-Null
+}
+
+if (-not (Test-Path $cmdPath)) {
+    throw "cmd.exe not found."
 }
 
 function Get-CommandInfo {
@@ -33,7 +42,7 @@ function Get-CommandInfo {
     }
 
     return @{
-        available = $versionError -eq $null
+        available = $null -eq $versionError
         path = $command.Path
         version = $versionOutput
         error = $versionError
@@ -80,7 +89,7 @@ function Get-ClInfo {
         }
     }
 
-    $whereOutput = & cmd /c "call `"$vcvarsPath`" >nul && where cl.exe"
+    $whereOutput = & $cmdPath /c "call `"$vcvarsPath`" >nul && where cl.exe"
     if (-not $whereOutput) {
         return @{
             available = $false
@@ -90,7 +99,7 @@ function Get-ClInfo {
         }
     }
 
-    $versionOutput = & cmd /c "call `"$vcvarsPath`" >nul && cl.exe 2>&1"
+    $versionOutput = & $cmdPath /c "call `"$vcvarsPath`" >nul && cl.exe 2>&1"
     return @{
         available = $true
         path = ($whereOutput | Select-Object -First 1)

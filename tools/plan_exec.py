@@ -7,11 +7,18 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger
-from openai import OpenAI
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from openai import OpenAI
+else:
+    try:
+        from openai import OpenAI
+    except ModuleNotFoundError:  # pragma: no cover
+        OpenAI = Any  # type: ignore[misc,assignment]
 
 """
 plan_exec.py — Implementation plan executor with deterministic PM selection, schema repair,
@@ -103,6 +110,11 @@ except ModuleNotFoundError:  # pragma: no cover
         PLACEHOLDER_WRITE_PATHS,
         validate_writes_payload,
     )
+
+try:
+    from tools.shell_utils import resolve_powershell_executable
+except ModuleNotFoundError:  # pragma: no cover
+    from shell_utils import resolve_powershell_executable  # type: ignore[no-redef]
 
 # ---------------------------------------------------------------------------
 # Internal helpers for evidence extraction
@@ -311,7 +323,42 @@ def _slug(value: str) -> str:
     return token or 'item'
 
 
+_WORK_ITEM_TOKEN_RE = re.compile(
+    r'`?(?P<token>AF-\d{2}-\d{2}[a-z]?)`?',
+    re.IGNORECASE,
+)
+
+
+def extract_work_item_token(title: str) -> str | None:
+    """Extract a stable work-item token from a PLAN title.
+
+    Args:
+        title: Raw checklist title text from ``docs/PLAN.md``.
+
+    Returns:
+        The normalized token when present, otherwise ``None``.
+    """
+    match = _WORK_ITEM_TOKEN_RE.search(title)
+    if not match:
+        return None
+    return match.group('token').upper()
+
+
 def work_item_id(phase: str, title: str) -> str:
+    """Build a persistent work-item id.
+
+    Args:
+        phase: Phase header associated with the work item.
+        title: Raw checklist title text from ``docs/PLAN.md``.
+
+    Returns:
+        A stable slug derived from the explicit task token when available.
+        Falls back to the legacy phase-and-title slug for titles that do not
+        declare a token.
+    """
+    token = extract_work_item_token(title)
+    if token is not None:
+        return _slug(token)
     return f'{_slug(phase)}__{_slug(title)}'
 
 
@@ -417,7 +464,10 @@ def load_or_initialize_plan_state(plan_items: list[PlanWorkItem]) -> dict[str, A
             try:
                 item = StateItem.model_validate(entry)
                 if item.id:
-                    existing_items[item.id] = item.model_dump()
+                    payload = item.model_dump()
+                    existing_items[item.id] = payload
+                    alias_id = work_item_id(item.phase, item.title)
+                    existing_items.setdefault(alias_id, payload)
             except Exception:
                 continue
 
@@ -437,9 +487,11 @@ def load_or_initialize_plan_state(plan_items: list[PlanWorkItem]) -> dict[str, A
         }
         if key in existing_items:
             persisted = existing_items[key]
-            persisted['phase'] = plan_item.phase
-            persisted['title'] = plan_item.title
             base.update(persisted)
+            base['id'] = key
+            base['phase'] = plan_item.phase
+            base['title'] = plan_item.title
+            base['instructions'] = plan_item.instructions
         merged_items.append(base)
 
     history = existing.get('history', [])
@@ -451,12 +503,18 @@ def load_or_initialize_plan_state(plan_items: list[PlanWorkItem]) -> dict[str, A
         for event in history:
             if not isinstance(event, dict):
                 continue
+            event_id = str(event.get('id', '')).strip()
             phase = str(event.get('phase', '')).strip()
             title = str(event.get('title', '')).strip()
             status = str(event.get('status', '')).strip()
-            if not phase or not title or not status:
+            if not status:
                 continue
-            item_key = work_item_id(phase, title)
+            if event_id:
+                item_key = event_id
+            elif phase and title:
+                item_key = work_item_id(phase, title)
+            else:
+                continue
             latest_by_id[item_key] = event
 
         for item in merged_items:
@@ -556,6 +614,7 @@ def update_state_item(
 def append_history(
     state: dict[str, Any],
     *,
+    item_id: str,
     phase: str,
     title: str,
     status: str,
@@ -570,6 +629,7 @@ def append_history(
         state['history'] = history
     payload = {
         'timestamp': _now_iso(),
+        'id': item_id,
         'phase': phase,
         'title': title,
         'status': status,
@@ -582,7 +642,13 @@ def append_history(
 
 def run_ps(path: str, args: list[str] | None = None) -> tuple[int, str]:
     """Run a PowerShell script under .cursor/workflows and return (rc, combined output)."""
-    cmd = ['powershell', '-ExecutionPolicy', 'Bypass', '-File', str(ROOT / path)]
+    cmd = [
+        resolve_powershell_executable(),
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        str(ROOT / path),
+    ]
     if args:
         cmd.extend(args)
     proc = subprocess.run(
@@ -1531,6 +1597,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     append_history(
         state,
+        item_id=str(selected_id),
         phase=selected_phase,
         title=selected_title,
         status='done',

@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from tools.shell_utils import resolve_powershell_executable
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -16,7 +18,7 @@ def test_build_native_harness_creates_executable() -> None:
 
     result = subprocess.run(
         [
-            'powershell',
+            resolve_powershell_executable(),
             '-ExecutionPolicy',
             'Bypass',
             '-File',

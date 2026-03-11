@@ -10,11 +10,14 @@ def test_canonical_package_root_is_aetherflow() -> None:
 
 def test_project_docs_reference_aetherflow_canonical_paths() -> None:
     prd_text = (PROJECT_ROOT / 'docs' / 'PRD.md').read_text(encoding='utf-8')
+    readme_text = (PROJECT_ROOT / 'README.md').read_text(encoding='utf-8')
     project_rules = (
         PROJECT_ROOT / '.agents' / 'rules' / 'project-specific.md'
     ).read_text(encoding='utf-8')
 
-    assert 'src/aetherflow/' in project_rules
-    assert 'src/aetherflow/' not in project_rules
+    for text in (readme_text, project_rules):
+        assert 'src/aetherflow/' in text
+        assert 'src/aetherlink/' not in text
+
     assert '`include/plugin_system.hpp`' in prd_text
     assert 'src/aetherflow/plugins/include/plugin_system.hpp' not in prd_text

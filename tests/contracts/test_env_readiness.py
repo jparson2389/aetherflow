@@ -4,6 +4,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from tools.shell_utils import resolve_powershell_executable
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -17,7 +19,7 @@ def test_verify_env_generates_report() -> None:
 
     result = subprocess.run(
         [
-            'powershell',
+            resolve_powershell_executable(),
             '-ExecutionPolicy',
             'Bypass',
             '-File',
