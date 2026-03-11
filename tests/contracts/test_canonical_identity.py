@@ -15,6 +15,6 @@ def test_project_docs_reference_aetherflow_canonical_paths() -> None:
     ).read_text(encoding='utf-8')
 
     assert 'src/aetherflow/' in project_rules
-    assert 'src/aetherlink/' not in project_rules
+    assert 'src/aetherflow/' not in project_rules
     assert '`include/plugin_system.hpp`' in prd_text
-    assert 'src/aetherlink/plugins/include/plugin_system.hpp' not in prd_text
+    assert 'src/aetherflow/plugins/include/plugin_system.hpp' not in prd_text

@@ -32,7 +32,7 @@ testpaths = [
     "tests",
 ]
 python_files = "test_*.py"
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 addopts = "-ra -q"
 
 [project.scripts]
@@ -49,7 +49,7 @@ build-backend = "uv_build"
 target-version = "py312"
 line-length = 88
 fix = true
-src = ["src"]
+src = ["src", "."]
 extend-exclude = ["*_pb2.py", "*_pb2_grpc.py", ".venv", "build"]
 
 [tool.ruff.lint]
@@ -70,7 +70,7 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint.isort]
-known-first-party = ["aetherflow"]
+known-first-party = ["aetherflow", "tools"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
@@ -83,8 +83,9 @@ inline-quotes = "single"
 docstring-quotes = "single"
 
 [tool.pyright]
-include = ["src"]
+include = ["src", "tools"]
 exclude = ["**/node_modules", "**/__pycache__", ".venv"]
+extraPaths = ["src", "."]
 venvPath = "."
 venv = ".venv"
 typeCheckingMode = "basic"

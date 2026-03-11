@@ -1,0 +1,151 @@
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+from loguru import logger
+
+ALLOWED_WRITE_PREFIXES: tuple[str, ...] = (
+    'src/aetherflow/',
+    'include/',
+    'host/',
+    '.cursor/',
+    '.github/',
+    'proto/',
+    'assets/',
+    'tests/',
+    'docs/',
+    'state/',
+)
+
+ALLOWED_ROOT_FILES: set[str] = {
+    'pyproject.toml',
+    'README.md',
+}
+DENIED_WRITE_PATHS: set[str] = {
+    'PLAN.md',
+    'PRD.md',
+    'docs/plan.md',
+    'docs/prd.md',
+}
+
+PLACEHOLDER_WRITE_PATHS: set[str] = {
+    'relative/path',
+    'path/to/file',
+    'file contents',
+    'your/path/here',
+}
+
+
+def _norm_path(p: str) -> str:
+    return p.replace('\\', '/').strip().lstrip('./').lower()
+
+
+_DENIED_WRITE_PATHS_NORM: set[str] = {_norm_path(p) for p in DENIED_WRITE_PATHS}
+_PLACEHOLDER_WRITE_PATHS_NORM: set[str] = {
+    _norm_path(p) for p in PLACEHOLDER_WRITE_PATHS
+}
+_ALLOWED_ROOT_FILES_NORM: set[str] = {_norm_path(p) for p in ALLOWED_ROOT_FILES}
+_ALLOWED_PREFIXES_NORM: tuple[str, ...] = tuple(
+    _norm_path(p) for p in ALLOWED_WRITE_PREFIXES
+)
+
+
+def is_write_path_allowed(path: str) -> bool:
+    raw = path
+    p = _norm_path(raw)
+
+    if p in _PLACEHOLDER_WRITE_PATHS_NORM:
+        return False
+    if p in _DENIED_WRITE_PATHS_NORM:
+        return False
+
+    raw_clean = raw.strip().lstrip('./')
+    if (
+        raw_clean in ALLOWED_ROOT_FILES
+        or _norm_path(raw_clean) in _ALLOWED_ROOT_FILES_NORM
+    ):
+        return True
+
+    return any(p.startswith(prefix) for prefix in _ALLOWED_PREFIXES_NORM)
+
+
+def validate_writes_payload(payload: dict[str, Any]) -> Any:
+    """Validate the writes payload and return the validated model.
+
+    The model has normalized content (e.g. docstring quotes) for .py files.
+    """
+    try:
+        from validation_gate import WritesPayload
+    except ModuleNotFoundError:
+        from tools.validation_gate import WritesPayload  # type: ignore[no-redef]
+
+    model = WritesPayload.model_validate(payload)
+    for entry in model.writes:
+        clean = entry.path.strip()
+        if not clean:
+            raise ValueError('Empty path in write entry.')
+        if clean.startswith(('/', '\\')) or re.match(r'^[A-Za-z]:[\\/]', clean):
+            raise ValueError(f'Absolute path not allowed: {entry.path!r}')
+        normalized = clean.replace('\\', '/').lstrip('./')
+        if '/../' in f'/{normalized}/' or normalized in {'..', '.'}:
+            raise ValueError(f'Path traversal not allowed: {entry.path!r}')
+        if not is_write_path_allowed(clean):
+            raise ValueError(f'Path not in allowed locations: {entry.path!r}')
+    return model
+
+
+def _safe_path(repo_root: Path, rel: str) -> Path:
+    p = (repo_root / rel).resolve()
+    rr = repo_root.resolve()
+    if p == rr or rr in p.parents:
+        return p
+    raise ValueError(f'Refusing to write outside repo root: {rel}')
+
+
+def apply_writes(repo_root: Path, payload: dict[str, Any]) -> list[Path]:
+    model = validate_writes_payload(payload)
+
+    changed: list[Path] = []
+    for entry in model.writes:
+        path = entry.path.strip()
+        content = entry.content
+
+        target = _safe_path(repo_root, path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding='utf-8')
+        changed.append(target)
+
+    return changed
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--repo-root', default='.')
+    ap.add_argument(
+        '--in', dest='infile', default='-', help="JSON file or '-' for stdin"
+    )
+    args = ap.parse_args()
+
+    repo_root = Path(args.repo_root).resolve()
+
+    if args.infile == '-':
+        raw = sys.stdin.read()
+    else:
+        raw = Path(args.infile).read_text(encoding='utf-8')
+
+    payload = json.loads(raw)
+    changed = apply_writes(repo_root, payload)
+
+    for p in changed:
+        logger.info(p.relative_to(repo_root))
+
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
