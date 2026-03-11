@@ -309,9 +309,9 @@ Each plugin must expose:
 
 - Default capture source plugin for v1
 - UI controls:
-    - capture source dropdown
-    - frame rate dropdown: 30, 60, 120, 240
-    - resolution dropdown: 720p, 1080p, 1440p
+  - capture source dropdown
+  - frame rate dropdown: 30, 60, 120, 240
+  - resolution dropdown: 720p, 1080p, 1440p
 - UI must show only supported combinations for the selected device
 - UI must show reason text for unavailable combinations
 - UI must show measured FPS, dropped frames, and jitter
@@ -446,11 +446,11 @@ If capture fails:
 - Self-contained runtime layout for Windows
 - Dedicated updater with staged updates and rollback
 - Diagnostics export must include:
-    - plugin list and versions
-    - env list and metadata
-    - recent host and worker logs
-    - system summary
-    - overflow and restart counters
+  - plugin list and versions
+  - env list and metadata
+  - recent host and worker logs
+  - system summary
+  - overflow and restart counters
 
 ---
 
