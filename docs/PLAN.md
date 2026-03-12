@@ -113,6 +113,7 @@ steps 1–3 first.
 
 - [ ] `AF-00-01` Canonicalize repo identity and self-contained docs.
   > **PRD Refs:** `§1`, `§2`, `REQ-01`
+  > **Role:** `core-runtime`
   > **Preconditions:** none
   > **Target File:** `docs/PRD.md`
   > **Target File:** `README.md`
@@ -129,6 +130,7 @@ steps 1–3 first.
   > **ARP Trigger:** if any canonical path conflicts with active repo structure, stop and capture the conflict.
 - [ ] `AF-00-02a` Verify Windows toolchain and `uv` environment.
   > **PRD Refs:** `§5.3`, `REQ-01`
+  > **Role:** `core-runtime`
   > **Preconditions:** `AF-00-01`
   > **Target File:** `scripts/verify-env.ps1`
   > **Target File:** `tests/contracts/test_env_readiness.py`
@@ -142,6 +144,7 @@ steps 1–3 first.
   > **ARP Trigger:** if toolchain is missing, halt execution until resolved.
 - [ ] `AF-00-02b` Establish native boundary and build harness.
   > **PRD Refs:** `§5.3`, `REQ-01`
+  > **Role:** `core-runtime`
   > **Preconditions:** `AF-00-02a`
   > **Target File:** `host/`
   > **Target File:** `include/`
@@ -157,6 +160,7 @@ steps 1–3 first.
   > **ARP Trigger:** if build fails, capture compiler output and stop.
 - [ ] `AF-00-03` Publish control-plane proto surface and shared-memory ring semantics.
   > **PRD Refs:** `§6`, `§7`, `REQ-01`, `REQ-02`, `REQ-08`
+  > **Role:** `runtime-services`
   > **Preconditions:** `AF-00-02b`
   > **Target File:** `proto/capture.proto`
   > **Target File:** `src/aetherflow/core/shared_memory_layout.py`
@@ -172,6 +176,7 @@ steps 1–3 first.
   > **ARP Trigger:** if control-plane or ring semantics remain ambiguous, do not freeze them.
 - [ ] `AF-00-04` Publish signing and runtime-state ABI, then freeze contracts.
   > **PRD Refs:** `§5.3`, `§7`, `§8`, `REQ-02`, `REQ-03`
+  > **Role:** `trust-security`
   > **Preconditions:** `AF-00-03`
   > **Target File:** `include/plugin_system.hpp`
   > **Target File:** `docs/breaking-changes/abi.md`
@@ -189,6 +194,7 @@ steps 1–3 first.
   > **ARP Trigger:** if trust policy or runtime states are still in flux, stop instead of publishing the freeze.
 - [ ] `AF-00-05` Publish bounded sign-off packets and failure-UX state model.
   > **PRD Refs:** `§8.3`, `§10`, `§14`, `REQ-02`, `REQ-08`, `REQ-09`
+  > **Role:** `platform-entitlements`
   > **Preconditions:** `AF-00-04`
   > **Target File:** `docs/sign-offs/auth-provider.md`
   > **Target File:** `docs/sign-offs/bundle-format.md`
@@ -216,6 +222,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
 
 - [ ] `AF-01-01` Implement trust verification and plugin/resource catalog policy.
   > **PRD Refs:** `§8.1`, `§9.1`, `§9.9`, `REQ-02`, `REQ-03`
+  > **Role:** `trust-security`
   > **Preconditions:** `AF-00-04`
   > **Target File:** `src/aetherflow/plugins/trust.py`
   > **Target File:** `src/aetherflow/plugins/registry.py`
@@ -233,6 +240,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
   > **ARP Trigger:** any reachable unsigned path blocks the phase.
 - [ ] `AF-01-02` Implement entitlement runtime states and shell-safe degradation model.
   > **PRD Refs:** `§8.2`, `§8.3`, `§10.1`, `REQ-02`, `REQ-07`
+  > **Role:** `platform-entitlements`
   > **Preconditions:** `AF-01-01`
   > **Target File:** `src/aetherflow/core/entitlements.py`
   > **Target File:** `src/aetherflow/ui/shell.py`
@@ -263,6 +271,7 @@ uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py
 
 - [ ] `AF-02-01` Deliver profiles, mapping, translation, diagnostics, and input plugins.
   > **PRD Refs:** `§6.1`, `§9.2`, `§9.6`, `REQ-04`
+  > **Role:** `native-io-capture`
   > **Preconditions:** `AF-01-02`
   > **Target File:** `src/aetherflow/core/profiles.py`
   > **Target File:** `src/aetherflow/core/diagnostics.py`
@@ -282,6 +291,7 @@ uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py
   > **ARP Trigger:** if latency or translation cannot be measured consistently, capture sample traces and stop.
 - [ ] `AF-02-02` Add virtual output, masking, and plugin-failure-safe output UX.
   > **PRD Refs:** `§9.3`, `§10.1`, `REQ-05`
+  > **Role:** `native-io-capture`
   > **Preconditions:** `AF-02-01`
   > **Target File:** `src/aetherflow/output/virtual_controller.py`
   > **Target File:** `src/aetherflow/output/device_masking.py`
@@ -310,6 +320,7 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
 
 - [ ] `AF-03-01` Implement OpenCV capture, mode matrix enforcement, and 60 FPS baseline validation.
   > **PRD Refs:** `§6.4`, `§9.4`, `REQ-06`
+  > **Role:** `native-io-capture`
   > **Preconditions:** `AF-02-01`, `AF-01-02`
   > **Target File:** `src/aetherflow/vision/opencv_capture.py`
   > **Target File:** `src/aetherflow/ui/panels/capture_panel.py`
@@ -327,6 +338,7 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
   > **ARP Trigger:** if capability/UI mismatch occurs, capture hardware and mode diagnostics.
 - [ ] `AF-03-02` Add premium capture backends, CPU/GPU render modes, and one validated 120 FPS path.
   > **PRD Refs:** `§9.4`, `§9.5`, `§11`, `REQ-06`, `REQ-07`
+  > **Role:** `native-io-capture`
   > **Preconditions:** `AF-03-01`
   > **Target File:** `src/aetherflow/vision/mf_capture.py`
   > **Target File:** `src/aetherflow/vision/ds_capture.py`
@@ -358,6 +370,7 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
 
 - [ ] `AF-04-01` Implement worker supervision with restart ceilings and escalation UX.
   > **PRD Refs:** `§6.2`, `§7`, `§9.7`, `§10.2`, `REQ-08`
+  > **Role:** `runtime-services`
   > **Preconditions:** `AF-00-03`, `AF-03-01`
   > **Target File:** `src/aetherflow/core/worker_supervisor.py`
   > **Target File:** `src/aetherflow/ui/panels/worker_health_panel.py`
@@ -373,6 +386,7 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   > **ARP Trigger:** if host death or uncontrolled restart loops occur, block the phase.
 - [ ] `AF-04-02` Deliver environment manager and bounded bundle validation workflow.
   > **PRD Refs:** `§9.8`, `REQ-09`
+  > **Role:** `runtime-services`
   > **Preconditions:** `AF-00-05`, `AF-04-01`
   > **Target File:** `src/aetherflow/core/env_manager.py`
   > **Target File:** `src/aetherflow/core/bundle_installer.py`
@@ -401,6 +415,7 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
 
 - [ ] `AF-05-01` Build Online Resources trust flow with mock-provider fallback.
   > **PRD Refs:** `§8.1`, `§9.9`, `REQ-03`, `REQ-09`
+  > **Role:** `trust-security`
   > **Preconditions:** `AF-00-05`, `AF-01-02`, `AF-04-02`
   > **Target File:** `src/aetherflow/core/resources_manifest.py`
   > **Target File:** `src/aetherflow/core/resources_client.py`
@@ -419,6 +434,7 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
   > **ARP Trigger:** if resource trust depends on unresolved provider choice, use the fallback and document it.
 - [ ] `AF-05-02` Implement admin, diagnostics export, packaging, and evidence collectors.
   > **PRD Refs:** `§12`, `§13`, `REQ-10`
+  > **Role:** `runtime-services`
   > **Preconditions:** `AF-05-01`
   > **Target File:** `src/aetherflow/ui/panels/admin_panel.py`
   > **Target File:** `src/aetherflow/core/audit_log.py`

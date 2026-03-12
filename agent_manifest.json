@@ -1,5 +1,44 @@
 {
     "base_url": "http://127.0.0.1:8080/v1",
     "api_key": "none",
-    "grammar_capable": true
+    "grammar_capable": true,
+    "model_preset_path": "tools/models.ini",
+    "required_aliases": [
+        "pm",
+        "architect",
+        "trust-security",
+        "runtime-services",
+        "ui-ux",
+        "quick-fix"
+    ],
+    "optional_aliases": ["researcher"],
+    "alias_purpose": {
+        "pm": "Plan work-item selection and semantic verification.",
+        "architect": "Primary implementation model for core runtime and systems work.",
+        "ui-ux": "PySide6 shell, panel, and UX-focused implementation.",
+        "quick-fix": "Focused Ruff and Pytest repair passes.",
+        "researcher": "Manual deep-analysis role outside the strict JSON executor loop."
+    },
+    "role_to_alias": {
+        "core-runtime": "architect",
+        "trust-security": "trust-security",
+        "platform-entitlements": "runtime-services",
+        "native-io-capture": "architect",
+        "runtime-services": "runtime-services",
+        "ui-shell": "ui-ux"
+    },
+    "role_to_context": {
+        "core-runtime": "You are a senior Windows systems architect focused on contracts, boundaries, ABI stability, and deterministic runtime structure. You own the core runtime design of Aetherflow.",
+        "trust-security": "You are a security-focused Windows engineer responsible for signing, trust validation, fail-closed policy, auditability, and negative-path testing for Aetherflow.",
+        "platform-entitlements": "You are a runtime engineer focused on entitlement states, degraded behavior, shell survivability, and user-visible state consistency across the Aetherflow platform.",
+        "native-io-capture": "You are a low-latency Windows I/O and capture engineer focused on measurable performance, device paths, and real telemetry for Aetherflow.",
+        "runtime-services": "You are a reliability engineer for worker supervision, environments, diagnostics, packaging, and operational evidence throughout the Aetherflow runtime services.",
+        "ui-shell": "You are a PySide6 shell engineer focused on clear degraded-state UX, operator visibility, and runtime-coupled panels for the Aetherflow UI shell."
+    },
+    "stage_to_alias": {
+        "pm_next": "pm",
+        "pm_verify": "pm",
+        "quick_fix": "quick-fix",
+        "manual_research": "researcher"
+    }
 }

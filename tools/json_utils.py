@@ -56,15 +56,11 @@ PM_NEXT_RESPONSE_FORMAT: dict = {
                     'maxItems': 1,
                     'items': {
                         'type': 'object',
-                        'required': ['id', 'title', 'agent', 'acceptance', 'notes'],
+                        'required': ['id', 'title', 'acceptance', 'notes'],
                         'additionalProperties': False,
                         'properties': {
                             'id': {'type': 'string'},
                             'title': {'type': 'string'},
-                            'agent': {
-                                'type': 'string',
-                                'enum': ['architect', 'ui-ux'],
-                            },
                             'acceptance': {
                                 'type': 'array',
                                 'minItems': 1,

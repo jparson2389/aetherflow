@@ -197,7 +197,6 @@ SCHEMA_PM_NEXT = """{
     {
       "id": "phaseX_slug",
       "title": "short",
-      "agent": "architect|ui-ux",
       "acceptance": ["testable bullets"],
       "notes": "short"
     }
@@ -231,6 +230,7 @@ class PlanWorkItem(BaseModel):
     title: str
     status: Literal['done', 'open']
     instructions: str = ''
+    role: str = ''
 
 
 class StateItem(BaseModel):
@@ -280,7 +280,6 @@ class PMWorkItem(BaseModel):
 
     id: str
     title: str
-    agent: Literal['architect', 'ui-ux']
     acceptance: list[str]
     notes: str
 
@@ -324,6 +323,37 @@ class PMVerdict(BaseModel):
 
 def _now_iso() -> str:
     return datetime.now().isoformat(timespec='seconds')
+
+
+def resolve_role_alias(manifest: dict[str, Any], role: str) -> str:
+    """Resolve a PLAN role to a runtime alias using the manifest."""
+    role_to_alias = manifest.get('role_to_alias', {})
+    alias = role_to_alias.get(role, '').strip()
+    if not alias:
+        msg = f'No alias mapping for role {role!r}'
+        raise KeyError(msg)
+    return alias
+
+
+def resolve_role_context(manifest: dict[str, Any], role: str) -> str:
+    """Resolve a PLAN role to its contextual persona string."""
+    role_to_context = manifest.get('role_to_context', {})
+    ctx = str(role_to_context.get(role, '')).strip()
+    if not ctx:
+        msg = f'No role_to_context entry for role {role!r}'
+        raise KeyError(msg)
+    return ctx
+
+
+def build_role_scoped_impl_system(
+    *,
+    manifest: dict[str, Any],
+    role: str,
+    base_system: str,
+) -> str:
+    """Prepend role-specific context before the base implementation system prompt."""
+    ctx = resolve_role_context(manifest, role)
+    return f'{ctx}\n\n{base_system}'
 
 
 def _slug(value: str) -> str:
@@ -406,13 +436,17 @@ def extract_phase_work_items(plan_text: str) -> list[PlanWorkItem]:
     current_phase: str = ''
     current_item: PlanWorkItem | None = None
     instruction_lines: list[str] = []
+    current_role: str = ''
 
     def _flush_item() -> None:
         nonlocal current_item
         if current_item is not None:
             items.append(
                 current_item.model_copy(
-                    update={'instructions': '\n'.join(instruction_lines).strip()}
+                    update={
+                        'instructions': '\n'.join(instruction_lines).strip(),
+                        'role': current_role,
+                    }
                 )
             )
 
@@ -422,6 +456,7 @@ def extract_phase_work_items(plan_text: str) -> list[PlanWorkItem]:
             _flush_item()
             current_item = None
             instruction_lines = []
+            current_role = ''
             current_phase = phase_m.group('phase').strip()
             continue
         if not current_phase:
@@ -430,6 +465,7 @@ def extract_phase_work_items(plan_text: str) -> list[PlanWorkItem]:
         if item_m:
             _flush_item()
             instruction_lines = []
+            current_role = ''
             mark = item_m.group('mark').strip().lower()
             title = item_m.group('title').strip()
             current_item = PlanWorkItem(
@@ -442,7 +478,12 @@ def extract_phase_work_items(plan_text: str) -> list[PlanWorkItem]:
 
         stripped = raw_line.strip()
         if current_item is not None and stripped.startswith('>'):
-            instruction_lines.append(stripped.lstrip('>').strip())
+            body = stripped.lstrip('>').strip()
+            if body.startswith('**Role:**'):
+                parts = body.split('`')
+                if len(parts) >= 2:
+                    current_role = parts[1].strip()
+            instruction_lines.append(body)
     _flush_item()
     return items
 
@@ -686,6 +727,46 @@ def is_grammar_capable(manifest: AgentManifest) -> bool:
     return is_local_backend(manifest.base_url)
 
 
+def _build_messages(system: str, user: str) -> list[dict[str, str]]:
+    """Build the chat message list for a model call.
+
+    Args:
+        system: System prompt content.
+        user: User prompt content.
+
+    Returns:
+        OpenAI-compatible chat messages.
+    """
+    return [
+        {'role': 'system', 'content': system},
+        {'role': 'user', 'content': user.rstrip()},
+    ]
+
+
+def _build_extra_body(
+    *,
+    model: str,
+    use_local_backend: bool,
+    grammar: str | None = None,
+) -> dict[str, Any]:
+    """Build backend-specific request fields for local llama.cpp calls.
+
+    Args:
+        model: Runtime alias requested from the router.
+        use_local_backend: Whether llama.cpp-specific fields are safe to send.
+        grammar: Optional GBNF grammar for token-level enforcement.
+
+    Returns:
+        Extra request fields for the chat completions call.
+    """
+    extra_body: dict[str, Any] = {}
+    if grammar is not None:
+        extra_body['grammar'] = grammar
+    if use_local_backend and model == 'pm':
+        extra_body['reasoning_format'] = 'deepseek'
+    return extra_body
+
+
 def call(
     client: OpenAI,
     model: str,
@@ -697,16 +778,21 @@ def call(
     grammar: str | None = None,
 ) -> ModelCall:
     """Invoke an LLM and return the raw model response."""
+    use_local_overrides = grammar_capable
     kwargs: dict[str, Any] = {
         'model': model,
         'temperature': temperature,
-        'messages': [
-            {'role': 'system', 'content': system},
-            {'role': 'user', 'content': user},
-        ],
+        'messages': _build_messages(system, user),
     }
+    extra_body = _build_extra_body(
+        model=model,
+        use_local_backend=use_local_overrides,
+        grammar=grammar if grammar and grammar_capable else None,
+    )
+    if extra_body:
+        kwargs['extra_body'] = extra_body
     if grammar and grammar_capable:
-        kwargs['extra_body'] = {'grammar': grammar}
+        pass
     elif response_format is not None:
         kwargs['response_format'] = response_format
     resp = client.chat.completions.create(**kwargs)
@@ -976,16 +1062,13 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv if argv is not None else sys.argv[1:])
 
     # Load manifest and initialise API client
-    manifest = AgentManifest.model_validate(
-        json.loads((ROOT / args.manifest).read_text(encoding='utf-8'))
+    manifest_data: dict[str, Any] = json.loads(
+        (ROOT / args.manifest).read_text(encoding='utf-8')
     )
+    manifest = AgentManifest.model_validate(manifest_data)
     grammar_capable = is_grammar_capable(manifest)
     _ctx_monitor = ContextMonitor()
-    client = OpenAI(
-        base_url=manifest.base_url,
-        api_key=manifest.api_key,
-        timeout=300,
-    )
+    client = OpenAI(base_url=manifest.base_url, api_key=manifest.api_key, timeout=300)
 
     # Read source documents
     plan = (ROOT / args.plan).read_text(encoding='utf-8', errors='ignore')
@@ -1000,6 +1083,7 @@ def main(argv: list[str] | None = None) -> int:
     prd_summary = extract_prd_hard_requirements(prd, max_doc_chars)
 
     plan_items = extract_phase_work_items(plan)
+    plan_items_by_id: dict[str, PlanWorkItem] = {item.id: item for item in plan_items}
     state = load_or_initialize_plan_state(plan_items)
     selected_phase, open_items = next_open_work_items(state)
 
@@ -1058,7 +1142,8 @@ def main(argv: list[str] | None = None) -> int:
         f'{plan_summary}\n'
     )
 
-    pm_alias = 'pm'
+    stage_to_alias = manifest_data.get('stage_to_alias', {})
+    pm_alias = stage_to_alias.get('pm_next', 'pm')
     try:
         queue = call_json_with_retry(
             client=client,
@@ -1099,9 +1184,6 @@ def main(argv: list[str] | None = None) -> int:
     # Cast the fallback id to string to satisfy static type checking
     selected_id: str = str(fallback_choice.get('id') or '')
     selected_title = fallback_choice.get('title', '').strip()
-    selected_agent = infer_agent_from_instructions(
-        fallback_choice.get('instructions', ''), selected_title
-    )
     raw_acceptance: list[Any] = []
     invalid_reason = ''
 
@@ -1120,7 +1202,6 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 selected_id = chosen_item.id
                 selected_title = expected.get('title', '')
-                selected_agent = chosen_item.agent
                 raw_acceptance = chosen_item.acceptance
 
     if invalid_reason:
@@ -1152,6 +1233,24 @@ def main(argv: list[str] | None = None) -> int:
         notes='Execution started',
     )
     save_plan_state(state)
+
+    # Resolve implementation role and alias
+    plan_item = plan_items_by_id.get(selected_id)
+    if plan_item is None or not plan_item.role:
+        logger.error(f'No role found for selected work item id={selected_id!r}')
+        return 1
+    selected_role = plan_item.role
+    try:
+        impl_alias = resolve_role_alias(manifest_data, selected_role)
+    except KeyError as exc:
+        logger.error(f'Unable to resolve alias for role {selected_role!r}: {exc}')
+        return 1
+
+    impl_system = build_role_scoped_impl_system(
+        manifest=manifest_data,
+        role=selected_role,
+        base_system=IMPL_SYSTEM,
+    )
 
     # Implementation retry loop state
     max_retries: int = 3
@@ -1190,7 +1289,7 @@ def main(argv: list[str] | None = None) -> int:
             if fix_prompt:
                 impl_prompt += f'\nPREVIOUS ATTEMPT FAILED. FIX ISSUES:\n{fix_prompt}\n'
 
-            model_alias = selected_agent
+            model_alias = impl_alias
             if not _ctx_monitor.track_usage(
                 model_alias,
                 count_tokens(impl_prompt),
@@ -1206,9 +1305,9 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 impl_payload = call_json_with_retry(
                     client=client,
-                    stage=f'impl_{selected_agent}',
+                    stage=f'impl_{selected_role}',
                     model=model_alias,
-                    system=IMPL_SYSTEM,
+                    system=impl_system,
                     user=impl_prompt,
                     schema_hint=SCHEMA_HINT_IMPL,
                     temperature=None,
@@ -1371,11 +1470,12 @@ def main(argv: list[str] | None = None) -> int:
                     f'Quality command output:\n{q_out_exc}\n\n'
                     f'Changed files:\n{json.dumps(changed, indent=2)}\n\n'
                 )
+                quick_fix_alias = stage_to_alias.get('quick_fix', 'quick-fix')
                 try:
                     fix_payload = call_json_with_retry(
                         client=client,
                         stage='quick_fix',
-                        model='quick-fix',
+                        model=quick_fix_alias,
                         system=IMPL_SYSTEM,
                         user=q_fix_prompt,
                         schema_hint=SCHEMA_HINT_IMPL,
@@ -1494,11 +1594,12 @@ def main(argv: list[str] | None = None) -> int:
             f'PLAN excerpt:\n{plan_summary}\n\n'
             f'Work item:\n{json.dumps(verify_payload, indent=2)}\n'
         )
+        pm_verify_alias = stage_to_alias.get('pm_verify', 'pm')
         try:
             verdict = call_json_with_retry(
                 client=client,
                 stage='pm_verify',
-                model='pm',
+                model=pm_verify_alias,
                 system=SYSTEM_PM_VERIFY,
                 user=verify_prompt,
                 schema_hint=SCHEMA_PM_VERIFY,

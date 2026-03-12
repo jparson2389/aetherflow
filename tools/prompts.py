@@ -122,7 +122,6 @@ SYSTEM_PM_NEXT = """Return ONLY valid JSON:
     {
       "id": "phaseX_slug",
       "title": "short",
-      "agent": "architect|ui-ux",
       "acceptance": ["testable bullets"],
       "notes": "short"
     }
@@ -137,9 +136,9 @@ Rules:
 - Do not rename or paraphrase the item title.
 - Do not invent new identifiers or select closed items.
 - Acceptance criteria must measure completion of only the selected item.
- - Do not use phase-wide exit criteria or global KPI targets unless
+- Do not use phase-wide exit criteria or global KPI targets unless
   explicitly part of the selected item's text.
-- For contract/proto/ABI use `architect`; for Qt shell/panels use `ui-ux`.
+- Do not choose implementation aliases directly; the executor will resolve them.
 No extra keys. No markdown.
 """
 
