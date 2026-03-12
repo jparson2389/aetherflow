@@ -24,7 +24,6 @@ secrets.json
 *.lib
 *.dll
 *.exp
-build/
 out/
 x64/
 Release/
@@ -55,6 +54,7 @@ secrets.json
 *.grpc.pb.h
 logs/env_report.json
 logs/*.log
+logs/*.md
 
 # --- Personal / Machine-Specific Launchers ---
 start-loop2.ps1
