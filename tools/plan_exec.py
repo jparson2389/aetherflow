@@ -878,7 +878,9 @@ def reconcile_state_with_repo(
     state: dict[str, Any],
     *,
     repo_root: Path = ROOT,
-    validation_runner: Callable[[Path, str, list[str]], ValidationReport] = run_validation_gate,
+    validation_runner: Callable[
+        [Path, str, list[str]], ValidationReport
+    ] = run_validation_gate,
     audit_path: Path = RECONCILIATION_AUDIT_PATH,
 ) -> list[dict[str, Any]]:
     """Promote incomplete items when repo evidence already satisfies them.

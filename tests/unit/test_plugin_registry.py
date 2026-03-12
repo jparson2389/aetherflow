@@ -39,9 +39,14 @@ def test_registry_blocks_unsigned_plugins() -> None:
     registry = PluginRegistry(services=services)
 
     result = registry.register(make_manifest('capture.unsigned', signed=False))
+    entry = registry.catalog()[0]
 
     assert result.loaded is False
     assert result.reason == 'unsigned-plugin'
+    assert entry.lock_reason == 'unsigned-plugin'
+    assert entry.entitlement_state is EntitlementState.LOCKED
+    assert entry.plugin_type is PluginType.CAPTURE
+    assert entry.version == '1.0.0'
 
 
 def test_registry_blocks_locked_premium_plugins() -> None:
@@ -49,10 +54,14 @@ def test_registry_blocks_locked_premium_plugins() -> None:
     registry = PluginRegistry(services=services)
 
     result = registry.register(make_manifest('capture.premium', premium=True))
+    entry = registry.catalog()[0]
 
     assert result.loaded is False
     assert result.state is EntitlementState.LOCKED
-    assert registry.catalog()[0].lock_state is CatalogLockState.LOCKED
+    assert entry.lock_state is CatalogLockState.LOCKED
+    assert entry.lock_reason == 'locked-premium-plugin'
+    assert entry.premium is True
+    assert entry.required_entitlements == ('vision',)
 
 
 def test_registry_loads_premium_plugins_in_grace_state() -> None:
@@ -64,10 +73,13 @@ def test_registry_loads_premium_plugins_in_grace_state() -> None:
     registry = PluginRegistry(services=services)
 
     result = registry.register(make_manifest('capture.premium', premium=True))
+    entry = registry.catalog()[0]
 
     assert result.loaded is True
     assert result.state is EntitlementState.GRACE
-    assert registry.catalog()[0].lock_state is CatalogLockState.GRACE
+    assert entry.lock_state is CatalogLockState.GRACE
+    assert entry.entitlement_state is EntitlementState.GRACE
+    assert entry.lock_reason is None
 
 
 def test_catalog_visibility_respects_roles() -> None:

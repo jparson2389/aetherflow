@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 
@@ -50,6 +50,7 @@ class PluginManifest:
     premium: bool
     required_entitlements: list[str]
     requires_worker: bool
+    requires_drivers: list[str] = field(default_factory=list)
     signature_scheme: str | None = None
     digest_algorithm: str | None = None
     rsa_key_bits: int | None = None

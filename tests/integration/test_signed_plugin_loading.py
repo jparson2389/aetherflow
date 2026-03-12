@@ -25,7 +25,13 @@ def test_signed_plugin_loads_and_appears_in_catalog() -> None:
     )
 
     result = registry.register(manifest)
+    entry = registry.catalog()[0]
 
     assert result.loaded is True
     assert registry.get('capture.opencv') == manifest
-    assert registry.catalog()[0].plugin_id == 'capture.opencv'
+    assert entry.plugin_id == 'capture.opencv'
+    assert entry.lock_state.value == 'AVAILABLE'
+    assert entry.entitlement_state.value == 'LOADED'
+    assert entry.premium is False
+    assert entry.plugin_type is PluginType.CAPTURE
+    assert entry.version == '1.0.0'

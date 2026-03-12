@@ -56,7 +56,10 @@ def test_role_to_alias_and_context_resolve_from_manifest() -> None:
 
     assert plan_exec.resolve_role_alias(manifest, 'core-runtime') == 'architect'
     assert plan_exec.resolve_role_alias(manifest, 'trust-security') == 'trust-security'
-    assert plan_exec.resolve_role_alias(manifest, 'platform-entitlements') == 'runtime-services'
+    assert (
+        plan_exec.resolve_role_alias(manifest, 'platform-entitlements')
+        == 'runtime-services'
+    )
     assert plan_exec.resolve_role_alias(manifest, 'ui-shell') == 'ui-ux'
 
     ctx = plan_exec.resolve_role_context(manifest, 'trust-security')

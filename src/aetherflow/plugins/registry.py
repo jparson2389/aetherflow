@@ -6,7 +6,12 @@ from dataclasses import dataclass
 
 from aetherflow.core.entitlements import EntitlementState, RoleName
 from aetherflow.core.services import AppServices
-from aetherflow.plugins.catalog import CatalogEntry, CatalogLockState
+from aetherflow.plugins.catalog import (
+    CatalogEntry,
+    CatalogLockState,
+    build_catalog_entry,
+    lock_state_for_entitlement,
+)
 from aetherflow.plugins.manifest import PluginManifest
 
 
@@ -41,6 +46,8 @@ class PluginRegistry:
                 lock_state=CatalogLockState.LOCKED,
                 selectable=False,
                 purchase_cta='Signed publisher certificate required',
+                entitlement_state=EntitlementState.LOCKED,
+                lock_reason='unsigned-plugin',
             )
             self._catalog.append(entry)
             return RegistrationResult(loaded=False, reason='unsigned-plugin')
@@ -56,6 +63,8 @@ class PluginRegistry:
                     lock_state=CatalogLockState.LOCKED,
                     selectable=False,
                     purchase_cta='Upgrade to unlock',
+                    entitlement_state=entitlement_state,
+                    lock_reason='locked-premium-plugin',
                 )
             )
             return RegistrationResult(
@@ -64,11 +73,7 @@ class PluginRegistry:
                 state=entitlement_state,
             )
 
-        lock_state = (
-            CatalogLockState.GRACE
-            if entitlement_state is EntitlementState.GRACE
-            else CatalogLockState.AVAILABLE
-        )
+        lock_state = lock_state_for_entitlement(entitlement_state)
         self._plugins[manifest.plugin_id] = manifest
         self._catalog.append(
             self._catalog_entry(
@@ -76,6 +81,8 @@ class PluginRegistry:
                 lock_state=lock_state,
                 selectable=True,
                 purchase_cta=None,
+                entitlement_state=entitlement_state,
+                lock_reason=None,
             )
         )
         return RegistrationResult(loaded=True, state=entitlement_state)
@@ -99,6 +106,8 @@ class PluginRegistry:
         lock_state: CatalogLockState,
         selectable: bool,
         purchase_cta: str | None,
+        entitlement_state: EntitlementState | None,
+        lock_reason: str | None,
     ) -> CatalogEntry:
         allowed_roles = (
             RoleName.POWER_GAMER,
@@ -106,11 +115,12 @@ class PluginRegistry:
             RoleName.ACCESSIBILITY_MODDER,
             RoleName.ADMIN_OPERATOR,
         )
-        return CatalogEntry(
-            plugin_id=manifest.plugin_id,
-            display_name=manifest.name,
+        return build_catalog_entry(
+            manifest,
             lock_state=lock_state,
             selectable=selectable,
             purchase_cta=purchase_cta,
             allowed_roles=allowed_roles,
+            entitlement_state=entitlement_state,
+            lock_reason=lock_reason,
         )

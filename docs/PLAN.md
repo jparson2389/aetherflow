@@ -167,7 +167,7 @@ steps 1–3 first.
   > **Target File:** `docs/proto/capture.md`
   > **Target File:** `tests/contracts/test_execution_contracts.py`
   > **Behavior:** publish the normative gRPC message surface, timeout/retry expectations, ring metadata, pixel labels, and overflow policy.
-  > **Validation:** `uv run pytest tests/contracts/test_execution_contracts.py -k proto or overflow`
+  > **Validation:** `uv run pytest tests/contracts/test_execution_contracts.py -k "proto or overflow"`
   > **Evidence:** proto and shmem contracts match PRD execution semantics.
   > **Completion Gates:**
   > - Proto and shared-memory fields match PRD contract semantics.

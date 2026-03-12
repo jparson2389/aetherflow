@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from loguru import logger
+
 from aetherflow.core.oauth import MockOAuthProvider, OAuthProvider
-from aetherflow.core.resources_manifest import ResourceManifest
+from aetherflow.core.resources_manifest import (
+    ResourceManifest,
+    SignaturePolicy,
+)
 
 
 class ResourcesClient:
@@ -21,20 +26,18 @@ class ResourcesClient:
 
         """
         self._oauth_provider = oauth_provider or MockOAuthProvider()
+        self._policy = SignaturePolicy(
+            signature_scheme=self.required_signature_scheme,
+            digest_algorithm=self.required_digest_algorithm,
+            rsa_key_bits=self.required_rsa_key_bits,
+        )
 
     def validate_manifest(self, manifest: ResourceManifest) -> bool:
         """Return whether a resource manifest is trusted."""
-        if manifest.signature != 'valid':
-            return False
-        if manifest.signature_scheme != self.required_signature_scheme:
-            return False
-        if manifest.digest_algorithm != self.required_digest_algorithm:
-            return False
-        if manifest.rsa_key_bits != self.required_rsa_key_bits:
-            return False
-        if not manifest.publisher_thumbprint or not manifest.trust_root_thumbprint:
-            return False
-        return True
+        result = manifest.validate(self._policy)
+        if not result.valid:
+            logger.warning('Manifest validation failed: {}', result.errors)
+        return result.valid
 
     def oauth_enabled(self) -> bool:
         """Return whether an OAuth provider is enabled."""

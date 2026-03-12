@@ -6,7 +6,11 @@ from dataclasses import dataclass
 
 from aetherflow.core.entitlements import EntitlementState
 from aetherflow.core.services import AppServices
-from aetherflow.plugins.catalog import CatalogEntry, CatalogLockState
+from aetherflow.plugins.catalog import (
+    CatalogEntry,
+    build_catalog_entry,
+    lock_state_for_entitlement,
+)
 from aetherflow.plugins.manifest import PluginManifest, PluginType, PluginVersion
 
 
@@ -59,17 +63,20 @@ class MediaFoundationCapturePlugin:
 
     def catalog_state(self) -> CatalogEntry:
         """Return the catalog state for the plugin."""
-        return CatalogEntry(
-            plugin_id=self._manifest.plugin_id,
-            display_name=self._manifest.name,
-            lock_state=(
-                CatalogLockState.AVAILABLE
-                if self.is_available()
-                else CatalogLockState.LOCKED
-            ),
-            selectable=self.is_available(),
-            purchase_cta=None if self.is_available() else 'Upgrade to unlock',
+        entitlement_state = self._services.entitlements.evaluate(
+            self._manifest.plugin_id,
+            tuple(self._manifest.required_entitlements),
+        )
+        lock_state = lock_state_for_entitlement(entitlement_state)
+        selectable = entitlement_state is not EntitlementState.LOCKED
+        return build_catalog_entry(
+            self._manifest,
+            lock_state=lock_state,
+            selectable=selectable,
+            purchase_cta=None if selectable else 'Upgrade to unlock',
             allowed_roles=tuple(role.name for role in self._services.roles),
+            entitlement_state=entitlement_state,
+            lock_reason='locked-premium-plugin' if not selectable else None,
         )
 
     def format_selector(self) -> CaptureFormatSelector:

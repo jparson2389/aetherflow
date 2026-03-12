@@ -31,3 +31,8 @@ def test_locked_premium_plugin_never_becomes_selectable() -> None:
     assert item.lock_state is CatalogLockState.LOCKED
     assert item.selectable is False
     assert item.purchase_cta == 'Upgrade to unlock'
+    assert item.lock_reason == 'locked-premium-plugin'
+    assert item.entitlement_state.value == 'LOCKED'
+    assert item.premium is True
+    assert item.required_entitlements == ('vision',)
+    assert item.plugin_type is PluginType.CAPTURE

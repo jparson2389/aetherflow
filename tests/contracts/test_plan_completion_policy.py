@@ -50,9 +50,9 @@ def _collect_items_missing_role(plan_text: str) -> list[str]:
             parts = line.split('`')
             if len(parts) >= 2:
                 role = parts[1]
-                assert (
-                    role in _VALID_ROLES
-                ), f'Invalid role {role!r} for item {current_id!r}'
+                assert role in _VALID_ROLES, (
+                    f'Invalid role {role!r} for item {current_id!r}'
+                )
     if current_id and not has_role:
         items.append(current_id)
     return items
