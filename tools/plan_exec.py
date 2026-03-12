@@ -7,7 +7,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
@@ -99,7 +99,9 @@ try:
         ALLOWED_ROOT_FILES,
         ALLOWED_WRITE_PREFIXES,
         DENIED_WRITE_PATHS,
+        ExistingFileSnapshot,
         PLACEHOLDER_WRITE_PATHS,
+        capture_existing_file_snapshots,
         validate_writes_payload,
     )
 except ModuleNotFoundError:  # pragma: no cover
@@ -107,7 +109,9 @@ except ModuleNotFoundError:  # pragma: no cover
         ALLOWED_ROOT_FILES,
         ALLOWED_WRITE_PREFIXES,
         DENIED_WRITE_PATHS,
+        ExistingFileSnapshot,
         PLACEHOLDER_WRITE_PATHS,
+        capture_existing_file_snapshots,
         validate_writes_payload,
     )
 
@@ -115,6 +119,21 @@ try:
     from tools.shell_utils import resolve_powershell_executable
 except ModuleNotFoundError:  # pragma: no cover
     from shell_utils import resolve_powershell_executable  # type: ignore[no-redef]
+
+try:
+    from tools.validation_gate import (
+        ValidationReport,
+        extract_target_files,
+        extract_validation_command,
+        run_validation_gate,
+    )
+except ModuleNotFoundError:  # pragma: no cover
+    from validation_gate import (  # type: ignore[no-redef]
+        ValidationReport,
+        extract_target_files,
+        extract_validation_command,
+        run_validation_gate,
+    )
 
 # ---------------------------------------------------------------------------
 # Internal helpers for evidence extraction
@@ -143,6 +162,7 @@ def _gather_gate_evidence(report: Any) -> list[str]:
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = ROOT / 'state' / 'plan_state.json'
+RECONCILIATION_AUDIT_PATH = ROOT / 'logs' / 'plan_reconciliation_audit.md'
 
 # Configure Loguru to write to a specific logs folder
 LOG_DIR = ROOT / 'logs'
@@ -689,6 +709,247 @@ def append_history(
     history.append(payload)
 
 
+def extract_prd_refs(instructions: str) -> list[str]:
+    """Extract PRD and requirement references from a PLAN instruction block.
+
+    Args:
+        instructions: Instruction block parsed from ``docs/PLAN.md``.
+
+    Returns:
+        Ordered list of backtick-delimited references from the ``PRD Refs`` line.
+
+    """
+    match = re.search(r'\*\*PRD Refs:\*\*\s*(.+)', instructions)
+    if not match:
+        return []
+    return re.findall(r'`([^`]+)`', match.group(1))
+
+
+def extract_behavior_summary(instructions: str) -> str:
+    """Extract the behavior summary from a PLAN instruction block.
+
+    Args:
+        instructions: Instruction block parsed from ``docs/PLAN.md``.
+
+    Returns:
+        Behavior summary when present, otherwise a reconciliation fallback note.
+
+    """
+    match = re.search(r'\*\*Behavior:\*\*\s*(.+)', instructions)
+    if match:
+        return match.group(1).strip()
+    return 'Repo reconciliation found matching target files and validation evidence.'
+
+
+def append_reconciliation_audit_entries(
+    entries: list[str],
+    *,
+    audit_path: Path = RECONCILIATION_AUDIT_PATH,
+) -> None:
+    """Append reconciliation audit entries in issue-ready markdown form.
+
+    Args:
+        entries: Markdown snippets describing reconciled state changes.
+        audit_path: Destination markdown document.
+
+    """
+    if not entries:
+        return
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    if audit_path.exists():
+        existing = audit_path.read_text(encoding='utf-8')
+    else:
+        existing = '# Plan Reconciliation Audit\n\n'
+    updated = existing.rstrip() + '\n\n' + '\n\n'.join(entries) + '\n'
+    audit_path.write_text(updated, encoding='utf-8')
+
+
+def format_reconciliation_audit_entry(
+    item: dict[str, Any],
+    *,
+    previous_status: str,
+    validation_command: str | None,
+    responsible_script: str = 'tools/plan_exec.py',
+) -> str:
+    """Format a reconciliation update as a markdown audit entry.
+
+    Args:
+        item: Reconciled state item.
+        previous_status: Status before reconciliation.
+        validation_command: Validation command used during reconciliation.
+        responsible_script: Script responsible for the reconciliation behavior.
+
+    Returns:
+        Markdown content suitable for an issue or audit document.
+
+    """
+    instructions = str(item.get('instructions', ''))
+    clauses = extract_prd_refs(instructions)
+    evidence = item.get('evidence', [])
+    if not isinstance(evidence, list):
+        evidence = []
+    evidence_text = ', '.join(f'`{value}`' for value in evidence if str(value).strip())
+    clauses_text = ', '.join(f'`{value}`' for value in clauses)
+    command_text = validation_command or 'No validation command declared.'
+    title = str(item.get('title', '')).strip()
+    item_id = str(item.get('id', '')).strip()
+    behavior = extract_behavior_summary(instructions)
+    return (
+        f'## {_now_iso()} {item_id}\n\n'
+        f'- Structural observation: repo evidence satisfies {title}\n'
+        f'- Governing clauses: {clauses_text or "`PLAN item only`"}\n'
+        f'- Responsible tool/script: `{responsible_script}`\n'
+        f'- Behavior expectation: {behavior}\n'
+        f'- Validation command: `{command_text}`\n'
+        f'- Status change: `{previous_status}` -> `verified`\n'
+        f'- Evidence: {evidence_text or "`No explicit target files captured`"}'
+    )
+
+
+def read_file_retry_context(
+    repo_root: Path,
+    changed_files: list[str],
+    snapshots: dict[str, ExistingFileSnapshot],
+    *,
+    max_chars: int = 2000,
+) -> str:
+    """Build retry context from current file contents and pre-write snapshots.
+
+    Args:
+        repo_root: Repository root used to resolve changed paths.
+        changed_files: Files touched by the last write attempt.
+        snapshots: Pre-write snapshots for any files that already existed.
+        max_chars: Maximum current file content length to include per file.
+
+    Returns:
+        Prompt-ready context string describing current on-disk artifacts.
+
+    """
+    unique_paths = [path for path in dict.fromkeys(changed_files) if path.strip()]
+    sections: list[str] = []
+    for rel_path in unique_paths:
+        abs_path = repo_root / rel_path
+        current_content = '<missing on disk>'
+        if abs_path.exists():
+            current_content = abs_path.read_text(encoding='utf-8', errors='ignore')
+            current_content = current_content[:max_chars] or '<empty file>'
+        section = [f'FILE: {rel_path}']
+        snapshot = snapshots.get(rel_path)
+        if snapshot is not None:
+            section.append(f'Pre-write SHA256: {snapshot.sha256}')
+            if snapshot.content:
+                section.append('Pre-write content:')
+                section.append(snapshot.content)
+        section.append('Current content:')
+        section.append(current_content)
+        sections.append('\n'.join(section))
+    if not sections:
+        return ''
+    return 'Current artifact context:\n' + '\n\n'.join(sections)
+
+
+def build_retry_prompt(
+    base_message: str,
+    *,
+    repo_root: Path,
+    changed_files: list[str],
+    snapshots: dict[str, ExistingFileSnapshot],
+) -> str:
+    """Augment a retry prompt with current artifact context.
+
+    Args:
+        base_message: Base retry instruction describing the failure.
+        repo_root: Repository root used to resolve changed files.
+        changed_files: Files touched by the previous attempt.
+        snapshots: Pre-write snapshots for touched files that already existed.
+
+    Returns:
+        Retry prompt with current on-disk context when files are available.
+
+    """
+    context = read_file_retry_context(repo_root, changed_files, snapshots)
+    if not context:
+        return base_message
+    return f'{base_message}\n\n{context}'
+
+
+def reconcile_state_with_repo(
+    state: dict[str, Any],
+    *,
+    repo_root: Path = ROOT,
+    validation_runner: Callable[[Path, str, list[str]], ValidationReport] = run_validation_gate,
+    audit_path: Path = RECONCILIATION_AUDIT_PATH,
+) -> list[dict[str, Any]]:
+    """Promote incomplete items when repo evidence already satisfies them.
+
+    Args:
+        state: Loaded plan execution state.
+        repo_root: Repository root used for filesystem and validation checks.
+        validation_runner: Physical validation gate callable.
+        audit_path: Markdown file used to persist reconciliation audit entries.
+
+    Returns:
+        Structured descriptions of each reconciled item.
+
+    """
+    selected_phase, open_items = next_open_work_items(state)
+    if not selected_phase or not open_items:
+        return []
+
+    reconciled: list[dict[str, Any]] = []
+    audit_entries: list[str] = []
+    for item in open_items:
+        previous_status = str(item.get('status') or '').strip() or 'missing'
+        if is_complete_status(previous_status):
+            continue
+        instructions = str(item.get('instructions', '')).strip()
+        report = validation_runner(repo_root, instructions, [])
+        if not report.all_passed:
+            continue
+        evidence = report.target_files or extract_target_files(instructions)
+        notes = 'Reconciled from repo evidence.'
+        item_id = str(item.get('id', '')).strip()
+        update_state_item(
+            state,
+            item_id,
+            status='verified',
+            notes=notes,
+            missing=[],
+            evidence=evidence,
+        )
+        append_history(
+            state,
+            item_id=item_id,
+            phase=str(item.get('phase', '')),
+            title=str(item.get('title', '')),
+            status='verified',
+            changed_files=evidence,
+            notes=notes,
+        )
+        updated_item = next(
+            candidate
+            for candidate in state.get('items', [])
+            if isinstance(candidate, dict) and candidate.get('id') == item_id
+        )
+        reconciled.append(updated_item)
+        audit_entries.append(
+            format_reconciliation_audit_entry(
+                updated_item,
+                previous_status=previous_status,
+                validation_command=extract_validation_command(instructions),
+            )
+        )
+        logger.info(
+            f'[reconcile] item={item_id} phase={selected_phase} '
+            f'previous={previous_status} new=verified'
+        )
+
+    if reconciled:
+        append_reconciliation_audit_entries(audit_entries, audit_path=audit_path)
+        save_plan_state(state)
+    return reconciled
+
+
 def run_ps(path: str, args: list[str] | None = None) -> tuple[int, str]:
     """Run a PowerShell script under .cursor/workflows and return (rc, combined output)."""
     cmd = [
@@ -1085,9 +1346,14 @@ def main(argv: list[str] | None = None) -> int:
     plan_items = extract_phase_work_items(plan)
     plan_items_by_id: dict[str, PlanWorkItem] = {item.id: item for item in plan_items}
     state = load_or_initialize_plan_state(plan_items)
+    reconcile_state_with_repo(state)
     selected_phase, open_items = next_open_work_items(state)
 
     if args.state_only:
+        return 0
+
+    if not open_items:
+        logger.success('[state] no open work items remain after reconciliation')
         return 0
 
     # Map IDs to instructions and build allowed selection lines
@@ -1186,19 +1452,24 @@ def main(argv: list[str] | None = None) -> int:
     selected_title = fallback_choice.get('title', '').strip()
     raw_acceptance: list[Any] = []
     invalid_reason = ''
+    selection_source = 'pm'
 
     if not chosen_item:
         invalid_reason = 'missing_work_item'
+        selection_source = 'reconciled_fallback'
     else:
         # Validate ID first
         if chosen_item.id not in open_items_by_id:
             invalid_reason = 'unknown_id'
+            selection_source = 'reconciled_fallback'
         else:
             expected = open_items_by_id[chosen_item.id]
             if queued_phase != selected_phase.strip():
                 invalid_reason = 'phase_mismatch'
+                selection_source = 'reconciled_fallback'
             elif chosen_item.title.strip() != str(expected.get('title', '')).strip():
                 invalid_reason = 'title_mismatch'
+                selection_source = 'reconciled_fallback'
             else:
                 selected_id = chosen_item.id
                 selected_title = expected.get('title', '')
@@ -1207,6 +1478,7 @@ def main(argv: list[str] | None = None) -> int:
     if invalid_reason:
         logger.warning(f'[pm_next] invalid_selection={invalid_reason} fallback=true')
         raw_acceptance = [f'Complete PLAN work item: {selected_title}']
+    logger.info(f'[pm_next] selection_source={selection_source} id={selected_id}')
 
     # Fetch requirements for the final selected title
     selected_requirements = (
@@ -1258,6 +1530,7 @@ def main(argv: list[str] | None = None) -> int:
     fix_prompt: str = ''
     verify_retry_notes: str = ''
     changed: list[str] = []
+    existing_snapshots: dict[str, ExistingFileSnapshot] = {}
     skip_impl: bool = False
     gate_report = None
     parsed_verdict = PMVerdict.model_validate(
@@ -1393,6 +1666,7 @@ def main(argv: list[str] | None = None) -> int:
                         save_plan_state(state)
                         return 1
 
+            existing_snapshots = capture_existing_file_snapshots(ROOT, impl_payload)
             # Apply writes and format changed files
             changed = apply_writes_relpaths(impl_payload)
             if changed:
@@ -1409,7 +1683,12 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 if attempt < max_retries - 1:
                     logger.warning(f'Attempt {attempt + 1}: {no_write_msg}')
-                    fix_prompt = no_write_msg
+                    fix_prompt = build_retry_prompt(
+                        no_write_msg,
+                        repo_root=ROOT,
+                        changed_files=changed,
+                        snapshots=existing_snapshots,
+                    )
                     attempt += 1
                     continue
                 else:
@@ -1435,9 +1714,12 @@ def main(argv: list[str] | None = None) -> int:
             if build_rc != 0:
                 if attempt < max_retries - 1:
                     logger.warning(f'Attempt {attempt + 1}: Build failed.')
-                    fix_prompt = (
+                    fix_prompt = build_retry_prompt(
                         'Build assets failed. Fix the build errors:\n'
-                        f'{_clip(build_out, 4000)}'
+                        f'{_clip(build_out, 4000)}',
+                        repo_root=ROOT,
+                        changed_files=changed,
+                        snapshots=existing_snapshots,
                     )
                     attempt += 1
                     continue
@@ -1461,14 +1743,17 @@ def main(argv: list[str] | None = None) -> int:
             )
             if rc != 0:
                 q_out_exc = _clip(quality_out, 12000) if quality_out else ''
-                q_fix_prompt = (
+                q_fix_prompt = build_retry_prompt(
                     f'Fix failing quality gate for: {selected_title}\n\n'
                     'Constraints:\n'
                     '- Only modify files listed in Changed files.\n'
                     '- Keep diffs minimal.\n'
                     '- Return strict JSON only (no markdown, no prose).\n'
                     f'Quality command output:\n{q_out_exc}\n\n'
-                    f'Changed files:\n{json.dumps(changed, indent=2)}\n\n'
+                    f'Changed files:\n{json.dumps(changed, indent=2)}\n\n',
+                    repo_root=ROOT,
+                    changed_files=changed,
+                    snapshots=existing_snapshots,
                 )
                 quick_fix_alias = stage_to_alias.get('quick_fix', 'quick-fix')
                 try:
@@ -1487,7 +1772,12 @@ def main(argv: list[str] | None = None) -> int:
                 except ValueError as exc:
                     if attempt < max_retries - 1:
                         logger.warning(f'Quick-fix invalid JSON: {exc}. Retrying.')
-                        fix_prompt = 'Quick-fix invalid JSON. Rewrite code.'
+                        fix_prompt = build_retry_prompt(
+                            'Quick-fix invalid JSON. Rewrite code.',
+                            repo_root=ROOT,
+                            changed_files=changed,
+                            snapshots=existing_snapshots,
+                        )
                         attempt += 1
                         continue
                     else:
@@ -1504,15 +1794,20 @@ def main(argv: list[str] | None = None) -> int:
                         return 1
                 # Validate and apply quick fix
                 validate_writes_payload(fix_payload)
+                quick_fix_snapshots = capture_existing_file_snapshots(ROOT, fix_payload)
+                existing_snapshots.update(quick_fix_snapshots)
                 changed += apply_writes_relpaths(fix_payload)
                 rc2, quality_out2 = run_ps(
                     '.cursor/workflows/check-quality.ps1', quality_scope_args(changed)
                 )
                 if rc2 != 0:
                     if attempt < max_retries - 1:
-                        fix_prompt = (
+                        fix_prompt = build_retry_prompt(
                             'Quality failing after quick fix. Output:\n'
-                            f'{_clip(quality_out2, 4000)}'
+                            f'{_clip(quality_out2, 4000)}',
+                            repo_root=ROOT,
+                            changed_files=changed,
+                            snapshots=existing_snapshots,
                         )
                         attempt += 1
                         continue
@@ -1530,12 +1825,6 @@ def main(argv: list[str] | None = None) -> int:
                         return 1
 
             # Run validation gate (layers 1+2)
-            try:
-                from tools.validation_gate import run_validation_gate
-            except ModuleNotFoundError:
-                from validation_gate import (
-                    run_validation_gate,  # type: ignore[no-redef]
-                )
             gate_report = run_validation_gate(
                 repo_root=ROOT,
                 instructions=selected_requirements,
@@ -1549,10 +1838,13 @@ def main(argv: list[str] | None = None) -> int:
                     logger.warning(
                         f'Physical gate failed (attempt {attempt + 1}): {gate_errors}'
                     )
-                    fix_prompt = (
+                    fix_prompt = build_retry_prompt(
                         f'Physical validation gate failed. Errors:\n{gate_errors}\n\n'
                         'Ensure every Target File listed in the PLAN instructions exists '
-                        'and the **Validation:** command passes.'
+                        'and the **Validation:** command passes.',
+                        repo_root=ROOT,
+                        changed_files=changed,
+                        snapshots=existing_snapshots,
                     )
                     attempt += 1
                     continue

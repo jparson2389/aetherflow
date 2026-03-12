@@ -1,6 +1,31 @@
+from __future__ import annotations
+
+from dataclasses import fields
 from pathlib import Path
 
+from src.aetherflow.core.plugin_system import Plugin, RuntimeState
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+EXPECTED_PLUGIN_FIELDS = [
+    'plugin_id',
+    'name',
+    'version',
+    'api_version',
+    'plugin_type',
+    'required_entitlements',
+    'requires_drivers',
+    'requires_worker',
+]
+
+EXPECTED_RUNTIME_STATES = [
+    'RUNNING',
+    'DEGRADED',
+    'RECOVERING',
+    'FAILED',
+    'LOCKED',
+    'GRACE',
+]
 
 
 def test_capture_proto_defines_required_control_plane_messages() -> None:
@@ -33,20 +58,22 @@ def test_capture_proto_docs_define_timeout_and_retry_posture() -> None:
     assert 'retry' in doc_text.lower()
 
 
-def test_plugin_system_contract_defines_trust_and_runtime_states() -> None:
+def test_python_plugin_mirror_matches_frozen_native_header_fields() -> None:
     header_text = (PROJECT_ROOT / 'include' / 'plugin_system.hpp').read_text(
         encoding='utf-8'
     )
 
-    assert 'PluginRuntimeState' in header_text
-    assert 'kGrace' in header_text
-    assert 'kLocked' in header_text
-    assert 'SignaturePolicy' in header_text
-    assert 'Authenticode' in header_text
-    assert 'SHA-256' in header_text
-    assert 'kRequiredRsaKeyBits' in header_text
-    assert 'rsa_key_bits' in header_text
-    assert 'publisher_thumbprint' in header_text
+    assert [field.name for field in fields(Plugin)] == EXPECTED_PLUGIN_FIELDS
+    assert 'enum class RuntimeState' in header_text
+    assert 'struct Plugin' in header_text
+    for field_name in EXPECTED_PLUGIN_FIELDS:
+        assert field_name in header_text
+
+
+def test_runtime_state_matches_prd_required_states() -> None:
+    state_values = [state.value for state in RuntimeState]
+
+    assert state_values == EXPECTED_RUNTIME_STATES
 
 
 def test_shared_memory_layout_defines_ring_metadata_and_overflow_policy() -> None:

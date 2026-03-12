@@ -5,8 +5,13 @@ from pathlib import Path
 import pytest
 
 from tools import plan_exec
-from tools.apply_writes import validate_writes_payload
-from tools.validation_gate import extract_target_files, extract_validation_command
+from tools.apply_writes import capture_existing_file_snapshots, validate_writes_payload
+from tools.validation_gate import (
+    GateResult,
+    ValidationReport,
+    extract_target_files,
+    extract_validation_command,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -129,3 +134,222 @@ def test_prompt_placeholder_path_is_rejected() -> None:
                 'notes': 'Reject placeholder paths.',
             }
         )
+
+
+def test_reconcile_state_with_repo_promotes_missing_item_when_validation_passes(
+    tmp_path: Path,
+) -> None:
+    docs_path = tmp_path / 'docs'
+    docs_path.mkdir()
+    (docs_path / 'artifact.md').write_text('# ready\n', encoding='utf-8')
+    state = {
+        'items': [
+            {
+                'id': 'af_00_04',
+                'phase': 'Phase 0',
+                'title': '`AF-00-04` Publish signing and runtime-state ABI.',
+                'instructions': (
+                    '**PRD Refs:** `§5.3`, `§7`, `§8`, `REQ-02`, `REQ-03`\n'
+                    '**Target File:** `docs/artifact.md`\n'
+                    '**Validation:** `uv run pytest tests/contracts/test_frozen_contracts.py`\n'
+                    '**Behavior:** publish trust and runtime-state semantics.\n'
+                ),
+                'status': 'missing',
+                'notes': '',
+                'updated_at': '2026-03-12T00:00:00',
+                'missing': [],
+                'evidence': [],
+            },
+            {
+                'id': 'af_01_01',
+                'phase': 'Phase 1',
+                'title': '`AF-01-01` Later item.',
+                'instructions': '',
+                'status': 'missing',
+                'notes': '',
+                'updated_at': '2026-03-12T00:00:00',
+                'missing': [],
+                'evidence': [],
+            },
+        ],
+        'history': [],
+    }
+
+    def fake_runner(
+        repo_root: Path, instructions: str, changed_files: list[str]
+    ) -> ValidationReport:
+        assert repo_root == tmp_path
+        assert changed_files == []
+        assert 'docs/artifact.md' in instructions
+        return ValidationReport(
+            all_passed=True,
+            layers=[
+                GateResult(
+                    layer=1,
+                    passed=True,
+                    evidence=['docs/artifact.md'],
+                    errors=[],
+                    target_files=['docs/artifact.md'],
+                )
+            ],
+            changed_files=[],
+            validation_command='uv run pytest tests/contracts/test_frozen_contracts.py',
+            target_files=['docs/artifact.md'],
+        )
+
+    updates = plan_exec.reconcile_state_with_repo(
+        state,
+        repo_root=tmp_path,
+        validation_runner=fake_runner,
+        audit_path=tmp_path / 'audit.md',
+    )
+    phase, open_items = plan_exec.next_open_work_items(state)
+
+    assert len(updates) == 1
+    assert state['items'][0]['status'] == 'verified'
+    assert state['items'][0]['evidence'] == ['docs/artifact.md']
+    assert state['history'][0]['status'] == 'verified'
+    assert phase == 'Phase 1'
+    assert [item['id'] for item in open_items] == ['af_01_01']
+
+
+def test_reconcile_state_with_repo_promotes_blocked_item_before_selection(
+    tmp_path: Path,
+) -> None:
+    state = {
+        'items': [
+            {
+                'id': 'af_00_04',
+                'phase': 'Phase 0',
+                'title': '`AF-00-04` Frozen contracts.',
+                'instructions': '**Target File:** `docs/artifact.md`\n',
+                'status': 'blocked',
+                'notes': 'old failure',
+                'updated_at': '2026-03-12T00:00:00',
+                'missing': ['old failure'],
+                'evidence': [],
+            },
+            {
+                'id': 'af_00_05',
+                'phase': 'Phase 0',
+                'title': '`AF-00-05` Still open.',
+                'instructions': '**Target File:** `docs/next.md`\n',
+                'status': 'missing',
+                'notes': '',
+                'updated_at': '2026-03-12T00:00:00',
+                'missing': [],
+                'evidence': [],
+            },
+        ],
+        'history': [],
+    }
+
+    def fake_runner(
+        repo_root: Path, instructions: str, changed_files: list[str]
+    ) -> ValidationReport:
+        target = 'docs/artifact.md' if 'artifact' in instructions else 'docs/next.md'
+        passed = target == 'docs/artifact.md'
+        return ValidationReport(
+            all_passed=passed,
+            layers=[
+                GateResult(
+                    layer=1,
+                    passed=passed,
+                    evidence=[target] if passed else [],
+                    errors=[] if passed else [f'MISSING: {target}'],
+                    target_files=[target],
+                )
+            ],
+            changed_files=[],
+            target_files=[target],
+        )
+
+    plan_exec.reconcile_state_with_repo(
+        state,
+        repo_root=tmp_path,
+        validation_runner=fake_runner,
+        audit_path=tmp_path / 'audit.md',
+    )
+    phase, open_items = plan_exec.next_open_work_items(state)
+
+    assert state['items'][0]['status'] == 'verified'
+    assert phase == 'Phase 0'
+    assert [item['id'] for item in open_items] == ['af_00_05']
+
+
+def test_reconcile_state_with_repo_preserves_incomplete_item_when_repo_fails(
+    tmp_path: Path,
+) -> None:
+    state = {
+        'items': [
+            {
+                'id': 'af_00_04',
+                'phase': 'Phase 0',
+                'title': '`AF-00-04` Frozen contracts.',
+                'instructions': '**Target File:** `docs/missing.md`\n',
+                'status': 'missing',
+                'notes': '',
+                'updated_at': '2026-03-12T00:00:00',
+                'missing': [],
+                'evidence': [],
+            }
+        ],
+        'history': [],
+    }
+
+    def fake_runner(
+        repo_root: Path, instructions: str, changed_files: list[str]
+    ) -> ValidationReport:
+        return ValidationReport(
+            all_passed=False,
+            layers=[
+                GateResult(
+                    layer=1,
+                    passed=False,
+                    evidence=[],
+                    errors=['MISSING: docs/missing.md'],
+                    target_files=['docs/missing.md'],
+                )
+            ],
+            changed_files=[],
+            target_files=['docs/missing.md'],
+        )
+
+    updates = plan_exec.reconcile_state_with_repo(
+        state,
+        repo_root=tmp_path,
+        validation_runner=fake_runner,
+        audit_path=tmp_path / 'audit.md',
+    )
+
+    assert updates == []
+    assert state['items'][0]['status'] == 'missing'
+    assert state['history'] == []
+
+
+def test_build_retry_prompt_includes_current_file_contents(tmp_path: Path) -> None:
+    src_path = tmp_path / 'src' / 'aetherflow' / 'core'
+    src_path.mkdir(parents=True)
+    file_path = src_path / 'plugin_system.py'
+    file_path.write_text("value = 'current-state'\n", encoding='utf-8')
+    payload = {
+        'writes': [
+            {
+                'path': 'src/aetherflow/core/plugin_system.py',
+                'content': "value = 'next-state'\n",
+            }
+        ],
+        'notes': 'overwrite existing file',
+    }
+
+    snapshots = capture_existing_file_snapshots(tmp_path, payload)
+    prompt = plan_exec.build_retry_prompt(
+        'Physical validation gate failed.',
+        repo_root=tmp_path,
+        changed_files=['src/aetherflow/core/plugin_system.py'],
+        snapshots=snapshots,
+    )
+
+    assert 'Physical validation gate failed.' in prompt
+    assert "value = 'current-state'" in prompt
+    assert 'Pre-write SHA256:' in prompt
