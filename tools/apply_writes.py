@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +58,22 @@ _ALLOWED_PREFIXES_NORM: tuple[str, ...] = tuple(
 )
 
 
+@dataclass(frozen=True, slots=True)
+class ExistingFileSnapshot:
+    """Snapshot of a file that existed before an executor write.
+
+    Attributes:
+        path: Repository-relative path for the file.
+        sha256: Hex digest of the pre-write bytes.
+        content: Decoded pre-write content truncated for prompt reuse.
+
+    """
+
+    path: str
+    sha256: str
+    content: str
+
+
 def is_write_path_allowed(path: str) -> bool:
     raw = path
     p = _norm_path(raw)
@@ -106,6 +124,40 @@ def _safe_path(repo_root: Path, rel: str) -> Path:
     if p == rr or rr in p.parents:
         return p
     raise ValueError(f'Refusing to write outside repo root: {rel}')
+
+
+def capture_existing_file_snapshots(
+    repo_root: Path,
+    payload: dict[str, Any],
+    *,
+    max_chars: int = 4000,
+) -> dict[str, ExistingFileSnapshot]:
+    """Capture pre-write snapshots for files that already exist.
+
+    Args:
+        repo_root: Repository root used to resolve relative write paths.
+        payload: Validated-or-validatable writes payload.
+        max_chars: Maximum decoded content length to retain per file.
+
+    Returns:
+        Mapping of repository-relative paths to their pre-write snapshots.
+
+    """
+    model = validate_writes_payload(payload)
+    snapshots: dict[str, ExistingFileSnapshot] = {}
+    for entry in model.writes:
+        path = entry.path.strip()
+        target = _safe_path(repo_root, path)
+        if not target.exists():
+            continue
+        raw = target.read_bytes()
+        text = raw.decode(encoding='utf-8', errors='ignore')
+        snapshots[path] = ExistingFileSnapshot(
+            path=path,
+            sha256=hashlib.sha256(raw).hexdigest(),
+            content=text[:max_chars],
+        )
+    return snapshots
 
 
 def apply_writes(repo_root: Path, payload: dict[str, Any]) -> list[Path]:
