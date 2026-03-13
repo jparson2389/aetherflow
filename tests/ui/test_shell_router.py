@@ -1,6 +1,6 @@
 from aetherflow.core.entitlements import RoleName
 from aetherflow.core.runtime_state import RuntimeState
-from aetherflow.ui.router import RouteDefinition, RouterModel
+from aetherflow.ui.router import RouteDefinition, RouteEventType, RouterModel
 from aetherflow.ui.shell import ShellModel
 
 
@@ -29,9 +29,12 @@ def test_router_filters_and_navigates() -> None:
     assert [route.name for route in visible] == ['catalog']
     assert router.navigate('catalog') == 'panel.catalog'
     assert router.active_panel_id() == 'panel.catalog'
+    assert router.events[-1].status is RouteEventType.ACTIVATED
 
     router.mark_failed('catalog', reason='panel-crash')
     assert router.failed_routes['catalog'] == 'panel-crash'
+    assert router.events[-1].status is RouteEventType.FAILED
+    assert router.events[-1].reason == 'panel-crash'
 
 
 def test_shell_tracks_active_routes_and_degradation() -> None:
@@ -53,3 +56,22 @@ def test_shell_tracks_active_routes_and_degradation() -> None:
 
     assert shell.runtime_state is RuntimeState.DEGRADED
     assert 'capture.opencv' in shell.degraded_plugins
+
+
+def test_shell_records_route_failures() -> None:
+    """Ensure shell logs route failures and notices."""
+    router = RouterModel()
+    router.register_route(
+        RouteDefinition(
+            name='admin',
+            title='Admin',
+            panel_id='panel.admin',
+        )
+    )
+    shell = ShellModel(router=router)
+
+    shell.record_route_failure('admin', reason='panel-crash')
+
+    assert router.failed_routes['admin'] == 'panel-crash'
+    assert shell.runtime_state is RuntimeState.DEGRADED
+    assert shell.notices[-1].message == 'Route failed: admin'

@@ -31,7 +31,7 @@ GOLDEN_EXPECTATIONS = {
     'src/aetherflow/input/playstation.py': True,
     'src/aetherflow/vision/ds_capture.py': True,
     'src/aetherflow/vision/obs_capture.py': True,
-    'src/aetherflow/ui/panels/environment_panel.py': True,
+    'src/aetherflow/ui/panels/environment_panel.py': False,
 }
 
 

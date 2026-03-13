@@ -45,6 +45,23 @@ class ShellModel:
         )
         logger.warning('Shell marked degraded by plugin: {}', plugin_id)
 
+    def record_route_failure(self, route_name: str, *, reason: str) -> None:
+        """Record a route failure while keeping the shell alive.
+
+        Args:
+            route_name: Name of the route that failed.
+            reason: Human-readable failure reason.
+
+        """
+        self.router.mark_failed(route_name, reason=reason)
+        if self.runtime_state is RuntimeState.RUNNING:
+            self.runtime_state = RuntimeState.DEGRADED
+        self.add_notice(
+            message=f'Route failed: {route_name}',
+            severity='error',
+        )
+        logger.warning('Shell recorded route failure: {}', route_name)
+
     def add_notice(self, *, message: str, severity: str) -> None:
         """Add a notification to the shell.
 
@@ -60,6 +77,15 @@ class ShellModel:
                 timestamp_utc=datetime.now(UTC),
             )
         )
+
+    def set_status_hud(self, hud: StatusHUDModel) -> None:
+        """Update the status HUD model.
+
+        Args:
+            hud: New status HUD data.
+
+        """
+        self.status_hud = hud
 
     def set_active_route(self, route_name: str) -> str:
         """Activate a route and track its panel.

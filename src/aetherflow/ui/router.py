@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from loguru import logger
 
@@ -35,6 +37,34 @@ class RouteDefinition:
         return role in self.allowed_roles
 
 
+class RouteEventType(StrEnum):
+    """Route event types for diagnostics."""
+
+    ACTIVATED = 'activated'
+    FAILED = 'failed'
+
+
+@dataclass(frozen=True, slots=True)
+class RouteEvent:
+    """Route navigation event."""
+
+    name: str
+    panel_id: str | None
+    status: RouteEventType
+    timestamp_utc: datetime
+    reason: str | None = None
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-serializable event payload."""
+        return {
+            'name': self.name,
+            'panel_id': self.panel_id,
+            'status': self.status.value,
+            'timestamp_utc': self.timestamp_utc.isoformat(),
+            'reason': self.reason,
+        }
+
+
 @dataclass(slots=True)
 class RouterModel:
     """Track named routes and active navigation state."""
@@ -43,6 +73,7 @@ class RouterModel:
     order: list[str] = field(default_factory=list)
     active_route: str | None = None
     failed_routes: dict[str, str] = field(default_factory=dict)
+    events: list[RouteEvent] = field(default_factory=list)
 
     def register_route(self, route: RouteDefinition) -> None:
         """Register a route definition.
@@ -88,8 +119,14 @@ class RouterModel:
         if route_name not in self.routes:
             raise KeyError(f'Unknown route: {route_name}')
         self.active_route = route_name
+        panel_id = self.routes[route_name].panel_id
+        self._record_event(
+            route_name=route_name,
+            panel_id=panel_id,
+            status=RouteEventType.ACTIVATED,
+        )
         logger.debug('Navigated to route: {}', route_name)
-        return self.routes[route_name].panel_id
+        return panel_id
 
     def active_panel_id(self) -> str | None:
         """Return the panel id for the active route.
@@ -111,6 +148,13 @@ class RouterModel:
 
         """
         self.failed_routes[route_name] = reason
+        panel_id = self.routes[route_name].panel_id if route_name in self.routes else None
+        self._record_event(
+            route_name=route_name,
+            panel_id=panel_id,
+            status=RouteEventType.FAILED,
+            reason=reason,
+        )
         logger.warning('Route failed: {} ({})', route_name, reason)
 
     def clear_failure(self, route_name: str) -> None:
@@ -121,3 +165,26 @@ class RouterModel:
 
         """
         self.failed_routes.pop(route_name, None)
+
+    def event_payload(self) -> list[dict[str, object]]:
+        """Return the route event payloads."""
+        return [event.to_payload() for event in self.events]
+
+    def _record_event(
+        self,
+        *,
+        route_name: str,
+        panel_id: str | None,
+        status: RouteEventType,
+        reason: str | None = None,
+    ) -> None:
+        """Record a route event for diagnostics."""
+        self.events.append(
+            RouteEvent(
+                name=route_name,
+                panel_id=panel_id,
+                status=status,
+                reason=reason,
+                timestamp_utc=datetime.now(UTC),
+            )
+        )
