@@ -29,6 +29,17 @@ class WorkerRecord:
     restart_attempts_in_window: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class WorkerSnapshot:
+    """Immutable snapshot of worker health."""
+
+    worker_id: str
+    health: WorkerHealth
+    missed_heartbeats: int
+    restart_count: int
+    restart_attempts_in_window: int
+
+
 class WorkerSupervisor:
     """Track worker health and restart budgets."""
 
@@ -83,6 +94,24 @@ class WorkerSupervisor:
     def status(self, worker_id: str) -> WorkerHealth:
         """Return the current worker health."""
         return self._records[worker_id].health
+
+    def snapshot(self) -> list[WorkerSnapshot]:
+        """Return immutable snapshots of worker health.
+
+        Returns:
+            List of worker health snapshots.
+
+        """
+        return [
+            WorkerSnapshot(
+                worker_id=worker_id,
+                health=record.health,
+                missed_heartbeats=record.missed_heartbeats,
+                restart_count=record.restart_count,
+                restart_attempts_in_window=record.restart_attempts_in_window,
+            )
+            for worker_id, record in sorted(self._records.items())
+        ]
 
     def _register_restart(self, record: WorkerRecord) -> WorkerHealth:
         now = self._clock()

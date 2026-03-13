@@ -12,11 +12,19 @@ class AdminPanelModel:
     """Admin panel state."""
 
     actions: list[str]
-    audit_entries: list[object]
+    audit_entries: list[dict[str, object]]
 
     @classmethod
     def from_audit_log(cls, log: AuditLog) -> AdminPanelModel:
-        """Build an admin panel model from the audit log."""
+        """Build an admin panel model from the audit log.
+
+        Args:
+            log: Audit log containing recent admin actions.
+
+        Returns:
+            Admin panel view model.
+
+        """
         return cls(
             actions=[
                 'create_user',
@@ -24,5 +32,5 @@ class AdminPanelModel:
                 'assign_entitlement',
                 'revoke_session',
             ],
-            audit_entries=list(log.entries),
+            audit_entries=log.export_payload(),
         )
