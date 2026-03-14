@@ -5,9 +5,10 @@ import json
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
@@ -99,8 +100,8 @@ try:
         ALLOWED_ROOT_FILES,
         ALLOWED_WRITE_PREFIXES,
         DENIED_WRITE_PATHS,
-        ExistingFileSnapshot,
         PLACEHOLDER_WRITE_PATHS,
+        ExistingFileSnapshot,
         capture_existing_file_snapshots,
         validate_writes_payload,
     )
@@ -109,8 +110,8 @@ except ModuleNotFoundError:  # pragma: no cover
         ALLOWED_ROOT_FILES,
         ALLOWED_WRITE_PREFIXES,
         DENIED_WRITE_PATHS,
-        ExistingFileSnapshot,
         PLACEHOLDER_WRITE_PATHS,
+        ExistingFileSnapshot,
         capture_existing_file_snapshots,
         validate_writes_payload,
     )
