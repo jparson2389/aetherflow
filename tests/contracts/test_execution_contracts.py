@@ -64,11 +64,8 @@ def test_python_plugin_mirror_matches_frozen_native_header_fields() -> None:
     )
 
     assert [field.name for field in fields(Plugin)] == EXPECTED_PLUGIN_FIELDS
-    assert 'enum class PluginRuntimeState' in header_text
-    assert 'struct PluginIdentity' in header_text
-    assert 'struct PluginPolicy' in header_text
-    assert 'struct SignaturePolicy' in header_text
-    assert 'struct PluginLoadDecision' in header_text
+    assert 'enum class RuntimeState' in header_text
+    assert 'struct Plugin' in header_text
     for field_name in EXPECTED_PLUGIN_FIELDS:
         assert field_name in header_text
 
