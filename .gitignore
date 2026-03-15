@@ -62,3 +62,5 @@ state/plan_state.json
 docs/requirements-report.md
 logs/verify-requirements-evidence.md
 reset_env.ps1
+logs/bundle_install_report.json
+logs/diagnostics_export.json
