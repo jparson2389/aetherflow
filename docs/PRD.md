@@ -235,8 +235,11 @@ Precedence rules:
 
 Normative matrix:
 
-| Trigger | Host Runtime State | Entitlement State | UI Exposure | Recovery Action |
-| ------- | ------------------ | ----------------- | ----------- | --------------- |
+line-grow note: this matrix stays wide so each trigger/state/recovery rule
+remains on one row for reviewability.
+<!-- markdownlint-disable MD060 -->
+| Trigger                                                         | Host Runtime State                                | Entitlement State                        | UI Exposure                                                                                                             | Recovery Action                                                   |
+| --------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Healthy plugin and worker with valid entitlement | `RUNNING` | `LOADED` | Full controls visible; HUD shows normal health | No recovery action |
 | Recoverable plugin fault, worker heartbeat miss, or capture stability breach with partial service still available | `DEGRADED` | Preserve current entitlement state | Show degraded HUD state and toast or remediation copy on the affected surface; keep unrelated surfaces active | Allow manual reload and automatic recovery within the restart budget |
 | Supervisor is actively restarting a worker or reinitializing a recoverable feature | `RECOVERING` | Preserve current entitlement state | Block only the affected surface with progress and retry copy; keep the shell operational | Retry automatically and restore the last known good configuration on success |
@@ -244,6 +247,7 @@ Normative matrix:
 | Premium feature is operating on temporary grace | `RUNNING` unless a higher runtime state applies | `GRACE` | Keep the feature visible, show the always-visible HUD badge, and show the first-load session toast | Continue operating while renewal checks run in the background |
 | Premium feature is denied before load or entitlement is unavailable at activation time | `RUNNING` unless a higher runtime state applies | `LOCKED` | Remove activation selectors, refuse provider and panel registration, and show locked catalog messaging only | Block load until a valid entitlement is restored |
 | Grace expires during an active premium session | `DEGRADED` during unload, then `RUNNING` if no other fault remains | `LOCKED` | Keep the host alive, unload only the affected premium feature, show the expiry modal on the affected surface, and remove activation affordances after unload | Complete a safe unload, clear dependent UI state, and require successful renewal before reload |
+<!-- markdownlint-enable MD060 -->
 
 ---
 
@@ -594,21 +598,25 @@ If capture fails:
 
 ## 13) Success Metrics
 
-| Metric                             | Target                                  | Verification Method                                            | Evidence Artifact                   |
-| ---------------------------------- | --------------------------------------- | -------------------------------------------------------------- | ----------------------------------- |
-| Install -> baseline mapping        | Median <= 5 min                         | Automated e2e test script                                      | `logs/onboarding_timing.json`       |
-| Primary path latency               | median <= 8 ms, p95 <= 12 ms            | Integration latency suite                                      | `logs/latency_budget_report.json`   |
-| Environment bundle installs        | >= 95% over 100 simulated installs      | `uv run pytest tests/test_bundle_installer.py --count=100`     | `logs/bundle_install_report.json`   |
-| Host survivability on worker crash | >= 99.9% host remains alive             | `uv run pytest tests/stress/test_worker_crash_loop.py -n 1000` | `logs/survivability_report.json`    |
-| Capture stability at 60 FPS        | >= 95% sessions without sustained drops | `uv run pytest tests/integration/test_capture_stability.py`    | `logs/capture_stability.json`       |
-| Validated 120 FPS path             | at least 1 passing supported path       | `uv run pytest tests/integration/test_capture_120fps_path.py`  | `logs/capture_120fps_report.json`   |
-| Premium plugin blocking            | 100% block rate without entitlement     | `uv run pytest tests/test_plugin_loader.cpp`                   | `logs/entitlement_gate_report.json` |
-| Unsigned artifact execution        | 0 occurrences                           | `uv run pytest tests/test_security.py`                         | `logs/security_audit.json`          |
+line-grow note: this metrics table stays wide so target, verification, and
+artifact columns remain readable without splitting each row across prose blocks.
+<!-- markdownlint-disable MD060 -->
+| Metric                             | Target                                                   | Verification Method                                                  | Evidence Artifact                     |
+| ---------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------- |
+| Install -> baseline mapping        | Median <= 5 min                                          | Automated e2e test script                                            | `logs/onboarding_timing.json`         |
+| Primary path latency               | median <= 8 ms, p95 <= 12 ms                             | Integration latency suite                                            | `logs/latency_budget_report.json`     |
+| Environment bundle installs        | >= 95% over 100 simulated installs                       | `uv run pytest tests/test_bundle_installer.py --count=100`           | `logs/bundle_install_report.json`     |
+| Host survivability on worker crash | >= 99.9% host remains alive                              | `uv run pytest tests/stress/test_worker_crash_loop.py -n 1000`       | `logs/survivability_report.json`      |
+| Capture stability at 60 FPS        | >= 95% sessions without sustained drops                  | `uv run pytest tests/integration/test_capture_stability.py`          | `logs/capture_stability.json`         |
+| Validated 120 FPS path             | at least 1 passing supported path                        | `uv run pytest tests/integration/test_capture_120fps_path.py`        | `logs/capture_120fps_report.json`     |
+| Premium plugin blocking            | 100% block rate without entitlement                      | `uv run pytest tests/test_plugin_loader.cpp`                         | `logs/entitlement_gate_report.json`   |
+| Unsigned artifact execution        | 0 occurrences                                            | `uv run pytest tests/test_security.py`                               | `logs/security_audit.json`            |
 | Controller mapping correctness     | >= 99% expected outputs across the supported input matrix | `uv run pytest tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py` | `logs/controller_mapping_report.json` |
-| Admin audit integrity              | 100% role, entitlement, session, and device mutations append audit entries | `uv run pytest tests/integration/test_admin_dashboard.py tests/integration/test_diagnostics_export.py` | `logs/admin_audit_report.json` |
-| Updater rollback survivability     | 100% failed update simulations return to the last verified build | `uv run pytest tests/integration/test_updater_rollbacks.py`    | `logs/updater_report.json`          |
-| Diagnostics export completeness    | 100% required sections present in the export bundle | `uv run pytest tests/integration/test_diagnostics_export.py`   | `logs/diagnostics_export_report.json` |
-| Accessibility critical flows       | 100% keyboard completion for onboarding, resource install, and failure recovery smoke flows | `uv run pytest tests/ui/test_accessibility_navigation.py`      | `logs/accessibility_smoke_report.json` |
+| Admin audit integrity              | 100% role, entitlement, session, and device mutations append audit entries | `uv run pytest tests/integration/test_admin_dashboard.py tests/integration/test_diagnostics_export.py` | `logs/admin_audit_report.json`        |
+| Updater rollback survivability     | 100% failed update simulations return to the last verified build | `uv run pytest tests/integration/test_updater_rollbacks.py`      | `logs/updater_report.json`            |
+| Diagnostics export completeness    | 100% required sections present in the export bundle      | `uv run pytest tests/integration/test_diagnostics_export.py`         | `logs/diagnostics_export_report.json` |
+| Accessibility critical flows       | 100% keyboard completion for onboarding, resource install, and failure recovery smoke flows | `uv run pytest tests/ui/test_accessibility_navigation.py`        | `logs/accessibility_smoke_report.json` |
+<!-- markdownlint-enable MD060 -->
 
 ---
 

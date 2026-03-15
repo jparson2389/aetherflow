@@ -96,18 +96,22 @@ steps 1–3 first.
 
 ## Requirement Ledger
 
-| ID       | PRD Ref               | Type                   | Summary                                                       | Dependencies                 | Verification                        |
-| -------- | --------------------- | ---------------------- | ------------------------------------------------------------- | ---------------------------- | ----------------------------------- |
-| `REQ-01` | `§5`                  | Constraint             | Windows-only microkernel host and frozen contracts            | none                         | contract and docs tests             |
-| `REQ-02` | `§6`, `§7`, `§8`      | Security               | Numeric budgets, trust baseline, premium gating               | `REQ-01`                     | contract and policy tests           |
-| `REQ-03` | `§9.1`, `§9.9`        | Functional             | Signed plugin and resource loading with explicit trust checks | `REQ-02`                     | loader and security tests           |
-| `REQ-04` | `§9.2`, `§9.6`        | Functional             | Profiles, mapping, translation, input devices                 | `REQ-01`                     | profile and mapping tests           |
-| `REQ-05` | `§9.3`, `§10.1`       | Functional/UX          | Virtual output, masking, host-safe plugin failure handling    | `REQ-04`                     | output and host survivability tests |
-| `REQ-06` | `§9.4`, `§10.3`       | Functional/Performance | Capture 60 baseline, 120 validated path, capability-bound 240 | `REQ-02`, `REQ-03`           | capture compliance tests            |
-| `REQ-07` | `§9.5`, `§11`         | UX                     | CPU/GPU render modes and always-visible status HUD            | `REQ-03`, `REQ-06`           | UI tests                            |
-| `REQ-08` | `§9.7`, `§10.2`       | Functional/Ops         | Worker supervision, escalation ceilings, failure UX           | `REQ-02`                     | worker stress tests                 |
-| `REQ-09` | `§9.8`, `§9.9`        | Functional             | Environment management and bundle validation                  | `REQ-08`                     | env and bundle tests                |
-| `REQ-10` | `§9.10`, `§9.11`, `§12`, `§13` | Operations   | Admin, diagnostics, packaging, evidence artifacts             | `REQ-03`, `REQ-08`, `REQ-09` | integration and e2e tests           |
+line-grow note: this ledger stays wide so requirement IDs and verification
+columns remain readable without breaking each row into prose.
+<!-- markdownlint-disable MD060 -->
+| ID       | PRD Ref                         | Type                   | Summary                                                       | Dependencies                 | Verification                        |
+| -------- | ------------------------------- | ---------------------- | ------------------------------------------------------------- | ---------------------------- | ----------------------------------- |
+| `REQ-01` | `§5`                            | Constraint             | Windows-only microkernel host and frozen contracts            | none                         | contract and docs tests             |
+| `REQ-02` | `§6`, `§7`, `§8`                | Security               | Numeric budgets, trust baseline, premium gating               | `REQ-01`                     | contract and policy tests           |
+| `REQ-03` | `§9.1`, `§9.9`                  | Functional             | Signed plugin and resource loading with explicit trust checks | `REQ-02`                     | loader and security tests           |
+| `REQ-04` | `§9.2`, `§9.6`                  | Functional             | Profiles, mapping, translation, input devices                 | `REQ-01`                     | profile and mapping tests           |
+| `REQ-05` | `§9.3`, `§10.1`                 | Functional/UX          | Virtual output, masking, host-safe plugin failure handling    | `REQ-04`                     | output and host survivability tests |
+| `REQ-06` | `§9.4`, `§10.3`                 | Functional/Performance | Capture 60 baseline, 120 validated path, capability-bound 240 | `REQ-02`, `REQ-03`           | capture compliance tests            |
+| `REQ-07` | `§9.5`, `§11`                   | UX                     | CPU/GPU render modes and always-visible status HUD            | `REQ-03`, `REQ-06`           | UI tests                            |
+| `REQ-08` | `§9.7`, `§10.2`                 | Functional/Ops         | Worker supervision, escalation ceilings, failure UX           | `REQ-02`                     | worker stress tests                 |
+| `REQ-09` | `§9.8`, `§9.9`                  | Functional             | Environment management and bundle validation                  | `REQ-08`                     | env and bundle tests                |
+| `REQ-10` | `§9.10`, `§9.11`, `§12`, `§13` | Operations             | Admin, diagnostics, packaging, evidence artifacts             | `REQ-03`, `REQ-08`, `REQ-09` | integration and e2e tests           |
+<!-- markdownlint-enable MD060 -->
 
 ---
 
@@ -479,23 +483,27 @@ powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 
 ## Traceability Matrix
 
-| PRD Section           | Requirement IDs              | Work Item IDs                                                | Status  |
-| --------------------- | ---------------------------- | ------------------------------------------------------------ | ------- |
-| `§5`                  | `REQ-01`                     | `AF-00-01`, `AF-00-02a`, `AF-00-02b`, `AF-00-03`, `AF-00-04` | Planned |
-| `§6`                  | `REQ-02`, `REQ-06`, `REQ-08` | `AF-00-03`, `AF-03-01`, `AF-04-01`                           | Planned |
-| `§7`, `§7.4`          | `REQ-02`, `REQ-08`           | `AF-00-03`, `AF-01-02`, `AF-04-01`                           | Planned |
-| `§8`                  | `REQ-02`, `REQ-03`           | `AF-00-04`, `AF-01-01`, `AF-01-02`                           | Planned |
-| `§9.1`, `§9.9`        | `REQ-03`                     | `AF-01-01`, `AF-05-01`                                       | Planned |
-| `§9.2`, `§9.6`        | `REQ-04`                     | `AF-02-01`                                                   | Planned |
-| `§9.3`                | `REQ-05`                     | `AF-02-02`                                                   | Planned |
-| `§9.4`                | `REQ-06`                     | `AF-03-01`, `AF-03-02`                                       | Planned |
-| `§9.5`, `§11`         | `REQ-07`                     | `AF-01-02`, `AF-03-02`                                       | Planned |
-| `§9.7`, `§10.2`       | `REQ-08`                     | `AF-04-01`                                                   | Planned |
-| `§9.8`                | `REQ-09`                     | `AF-00-05`, `AF-04-02`                                       | Planned |
-| `§9.10`, `§9.11`, `§12`, `§13` | `REQ-10`          | `AF-05-02`                                                   | Planned |
-| `§14`                 | `ASM-02`, `ASM-03`           | `AF-00-05`, `AF-04-02`, `AF-05-01`                           | Planned |
-| `§15`, `§9.12`        | `ASM-04`                     | `None (deferred out of v1)`                                  | Deferred |
-| `§15`, `§9.13`, `§9.14` | `Deferred scope only`      | `None (deferred out of v1)`                                  | Deferred |
+line-grow note: this traceability matrix stays wide so section mappings remain
+scannable as a single table.
+<!-- markdownlint-disable MD060 -->
+| PRD Section                    | Requirement IDs       | Work Item IDs                                                 | Status   |
+| ------------------------------ | --------------------- | ------------------------------------------------------------- | -------- |
+| `§5`                           | `REQ-01`              | `AF-00-01`, `AF-00-02a`, `AF-00-02b`, `AF-00-03`, `AF-00-04` | Planned  |
+| `§6`                           | `REQ-02`, `REQ-06`, `REQ-08` | `AF-00-03`, `AF-03-01`, `AF-04-01`                    | Planned  |
+| `§7`, `§7.4`                   | `REQ-02`, `REQ-08`    | `AF-00-03`, `AF-01-02`, `AF-04-01`                            | Planned  |
+| `§8`                           | `REQ-02`, `REQ-03`    | `AF-00-04`, `AF-01-01`, `AF-01-02`                            | Planned  |
+| `§9.1`, `§9.9`                 | `REQ-03`              | `AF-01-01`, `AF-05-01`                                        | Planned  |
+| `§9.2`, `§9.6`                 | `REQ-04`              | `AF-02-01`                                                    | Planned  |
+| `§9.3`                         | `REQ-05`              | `AF-02-02`                                                    | Planned  |
+| `§9.4`                         | `REQ-06`              | `AF-03-01`, `AF-03-02`                                        | Planned  |
+| `§9.5`, `§11`                  | `REQ-07`              | `AF-01-02`, `AF-03-02`                                        | Planned  |
+| `§9.7`, `§10.2`                | `REQ-08`              | `AF-04-01`                                                    | Planned  |
+| `§9.8`                         | `REQ-09`              | `AF-00-05`, `AF-04-02`                                        | Planned  |
+| `§9.10`, `§9.11`, `§12`, `§13` | `REQ-10`              | `AF-05-02`                                                    | Planned  |
+| `§14`                          | `ASM-02`, `ASM-03`    | `AF-00-05`, `AF-04-02`, `AF-05-01`                            | Planned  |
+| `§15`, `§9.12`                 | `ASM-04`              | `None (deferred out of v1)`                                   | Deferred |
+| `§15`, `§9.13`, `§9.14`        | `Deferred scope only` | `None (deferred out of v1)`                                   | Deferred |
+<!-- markdownlint-enable MD060 -->
 
 ---
 
