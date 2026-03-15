@@ -16,8 +16,9 @@ Rules for this plan:
 - Canonical product/package name is `Aetherflow`.
 - Python lives under `src/aetherflow/`; C++ lives only under `host/` and
   `include/`.
-- Scope is Windows v1 `P0` only. Deferred: `PRD-§9.6`, `PRD-§14` protected-model
-  cryptosystem work, remote-play, and high-frequency scripting.
+- Scope is Windows v1 `P0` only. Deferred: `PRD-§9.12` protected-model
+  cryptosystem work, `PRD-§9.13` remote-play, and `PRD-§9.14` Online
+  Resources publisher or developer mode.
 - Frozen contracts after Phase 0: `include/plugin_system.hpp`,
   `proto/capture.proto`, `src/aetherflow/core/shared_memory_layout.py`.
 - Entitlement state machine freezes after Phase 4:
@@ -88,7 +89,8 @@ steps 1–3 first.
 - `src/aetherflow/core/shared_memory_layout.py`: ring-buffer metadata, pixel
   formats, stride semantics, and overflow policy.
 - `src/aetherflow/core/entitlements.py`: `LOADED`, `GRACE`, `LOCKED` semantics.
-- `docs/PRD.md`: runtime budgets, failure UX, and validated capture guarantees.
+- `docs/PRD.md`: runtime budgets, state precedence, failure UX, and validated
+  capture guarantees.
 
 ---
 
@@ -105,7 +107,7 @@ steps 1–3 first.
 | `REQ-07` | `§9.5`, `§11`         | UX                     | CPU/GPU render modes and always-visible status HUD            | `REQ-03`, `REQ-06`           | UI tests                            |
 | `REQ-08` | `§9.7`, `§10.2`       | Functional/Ops         | Worker supervision, escalation ceilings, failure UX           | `REQ-02`                     | worker stress tests                 |
 | `REQ-09` | `§9.8`, `§9.9`        | Functional             | Environment management and bundle validation                  | `REQ-08`                     | env and bundle tests                |
-| `REQ-10` | `§9.10`, `§12`, `§13` | Operations             | Admin, diagnostics, packaging, evidence artifacts             | `REQ-03`, `REQ-08`, `REQ-09` | integration and e2e tests           |
+| `REQ-10` | `§9.10`, `§9.11`, `§12`, `§13` | Operations   | Admin, diagnostics, packaging, evidence artifacts             | `REQ-03`, `REQ-08`, `REQ-09` | integration and e2e tests           |
 
 ---
 
@@ -193,7 +195,7 @@ steps 1–3 first.
   > - No frozen-contract change without explicit sign-off entry.
   > **ARP Trigger:** if trust policy or runtime states are still in flux, stop instead of publishing the freeze.
 - [ ] `AF-00-05` Publish bounded sign-off packets and failure-UX state model.
-  > **PRD Refs:** `§8.3`, `§10`, `§14`, `REQ-02`, `REQ-08`, `REQ-09`
+  > **PRD Refs:** `§7.4`, `§8.3`, `§10`, `§14`, `REQ-02`, `REQ-08`, `REQ-09`
   > **Role:** `platform-entitlements`
   > **Preconditions:** `AF-00-04`
   > **Target File:** `docs/sign-offs/auth-provider.md`
@@ -433,7 +435,7 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
   > - OAuth provider abstraction is functional (or explicit fallback).
   > **ARP Trigger:** if resource trust depends on unresolved provider choice, use the fallback and document it.
 - [ ] `AF-05-02` Implement admin, diagnostics export, packaging, and evidence collectors.
-  > **PRD Refs:** `§12`, `§13`, `REQ-10`
+  > **PRD Refs:** `§9.10`, `§9.11`, `§12`, `§13`, `REQ-10`
   > **Role:** `runtime-services`
   > **Preconditions:** `AF-05-01`
   > **Target File:** `src/aetherflow/ui/panels/admin_panel.py`
@@ -481,7 +483,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 | --------------------- | ---------------------------- | ------------------------------------------------------------ | ------- |
 | `§5`                  | `REQ-01`                     | `AF-00-01`, `AF-00-02a`, `AF-00-02b`, `AF-00-03`, `AF-00-04` | Planned |
 | `§6`                  | `REQ-02`, `REQ-06`, `REQ-08` | `AF-00-03`, `AF-03-01`, `AF-04-01`                           | Planned |
-| `§7`                  | `REQ-02`, `REQ-08`           | `AF-00-03`, `AF-01-02`, `AF-04-01`                           | Planned |
+| `§7`, `§7.4`          | `REQ-02`, `REQ-08`           | `AF-00-03`, `AF-01-02`, `AF-04-01`                           | Planned |
 | `§8`                  | `REQ-02`, `REQ-03`           | `AF-00-04`, `AF-01-01`, `AF-01-02`                           | Planned |
 | `§9.1`, `§9.9`        | `REQ-03`                     | `AF-01-01`, `AF-05-01`                                       | Planned |
 | `§9.2`, `§9.6`        | `REQ-04`                     | `AF-02-01`                                                   | Planned |
@@ -490,8 +492,10 @@ powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 | `§9.5`, `§11`         | `REQ-07`                     | `AF-01-02`, `AF-03-02`                                       | Planned |
 | `§9.7`, `§10.2`       | `REQ-08`                     | `AF-04-01`                                                   | Planned |
 | `§9.8`                | `REQ-09`                     | `AF-00-05`, `AF-04-02`                                       | Planned |
-| `§9.10`, `§12`, `§13` | `REQ-10`                     | `AF-05-02`                                                   | Planned |
-| `§14`                 | `ASM-02`, `ASM-03`, `ASM-04` | `AF-00-05`, `AF-04-02`, `AF-05-01`                           | Planned |
+| `§9.10`, `§9.11`, `§12`, `§13` | `REQ-10`          | `AF-05-02`                                                   | Planned |
+| `§14`                 | `ASM-02`, `ASM-03`           | `AF-00-05`, `AF-04-02`, `AF-05-01`                           | Planned |
+| `§15`, `§9.12`        | `ASM-04`                     | `None (deferred out of v1)`                                  | Deferred |
+| `§15`, `§9.13`, `§9.14` | `Deferred scope only`      | `None (deferred out of v1)`                                  | Deferred |
 
 ---
 

@@ -216,6 +216,35 @@ User-visible runtime states are:
 These states must appear consistently across host logic, status HUD, logs, and
 failure UX.
 
+### 7.4 State Precedence And Transition Rules
+
+Runtime state and entitlement state are orthogonal:
+
+- The host and each feature surface expose one runtime state from `RUNNING`,
+  `DEGRADED`, `RECOVERING`, or `FAILED`.
+- Premium-capable surfaces also expose one entitlement state from `LOADED`,
+  `GRACE`, or `LOCKED`.
+
+Precedence rules:
+
+- Runtime precedence is `FAILED > RECOVERING > DEGRADED > RUNNING`.
+- Entitlement precedence is `LOCKED > GRACE > LOADED`.
+- `GRACE` never suppresses runtime failure UX; a feature may be both degraded
+  and in grace.
+- `LOCKED` removes activation affordances even when the host remains healthy.
+
+Normative matrix:
+
+| Trigger | Host Runtime State | Entitlement State | UI Exposure | Recovery Action |
+| ------- | ------------------ | ----------------- | ----------- | --------------- |
+| Healthy plugin and worker with valid entitlement | `RUNNING` | `LOADED` | Full controls visible; HUD shows normal health | No recovery action |
+| Recoverable plugin fault, worker heartbeat miss, or capture stability breach with partial service still available | `DEGRADED` | Preserve current entitlement state | Show degraded HUD state and toast or remediation copy on the affected surface; keep unrelated surfaces active | Allow manual reload and automatic recovery within the restart budget |
+| Supervisor is actively restarting a worker or reinitializing a recoverable feature | `RECOVERING` | Preserve current entitlement state | Block only the affected surface with progress and retry copy; keep the shell operational | Retry automatically and restore the last known good configuration on success |
+| Restart ceiling exceeded or the feature cannot recover automatically | `FAILED` | Preserve current entitlement state until it is explicitly changed | Show blocking UX only on the affected feature surface, expose copy-diagnostics, and keep unrelated surfaces available | Stop automatic retries and require manual reload, reconfiguration, or sign-in renewal |
+| Premium feature is operating on temporary grace | `RUNNING` unless a higher runtime state applies | `GRACE` | Keep the feature visible, show the always-visible HUD badge, and show the first-load session toast | Continue operating while renewal checks run in the background |
+| Premium feature is denied before load or entitlement is unavailable at activation time | `RUNNING` unless a higher runtime state applies | `LOCKED` | Remove activation selectors, refuse provider and panel registration, and show locked catalog messaging only | Block load until a valid entitlement is restored |
+| Grace expires during an active premium session | `DEGRADED` during unload, then `RUNNING` if no other fault remains | `LOCKED` | Keep the host alive, unload only the affected premium feature, show the expiry modal on the affected surface, and remove activation affordances after unload | Complete a safe unload, clear dependent UI state, and require successful renewal before reload |
+
 ---
 
 ## 8) Signing, Trust, And Entitlements
@@ -287,6 +316,27 @@ Each plugin must expose:
 - `required_entitlements[]`
 - `requires_drivers[]`
 - `requires_worker`
+
+Lifecycle and compatibility rules:
+
+- Discovery source is the shipped signed plugin catalog plus the trusted install
+  directory. Unsigned third-party native discovery remains out of scope for v1.
+- Each plugin must declare its dependencies, required services, optional UI
+  panels, and worker requirements before any lifecycle method is invoked.
+- The default v1 compatibility posture is exact `api_version` match. The host
+  must reject plugins not explicitly marked compatible by the loader.
+- Load order is topological by declared dependency, then service providers
+  before user-facing panels.
+- Unload order is reverse dependency order. Workers, handles, and shared memory
+  mappings must quiesce before services or panels are removed.
+- Missing entitlements, required drivers, workers, or compatible dependencies
+  must block registration, not crash the host.
+- Structured capabilities must identify provider IDs, supported device classes
+  or formats, and user-visible surfaces so selectors can hide unavailable
+  functionality deterministically.
+- Plugin failure isolation follows §7.4 and §10.1: the failed plugin and its
+  direct dependents may unload, but the host shell and unrelated plugins remain
+  operational.
 
 ### 9.2 Controller Core — P0
 
@@ -383,16 +433,93 @@ Requirements:
 - premium resources show required tier or add-on
 - one-click install with logs and progress
 
-Auth provider remains product-open, but implementation must support a
-provider-agnostic OAuth interface.
+Auth and session contract:
+
+- Auth provider selection remains product-open, but implementation must support
+  a provider-agnostic OAuth interface.
+- If a human sign-off request remains unanswered for 24 hours, v1 must fall
+  back to the provider-agnostic OAuth interface plus a disabled
+  `MockOAuthProvider` for UI and integration-test coverage.
+- Provider-specific bindings must not ship without explicit human approval.
+- Sessions must be scoped to a user and device identity.
+- Session or device revocation must block new downloads and installs on the
+  next authenticated request and require re-authentication before new installs
+  can start.
+- Cached catalog metadata may remain readable while offline, but new installs
+  and updates must stop when manifest trust, entitlement, or signature
+  verification cannot complete.
+- Untrusted or unverifiable manifests must never appear installable and must
+  surface reason text in the UI and diagnostics.
+- Install completion must verify entitlement, manifest digest, artifact digest,
+  and signature before activation.
 
 ### 9.10 Admin Dashboard — P0
 
-- create users
-- assign roles
-- assign entitlements
-- revoke sessions or devices
-- audit admin actions
+- Only the `Admin/Operator` role may access admin surfaces or mutate users,
+  roles, entitlements, sessions, or devices.
+- Create users and assign only the fixed roles defined in §4.
+- Non-admin roles must never self-escalate or grant admin access.
+- Assign entitlements with explicit previous state, new state, actor, target
+  user, timestamp, and optional reason capture.
+- Revoke either a single session, all sessions for one user, or a single device
+  without affecting unrelated users.
+- Revocation must prevent future privileged and resource-install actions until
+  the affected user re-authenticates.
+- Audit admin actions in an append-only log that is exportable and filterable by
+  actor, target, action type, and time window.
+- Partial write failures must leave the previous admin state intact and expose
+  diagnostics plus retry guidance.
+
+### 9.11 Updater And Rollback — P0
+
+- The updater must support at least `stable` and `preview` channels, with
+  `stable` as the default channel.
+- Update flow is: fetch signed channel manifest, download package, verify
+  digest and signature, validate compatibility, stage outside the live runtime,
+  prompt controlled restart, switch active version, run startup health checks,
+  then mark success.
+- Compatibility checks must validate supported Windows version, package
+  signature, required drivers, and any frozen-contract version expectations
+  before activation.
+- Failed verification or staging must keep the current version active and block
+  the switch.
+- Rollback triggers are failed verification, failed staging, failed startup
+  health checks, missing critical plugins after switch, or explicit user
+  rollback from the failure surface.
+- Rollback must return to the last verified package without re-downloading,
+  preserve profiles and diagnostics, and quarantine the failed package with
+  logs for later inspection.
+- Failure UX must show current update state, failure reason, copy-diagnostics,
+  retry, and rollback actions.
+- Update failures must never brick the existing installation.
+- Update evidence must produce staged-update and rollback logs, including
+  `logs/updater_report.json`.
+
+### 9.12 Protected Model Packages — Deferred To v1.1
+
+- Protected model package cryptography, key management, and revocation UX are
+  out of scope for v1.
+- If protected model artifacts are listed in Online Resources during v1, they
+  must remain non-installable and clearly marked as deferred.
+- No custom cryptosystem or protected-model execution path may be implemented
+  without separate approval.
+
+### 9.13 Remote-Play Integrations — Deferred To v1.1
+
+- Remote-play transport, controller brokering to remote hosts, and remote
+  automation surfaces are out of scope for v1.
+- v1 may expose informational copy about future support, but no remote-play
+  transport or activation controls may ship.
+- Revisit this scope only after controller, capture, and worker stability goals
+  are met.
+
+### 9.14 Online Resources Publisher/Developer Mode — Deferred To v1.1
+
+- v1 Online Resources scope is end-user browse, install, update, and remove.
+- Publisher upload flows, developer submission portals, signing-key management,
+  and content moderation tooling are out of scope for v1.
+- Any publisher-mode surface must remain absent or explicitly disabled until a
+  separate v1.1 approval is issued.
 
 ---
 
@@ -438,19 +565,30 @@ If capture fails:
 - Online Resources details modal must show metadata, install action, progress,
   logs, and final state
 - Failure surfaces must distinguish degraded, recovering, and failed states
+- Primary navigation, settings, install flows, and failure recovery actions must
+  be fully reachable by keyboard
+- Critical controls, status HUD elements, and dialogs must expose accessible
+  names, roles, and state for screen readers
+- Status and entitlement indicators must not rely on color alone; pair them
+  with text or icons
+- Text and interactive controls must meet WCAG AA contrast targets
+- Toasts and modals must manage focus predictably and provide non-mouse dismiss,
+  retry, and copy-diagnostics actions
 
 ---
 
 ## 12) Packaging, Updates, And Diagnostics
 
 - Self-contained runtime layout for Windows
-- Dedicated updater with staged updates and rollback
+- Dedicated updater with staged updates, startup health checks, and rollback per
+  §9.11
 - Diagnostics export must include:
   - plugin list and versions
   - env list and metadata
   - recent host and worker logs
   - system summary
   - overflow and restart counters
+  - admin audit log excerpt when admin actions occurred
 
 ---
 
@@ -466,6 +604,11 @@ If capture fails:
 | Validated 120 FPS path             | at least 1 passing supported path       | `uv run pytest tests/integration/test_capture_120fps_path.py`  | `logs/capture_120fps_report.json`   |
 | Premium plugin blocking            | 100% block rate without entitlement     | `uv run pytest tests/test_plugin_loader.cpp`                   | `logs/entitlement_gate_report.json` |
 | Unsigned artifact execution        | 0 occurrences                           | `uv run pytest tests/test_security.py`                         | `logs/security_audit.json`          |
+| Controller mapping correctness     | >= 99% expected outputs across the supported input matrix | `uv run pytest tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py` | `logs/controller_mapping_report.json` |
+| Admin audit integrity              | 100% role, entitlement, session, and device mutations append audit entries | `uv run pytest tests/integration/test_admin_dashboard.py tests/integration/test_diagnostics_export.py` | `logs/admin_audit_report.json` |
+| Updater rollback survivability     | 100% failed update simulations return to the last verified build | `uv run pytest tests/integration/test_updater_rollbacks.py`    | `logs/updater_report.json`          |
+| Diagnostics export completeness    | 100% required sections present in the export bundle | `uv run pytest tests/integration/test_diagnostics_export.py`   | `logs/diagnostics_export_report.json` |
+| Accessibility critical flows       | 100% keyboard completion for onboarding, resource install, and failure recovery smoke flows | `uv run pytest tests/ui/test_accessibility_navigation.py`      | `logs/accessibility_smoke_report.json` |
 
 ---
 
@@ -473,14 +616,13 @@ If capture fails:
 
 - Final auth provider selection
 - Final tier definitions and pricing
-- Protected model package cryptosystem and revocation UX (deferred to v1.1 per §9.12)
-- Remote-play inclusion in v1 vs v1.1 (scoped as P1 in §9.13; decision required before Phase 6)
 - Final external bundle extension and branding
 
 ## 15) Deferred To v1.1
 
-These features are fully specified in this document but are intentionally out of scope for v1 implementation. The agent must not implement them unless a separate approval is received.
+These features are described only to bound v1 scope. They do not authorize
+implementation in v1 unless separate approval is received.
 
 - Protected model package cryptosystem and revocation UX (§9.12)
-- Remote-play integrations, if not approved for v1 (§9.13)
+- Remote-play integrations (§9.13)
 - Online Resources publisher/developer mode (§9.14)
