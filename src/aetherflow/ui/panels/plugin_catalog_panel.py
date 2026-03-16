@@ -43,9 +43,7 @@ class PluginCatalogPanelModel:
             1 for entry in entries if entry.lock_state is CatalogLockState.GRACE
         )
         available_count = sum(
-            1
-            for entry in entries
-            if entry.lock_state is CatalogLockState.AVAILABLE
+            1 for entry in entries if entry.lock_state is CatalogLockState.AVAILABLE
         )
         return cls(
             entries=entries,

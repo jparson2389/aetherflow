@@ -61,7 +61,9 @@ class ResourceManifest:
             'version': self.version,
         }
 
-    def validate(self, policy: SignaturePolicy | None = None) -> ManifestValidationResult:
+    def validate(
+        self, _policy: SignaturePolicy | None = None
+    ) -> ManifestValidationResult:
         """Validate the manifest structure before trust verification.
 
         Args:

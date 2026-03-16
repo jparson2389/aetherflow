@@ -86,6 +86,7 @@ class OAuthToken:
     expires_at: datetime | None
     scopes: tuple[str, ...] = ()
 
+
 @dataclass(frozen=True, slots=True)
 class MockOAuthProvider:
     """Disabled OAuth provider used as a safe fallback."""
@@ -150,6 +151,10 @@ class MockOAuthProvider:
 
         """
         self._ensure_enabled()
+        logger.debug(
+            'Mock OAuth code exchange requested with redirect_uri={}.',
+            redirect_uri,
+        )
         token = self._build_token(access_token=f'mock_access_{code}', scopes=())
         object.__setattr__(self, '_token', token)
         logger.debug('Mock OAuth code exchanged for token.')

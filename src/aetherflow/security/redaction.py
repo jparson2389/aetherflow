@@ -8,9 +8,7 @@ from collections.abc import Mapping
 _REDACTION = '[REDACTED]'
 _BEARER_TOKEN_RE = re.compile(r'(?i)(bearer\s+)([A-Za-z0-9._\-]+)')
 _OPENAI_KEY_RE = re.compile(r'\bsk-[A-Za-z0-9_-]+\b')
-_JWT_RE = re.compile(
-    r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+\b'
-)
+_JWT_RE = re.compile(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+\b')
 _URL_USERINFO_RE = re.compile(r'://([^:/\s]+):([^@/\s]+)@')
 _OPAQUE_SECRET_RE = re.compile(
     r'(?i)\b(authorization|api[_-]?key|token|secret|password)\b\s*[:=]\s*([^\s,;]+)'

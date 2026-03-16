@@ -176,10 +176,10 @@ def test_reconcile_state_with_repo_promotes_missing_item_when_validation_passes(
     }
 
     def fake_runner(
-        repo_root: Path, instructions: str, changed_files: list[str]
+        repo_root: Path, instructions: str, _changed_files: list[str]
     ) -> ValidationReport:
         assert repo_root == tmp_path
-        assert changed_files == []
+        assert _changed_files == []
         assert 'docs/artifact.md' in instructions
         return ValidationReport(
             all_passed=True,
@@ -245,9 +245,9 @@ def test_reconcile_state_with_repo_promotes_blocked_item_before_selection(
     }
 
     def fake_runner(
-        repo_root: Path, instructions: str, changed_files: list[str]
+        _repo_root: Path, _instructions: str, _changed_files: list[str]
     ) -> ValidationReport:
-        target = 'docs/artifact.md' if 'artifact' in instructions else 'docs/next.md'
+        target = 'docs/artifact.md' if 'artifact' in _instructions else 'docs/next.md'
         passed = target == 'docs/artifact.md'
         return ValidationReport(
             all_passed=passed,
@@ -298,7 +298,7 @@ def test_reconcile_state_with_repo_preserves_incomplete_item_when_repo_fails(
     }
 
     def fake_runner(
-        repo_root: Path, instructions: str, changed_files: list[str]
+        _repo_root: Path, _instructions: str, _changed_files: list[str]
     ) -> ValidationReport:
         return ValidationReport(
             all_passed=False,

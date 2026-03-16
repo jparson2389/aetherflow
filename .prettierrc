@@ -4,11 +4,17 @@
     "useTabs": false,
     "semi": true,
     "singleQuote": true,
-    "trailingComma": "all",
+    "trailingComma": "es5",
     "bracketSpacing": true,
     "arrowParens": "always",
     "endOfLine": "lf",
     "overrides": [
+        {
+            "files": ["*.json", "*.jsonc"],
+            "options": {
+                "trailingComma": "none"
+            }
+        },
         {
             "files": ["*.yaml", "*.yml"],
             "options": {
@@ -18,6 +24,7 @@
         {
             "files": "*.md",
             "options": {
+                "tabWidth": 2,
                 "proseWrap": "preserve"
             }
         }

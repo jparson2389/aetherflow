@@ -87,7 +87,9 @@ class RouterModel:
         self.routes[route.name] = route
         logger.debug('Registered route: {}', route.name)
 
-    def available_routes(self, *, role: RoleName | None = None) -> list[RouteDefinition]:
+    def available_routes(
+        self, *, role: RoleName | None = None
+    ) -> list[RouteDefinition]:
         """Return routes visible to the provided role.
 
         Args:
@@ -153,7 +155,9 @@ class RouterModel:
 
         """
         self.failed_routes[route_name] = reason
-        panel_id = self.routes[route_name].panel_id if route_name in self.routes else None
+        panel_id = (
+            self.routes[route_name].panel_id if route_name in self.routes else None
+        )
         self._record_event(
             route_name=route_name,
             panel_id=panel_id,

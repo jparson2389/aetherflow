@@ -66,3 +66,4 @@ logs/verify-requirements-evidence.md
 reset_env.ps1
 logs/bundle_install_report.json
 logs/diagnostics_export.json
+security_report.html

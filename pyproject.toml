@@ -58,15 +58,31 @@ fix = true
 src = ["src", "."]
 extend-exclude = ["*_pb2.py", "*_pb2_grpc.py", ".venv", "build"]
 
+[tool.bandit]
+exclude_dirs = ["tests", "venv", ".venv", "build", "*_pb2.py", "*_pb2_grpc.py"]
+skips = ["B101"] # Matches your Ruff ignore for 'assert'
+level = "medium"
+confidence = "high"
+
 [tool.ruff.lint]
-select = ["F", "E", "I", "UP", "B", "RUF", "D",]
+select = [
+    "F", # Pyflakes
+    "E", # pycodestyle errors
+    "I", # isort
+    "UP", # pyupgrade
+    "B", # flake8-bugbear
+    "RUF",
+    "D",
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+]
 ignore = [
     "E203",
     "D203",
     "D213", # pick ONE of D212/D213; keep D212 behavior + silence warning
     "D300", # allow single-quoted docstrings
     "E501",
-    "D100",
+    "D100"
 ]
 
 [tool.ruff.format]

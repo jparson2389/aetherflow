@@ -49,7 +49,9 @@ def test_shell_tracks_active_routes_and_degradation() -> None:
     )
     shell = ShellModel(router=router)
 
-    assert shell.set_active_route('catalog', role=RoleName.POWER_GAMER) == 'panel.catalog'
+    assert (
+        shell.set_active_route('catalog', role=RoleName.POWER_GAMER) == 'panel.catalog'
+    )
     assert shell.active_panel_id() == 'panel.catalog'
 
     shell.mark_degraded('capture.opencv')

@@ -2,12 +2,18 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "Building Aetherflow native contract harness..." -ForegroundColor Cyan
 
-$headerPath = "include/plugin_system.hpp"
-$protoPath = "proto/capture.proto"
-$hostPath = "host"
-$sourcePath = "host/native_harness.cpp"
-$buildDir = "build"
+$projectRoot = (Resolve-Path ".").Path
+$headerPath = Join-Path $projectRoot "include\plugin_system.hpp"
+$protoPath = Join-Path $projectRoot "proto\capture.proto"
+$srcPath = Join-Path $projectRoot "src"
+$hostPath = Join-Path $projectRoot "host"
+$sourcePath = Join-Path $projectRoot "host\native_harness.cpp"
+$buildDir = Join-Path $projectRoot "build"
+$logsDir = Join-Path $projectRoot "logs"
 $outputPath = Join-Path $buildDir "native_harness.exe"
+$reportPath = Join-Path $buildDir "native_harness_report.json"
+$buildLogPath = Join-Path $logsDir "native_harness_build.log"
+$validationLogPath = Join-Path $logsDir "native_harness_validation.log"
 $vswherePath = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
 $cmdPath = if ($env:ComSpec) {
     $env:ComSpec
@@ -35,10 +41,19 @@ if (-not (Test-Path $buildDir)) {
     New-Item -ItemType Directory -Path $buildDir | Out-Null
 }
 
+if (-not (Test-Path $logsDir)) {
+    New-Item -ItemType Directory -Path $logsDir | Out-Null
+}
+
+if (-not (Test-Path $srcPath)) {
+    throw "Missing src/ tree for native boundary enforcement."
+}
+
 Write-Host "Validated native contract inputs:" -ForegroundColor Green
 Write-Host " - $headerPath"
 Write-Host " - $protoPath"
 Write-Host " - $hostPath"
+Write-Host " - $srcPath"
 
 if (-not (Test-Path $vswherePath)) {
     throw "vswhere.exe not found. Install Visual Studio Build Tools."
@@ -61,11 +76,24 @@ if (-not (Test-Path $vcvarsPath)) {
     throw "vcvars64.bat not found under $installPath"
 }
 
-$compileCommand = "call `"$vcvarsPath`" >nul && cl.exe /nologo /EHsc /std:c++20 /I include /Fe`"$outputPath`" `"$sourcePath`""
+$compileCommand = "call `"$vcvarsPath`" >nul && cl.exe /nologo /EHsc /std:c++20 /W4 /WX /I `"$($projectRoot)\include`" /Fo`"$buildDir\\`" /Fe`"$outputPath`" `"$sourcePath`""
 $compileOutput = & $cmdPath /c $compileCommand 2>&1
+$compileOutput | Set-Content -Path $buildLogPath
 if ($LASTEXITCODE -ne 0) {
     Write-Host $compileOutput
-    throw "Native harness build failed."
+    throw "Native harness build failed. See $buildLogPath"
+}
+
+$validationOutput = & $outputPath `
+    --repo-root $projectRoot `
+    --header $headerPath `
+    --proto $protoPath `
+    --output $reportPath 2>&1
+$validationOutput | Set-Content -Path $validationLogPath
+if ($LASTEXITCODE -ne 0) {
+    Write-Host $validationOutput
+    throw "Native harness validation failed. See $validationLogPath"
 }
 
 Write-Host "Native harness build complete: $outputPath" -ForegroundColor Green
+Write-Host "Native harness validation report: $reportPath" -ForegroundColor Green

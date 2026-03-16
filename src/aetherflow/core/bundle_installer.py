@@ -115,7 +115,9 @@ class BundleInstaller:
         signature_result = self.verify_signature(manifest)
         if signature_result.state != 'READY':
             logs.extend(signature_result.logs)
-            logger.warning('Bundle signature validation failed for {}.', manifest.bundle_id)
+            logger.warning(
+                'Bundle signature validation failed for {}.', manifest.bundle_id
+            )
             return BundleInstallResult(
                 state='FAILED',
                 reason=signature_result.reason,

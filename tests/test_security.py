@@ -20,7 +20,7 @@ class StubAuthenticodeVerifier:
     def __init__(self, result: PluginAuthenticodeResult) -> None:
         self._result = result
 
-    def verify(self, artifact_path: Path) -> PluginAuthenticodeResult:
+    def verify(self, _artifact_path: Path) -> PluginAuthenticodeResult:
         return self._result
 
 

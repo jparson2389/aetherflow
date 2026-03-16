@@ -25,6 +25,8 @@ gRPC contracts live in `proto/`.
 Environment and tooling are Windows 11 + PowerShell with Python managed by `uv`:
 
 - Sync dependencies: `uv sync`
+- Create a local `.env` from `.env.example` for developer-specific settings
+- The application loads `.env` automatically on startup via `uv run aetherflow`
 - Launch the main application (CLI/GUI entrypoint): `uv run aetherflow`
 
 ## Validation And Quality Gates

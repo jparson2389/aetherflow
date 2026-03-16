@@ -367,9 +367,7 @@ def run_validation_command(
         return GateResult(
             layer=2,
             passed=False,
-            errors=[
-                f'Validation command timed out after {timeout}s: {" ".join(argv)}'
-            ],
+            errors=[f'Validation command timed out after {timeout}s: {" ".join(argv)}'],
             command=' '.join(argv),
         )
     except Exception as exc:

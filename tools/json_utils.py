@@ -143,7 +143,7 @@ def parse_json_object(
     raw: str,
     *,
     stage: str = 'unknown',
-    dump_on_failure: str | None = None,
+    _dump_on_failure: str | None = None,
 ) -> dict[str, Any]:
     """Try to parse a JSON object from raw text using three strategies:
     direct parse, fenced code block extraction, and brace-counting.

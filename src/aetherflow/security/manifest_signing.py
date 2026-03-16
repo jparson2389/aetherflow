@@ -72,9 +72,7 @@ def verify_manifest_signature(
     if not signature:
         return SignatureVerificationResult(valid=False, reason='missing-signature')
     if not signing_key_id:
-        return SignatureVerificationResult(
-            valid=False, reason='missing-signing-key-id'
-        )
+        return SignatureVerificationResult(valid=False, reason='missing-signing-key-id')
     store_path = resolve_manifest_trust_store_path(trust_store_path)
     if not store_path.exists():
         return SignatureVerificationResult(valid=False, reason='missing-trust-store')

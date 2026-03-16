@@ -61,9 +61,9 @@ class PluginAuthenticodeVerifier:
             '-NonInteractive',
             '-Command',
             (
-                "Get-AuthenticodeSignature -FilePath "
+                'Get-AuthenticodeSignature -FilePath '
                 f"'{artifact_path}' | "
-                "Select-Object Status, StatusMessage, "
+                'Select-Object Status, StatusMessage, '
                 "@{Name='Thumbprint';Expression={$_.SignerCertificate.Thumbprint}} | "
                 'ConvertTo-Json -Compress'
             ),
