@@ -1,0 +1,15 @@
+{
+  "item_id": "AF-00-03",
+  "title": "Publish control-plane proto surface and shared-memory ring semantics.",
+  "status": "verified",
+  "gaps": [],
+  "evidence_pack": "docs/evidence/AF-00-03.md",
+  "validation_commands": [
+    "uv run pytest tests/contracts/test_execution_contracts.py -k \"proto or overflow\""
+  ],
+  "approved_by": "qa.lead",
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "approved"
+}

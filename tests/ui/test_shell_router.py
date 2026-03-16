@@ -1,5 +1,6 @@
 from aetherflow.core.entitlements import RoleName
 from aetherflow.core.runtime_state import RuntimeState
+from aetherflow.main import build_shell
 from aetherflow.ui.router import RouteDefinition, RouteEventType, RouterModel
 from aetherflow.ui.shell import ShellModel
 
@@ -96,3 +97,25 @@ def test_router_rejects_unauthorized_navigation() -> None:
         assert 'admin' in str(exc).lower()
     else:
         raise AssertionError('Expected unauthorized navigation to fail.')
+
+
+def test_build_shell_loads_pending_app_check_notices(monkeypatch, tmp_path) -> None:
+    verification_dir = tmp_path / 'logs' / 'verification'
+    verification_dir.mkdir(parents=True)
+    (verification_dir / 'pending_app_checks.json').write_text(
+        (
+            '{"pending": [{"item_id": "AF-03-01", "message": "New feature added, '
+            'check for functionality", "app_surface": "capture-panel"}]}\n'
+        ),
+        encoding='utf-8',
+    )
+    (verification_dir / 'status_snapshot.json').write_text(
+        '{"items": {"AF-03-01": "verified"}}\n',
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(tmp_path)
+
+    shell = build_shell()
+
+    assert len(shell.notices) == 1
+    assert 'check for functionality' in shell.notices[0].message.lower()
