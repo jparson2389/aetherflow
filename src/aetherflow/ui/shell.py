@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from loguru import logger
 
+from aetherflow.core.entitlements import RoleName
 from aetherflow.core.runtime_state import RuntimeState
 from aetherflow.ui.router import RouterModel
 from aetherflow.ui.status_hud import StatusHUDModel
@@ -87,17 +88,18 @@ class ShellModel:
         """
         self.status_hud = hud
 
-    def set_active_route(self, route_name: str) -> str:
+    def set_active_route(self, route_name: str, *, role: RoleName | None) -> str:
         """Activate a route and track its panel.
 
         Args:
             route_name: Name of the route to activate.
+            role: Active role attempting navigation.
 
         Returns:
             Panel id for the active route.
 
         """
-        panel_id = self.router.navigate(route_name)
+        panel_id = self.router.navigate(route_name, role=role)
         if panel_id not in self.active_panels:
             self.active_panels.append(panel_id)
         logger.debug('Shell activated panel: {}', panel_id)

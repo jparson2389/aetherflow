@@ -1,0 +1,10 @@
+{
+  "active_key_id": "repo-dev-key",
+  "keys": [
+    {
+      "key_id": "repo-dev-key",
+      "algorithm": "ed25519",
+      "public_key": "ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ="
+    }
+  ]
+}

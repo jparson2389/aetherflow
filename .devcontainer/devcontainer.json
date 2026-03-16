@@ -1,0 +1,34 @@
+{
+    "name": "aetherflow-dev-env",
+    "image": "mcr.microsoft.com/devcontainers/python:3.12.12",
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": true,
+            "configureZshAsDefaultShell": true
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": ".venv/bin/python",
+                "python.formatting.provider": "none",
+                "python.testing.pytestEnabled": true,
+                "editor.formatOnSave": true,
+                "editor.defaultFormatter": "charliermarsh.ruff",
+                "editor.codeActionsOnSave": {
+                    "source.fixAll.ruff": "explicit",
+                    "source.organizeImports.ruff": "explicit"
+                }
+            },
+            "extensions": [
+                "ms-python.python",
+                "charliermarsh.ruff",
+                "ms-python.vscode-pylance"
+            ]
+        }
+    },
+    "remoteUser": "vscode",
+    "onCreateCommand": "sh scripts/install-uv.sh",
+    "updateContentCommand": "$HOME/.local/bin/uv sync",
+    "postCreateCommand": "$HOME/.local/bin/uv --version && python --version"
+}

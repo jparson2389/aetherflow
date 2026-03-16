@@ -29,6 +29,7 @@ class ResourceManifest:
 
     version: str
     signature: str
+    signing_key_id: str = ''
     signature_scheme: str | None = None
     digest_algorithm: str | None = None
     rsa_key_bits: int | None = None
@@ -36,40 +37,65 @@ class ResourceManifest:
     trust_root_thumbprint: str | None = None
     resources: list[ResourceEntry] = field(default_factory=list)
 
-    def validate(self, policy: SignaturePolicy) -> ManifestValidationResult:
-        """Validate the manifest using policy-only rules.
+    def signed_payload(self) -> dict[str, object]:
+        """Return the payload covered by the detached signature.
+
+        Returns:
+            Canonicalizable payload without the signature field.
+
+        """
+        return {
+            'resources': [
+                {
+                    'kind': entry.kind,
+                    'premium': entry.premium,
+                    'required_tier': entry.required_tier,
+                    'resource_id': entry.resource_id,
+                    'sha256': entry.sha256,
+                    'size': entry.size,
+                    'version': entry.version,
+                }
+                for entry in self.resources
+            ],
+            'signing_key_id': self.signing_key_id,
+            'version': self.version,
+        }
+
+    def validate(self, policy: SignaturePolicy | None = None) -> ManifestValidationResult:
+        """Validate the manifest structure before trust verification.
 
         Args:
-            policy: Signature policy requirements.
+            policy: Unused legacy compatibility argument.
 
         Returns:
             Validation result containing errors, if any.
 
         """
         errors: list[str] = []
+        reason_codes: list[str] = []
         if not self.signature:
             errors.append('Missing signature value.')
-        if self.signature_scheme != policy.signature_scheme:
-            errors.append('Signature scheme mismatch.')
-        if self.digest_algorithm != policy.digest_algorithm:
-            errors.append('Digest algorithm mismatch.')
-        if self.rsa_key_bits != policy.rsa_key_bits:
-            errors.append('RSA key size mismatch.')
-        if policy.require_thumbprints:
-            if not self.publisher_thumbprint:
-                errors.append('Missing publisher thumbprint.')
-            if not self.trust_root_thumbprint:
-                errors.append('Missing trust root thumbprint.')
+            reason_codes.append('missing-signature')
+        if not self.signing_key_id:
+            errors.append('Missing signing key id.')
+            reason_codes.append('missing-signing-key-id')
         for entry in self.resources:
             if entry.size < 0:
                 errors.append(f'Negative size for {entry.resource_id}.')
+                reason_codes.append('negative-size')
             if not _SHA256_RE.match(entry.sha256.lower()):
                 errors.append(f'Invalid sha256 for {entry.resource_id}.')
+                reason_codes.append('invalid-sha256')
             if entry.premium and not entry.required_tier:
                 errors.append(f'Missing required tier for {entry.resource_id}.')
+                reason_codes.append('missing-required-tier')
         if errors:
             logger.debug('Manifest validation errors: {}', errors)
-        return ManifestValidationResult(valid=not errors, errors=errors)
+        return ManifestValidationResult(
+            valid=not errors,
+            errors=errors,
+            reason_codes=tuple(dict.fromkeys(reason_codes)),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,3 +114,4 @@ class ManifestValidationResult:
 
     valid: bool
     errors: list[str]
+    reason_codes: tuple[str, ...] = ()

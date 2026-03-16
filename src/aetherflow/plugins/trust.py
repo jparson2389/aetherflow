@@ -2,28 +2,141 @@
 
 from __future__ import annotations
 
-from aetherflow.plugins.manifest import PluginManifest
+import json
+import subprocess
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+
+from aetherflow.plugins.manifest import PluginDistribution, PluginManifest
+
+
+@dataclass(frozen=True, slots=True)
+class PluginAuthenticodeResult:
+    """Result returned by the Authenticode adapter."""
+
+    trusted: bool
+    reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PluginTrustResult:
+    """Final plugin trust decision."""
+
+    trusted: bool
+    reason: str | None = None
+
+
+class PluginAuthenticodeVerifier:
+    """Verify native plugin signatures with PowerShell Authenticode checks."""
+
+    def __init__(
+        self,
+        *,
+        runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+    ) -> None:
+        """Initialize the verifier.
+
+        Args:
+            runner: Optional subprocess runner for tests.
+
+        """
+        self._runner = runner or subprocess.run
+
+    def verify(self, artifact_path: Path) -> PluginAuthenticodeResult:
+        """Verify a native plugin artifact path.
+
+        Args:
+            artifact_path: DLL path to validate.
+
+        Returns:
+            Authenticode verification result.
+
+        """
+        if not artifact_path.exists():
+            return PluginAuthenticodeResult(trusted=False, reason='missing-artifact')
+        command = [
+            'powershell',
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            (
+                "Get-AuthenticodeSignature -FilePath "
+                f"'{artifact_path}' | "
+                "Select-Object Status, StatusMessage, "
+                "@{Name='Thumbprint';Expression={$_.SignerCertificate.Thumbprint}} | "
+                'ConvertTo-Json -Compress'
+            ),
+        ]
+        try:
+            result = self._runner(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            return PluginAuthenticodeResult(
+                trusted=False,
+                reason='verification-error',
+            )
+        if result.returncode != 0 or not result.stdout:
+            return PluginAuthenticodeResult(
+                trusted=False,
+                reason='verification-error',
+            )
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return PluginAuthenticodeResult(
+                trusted=False,
+                reason='verification-error',
+            )
+        status = str(payload.get('Status', '')).lower()
+        if status == 'valid':
+            return PluginAuthenticodeResult(trusted=True)
+        reason_map = {
+            'notsigned': 'unsigned',
+            'hashmismatch': 'hash-mismatch',
+            'nottrusted': 'untrusted-publisher',
+            'certificaterevoked': 'revoked',
+            'nottimevalid': 'expired',
+        }
+        return PluginAuthenticodeResult(
+            trusted=False,
+            reason=reason_map.get(status, 'verification-error'),
+        )
 
 
 class PluginTrustVerifier:
     """Verify plugin trust and compatibility."""
 
-    required_signature_scheme = 'Authenticode'
-    required_digest_algorithm = 'SHA-256'
-    required_rsa_key_bits = 3072
+    def __init__(
+        self,
+        *,
+        artifact_verifier: PluginAuthenticodeVerifier | None = None,
+    ) -> None:
+        """Initialize the trust verifier.
 
-    def verify(self, manifest: PluginManifest) -> bool:
+        Args:
+            artifact_verifier: Optional Authenticode verifier implementation.
+
+        """
+        self._artifact_verifier = artifact_verifier or PluginAuthenticodeVerifier()
+
+    def verify(self, manifest: PluginManifest) -> PluginTrustResult:
         """Return whether a plugin may be considered trusted."""
-        if not manifest.signed:
-            return False
-        if manifest.tampered or manifest.expired or manifest.revoked:
-            return False
-        if manifest.signature_scheme != self.required_signature_scheme:
-            return False
-        if manifest.digest_algorithm != self.required_digest_algorithm:
-            return False
-        if manifest.rsa_key_bits != self.required_rsa_key_bits:
-            return False
-        if not manifest.publisher_thumbprint or not manifest.trust_root_thumbprint:
-            return False
-        return manifest.api_version == '1.0'
+        if manifest.api_version != '1.0':
+            return PluginTrustResult(
+                trusted=False,
+                reason='unsupported-api-version',
+            )
+        if manifest.distribution is PluginDistribution.BUILTIN:
+            return PluginTrustResult(trusted=True)
+        if manifest.artifact_path is None:
+            return PluginTrustResult(
+                trusted=False,
+                reason='missing-artifact-path',
+            )
+        result = self._artifact_verifier.verify(manifest.artifact_path)
+        return PluginTrustResult(trusted=result.trusted, reason=result.reason)

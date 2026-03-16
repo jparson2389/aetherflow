@@ -1,11 +1,20 @@
+from pathlib import Path
+
 from aetherflow.core.services import create_default_services
-from aetherflow.plugins.manifest import PluginManifest, PluginType, PluginVersion
+from aetherflow.plugins.manifest import (
+    PluginDistribution,
+    PluginManifest,
+    PluginType,
+    PluginVersion,
+)
 from aetherflow.plugins.registry import PluginRegistry
 
 
-def test_signed_plugin_loads_and_appears_in_catalog() -> None:
+def test_signed_plugin_loads_and_appears_in_catalog(tmp_path: Path) -> None:
     services = create_default_services()
     registry = PluginRegistry(services=services)
+    artifact_path = tmp_path / 'capture.opencv.dll'
+    artifact_path.write_bytes(b'dll')
     manifest = PluginManifest(
         plugin_id='capture.opencv',
         name='OpenCV Capture',
@@ -13,15 +22,11 @@ def test_signed_plugin_loads_and_appears_in_catalog() -> None:
         api_version='1.0',
         plugin_type=PluginType.CAPTURE,
         entrypoint='capture.opencv.dll',
-        signed=True,
+        distribution=PluginDistribution.BUILTIN,
+        artifact_path=artifact_path,
         premium=False,
         required_entitlements=[],
         requires_worker=False,
-        signature_scheme='Authenticode',
-        digest_algorithm='SHA-256',
-        rsa_key_bits=3072,
-        publisher_thumbprint='aetherflow-publisher',
-        trust_root_thumbprint='aetherflow-root',
     )
 
     result = registry.register(manifest)

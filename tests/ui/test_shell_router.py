@@ -27,7 +27,7 @@ def test_router_filters_and_navigates() -> None:
     visible = router.available_routes(role=RoleName.POWER_GAMER)
 
     assert [route.name for route in visible] == ['catalog']
-    assert router.navigate('catalog') == 'panel.catalog'
+    assert router.navigate('catalog', role=RoleName.POWER_GAMER) == 'panel.catalog'
     assert router.active_panel_id() == 'panel.catalog'
     assert router.events[-1].status is RouteEventType.ACTIVATED
 
@@ -49,7 +49,7 @@ def test_shell_tracks_active_routes_and_degradation() -> None:
     )
     shell = ShellModel(router=router)
 
-    assert shell.set_active_route('catalog') == 'panel.catalog'
+    assert shell.set_active_route('catalog', role=RoleName.POWER_GAMER) == 'panel.catalog'
     assert shell.active_panel_id() == 'panel.catalog'
 
     shell.mark_degraded('capture.opencv')
@@ -75,3 +75,22 @@ def test_shell_records_route_failures() -> None:
     assert router.failed_routes['admin'] == 'panel-crash'
     assert shell.runtime_state is RuntimeState.DEGRADED
     assert shell.notices[-1].message == 'Route failed: admin'
+
+
+def test_router_rejects_unauthorized_navigation() -> None:
+    router = RouterModel()
+    router.register_route(
+        RouteDefinition(
+            name='admin',
+            title='Admin',
+            panel_id='panel.admin',
+            allowed_roles=(RoleName.ADMIN_OPERATOR,),
+        )
+    )
+
+    try:
+        router.navigate('admin', role=RoleName.POWER_GAMER)
+    except PermissionError as exc:
+        assert 'admin' in str(exc).lower()
+    else:
+        raise AssertionError('Expected unauthorized navigation to fail.')

@@ -7,6 +7,11 @@ from pathlib import Path
 
 from loguru import logger
 
+from aetherflow.security.redaction import (
+    redact_sensitive_mapping,
+    redact_sensitive_text,
+)
+
 
 class DiagnosticsExporter:
     """Build diagnostics export payloads."""
@@ -28,7 +33,7 @@ class DiagnosticsExporter:
             payload: Plugin summary payload.
 
         """
-        self._plugins.append(dict(payload))
+        self._plugins.append(redact_sensitive_mapping(dict(payload)))
 
     def add_worker(self, payload: dict[str, object]) -> None:
         """Add a worker payload entry.
@@ -37,7 +42,7 @@ class DiagnosticsExporter:
             payload: Worker summary payload.
 
         """
-        self._workers.append(dict(payload))
+        self._workers.append(redact_sensitive_mapping(dict(payload)))
 
     def add_env(self, payload: dict[str, object]) -> None:
         """Add an environment payload entry.
@@ -46,7 +51,7 @@ class DiagnosticsExporter:
             payload: Environment summary payload.
 
         """
-        self._envs.append(dict(payload))
+        self._envs.append(redact_sensitive_mapping(dict(payload)))
 
     def record_log(self, message: str) -> None:
         """Record a recent log message.
@@ -55,7 +60,7 @@ class DiagnosticsExporter:
             message: Log message to include in diagnostics.
 
         """
-        self._recent_logs.append(message)
+        self._recent_logs.append(redact_sensitive_text(message))
 
     def record_overflow(self, *, count: int = 1) -> None:
         """Record frame overflow counters.

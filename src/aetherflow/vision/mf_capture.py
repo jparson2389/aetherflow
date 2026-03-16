@@ -11,7 +11,12 @@ from aetherflow.plugins.catalog import (
     build_catalog_entry,
     lock_state_for_entitlement,
 )
-from aetherflow.plugins.manifest import PluginManifest, PluginType, PluginVersion
+from aetherflow.plugins.manifest import (
+    PluginDistribution,
+    PluginManifest,
+    PluginType,
+    PluginVersion,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,15 +45,10 @@ class MediaFoundationCapturePlugin:
             api_version='1.0',
             plugin_type=PluginType.CAPTURE,
             entrypoint='capture.mf.dll',
-            signed=True,
+            distribution=PluginDistribution.BUILTIN,
             premium=True,
             required_entitlements=['vision'],
             requires_worker=False,
-            signature_scheme='Authenticode',
-            digest_algorithm='SHA-256',
-            rsa_key_bits=3072,
-            publisher_thumbprint='aetherflow-publisher',
-            trust_root_thumbprint='aetherflow-root',
         )
 
     def is_available(self) -> bool:

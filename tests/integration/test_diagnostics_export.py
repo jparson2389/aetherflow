@@ -13,7 +13,7 @@ def test_diagnostics_export_contains_expected_sections() -> None:
     exporter.add_plugin({'plugin_id': 'input.xinput', 'version': '1.0.0'})
     exporter.add_worker({'worker_id': 'worker-1', 'health': 'RUNNING'})
     exporter.add_env({'name': 'default', 'python_version': '3.12'})
-    exporter.record_log('boot-complete')
+    exporter.record_log('Authorization: Bearer sk-secret-token')
     exporter.record_overflow(count=2)
     exporter.record_restart(count=1)
 
@@ -22,7 +22,8 @@ def test_diagnostics_export_contains_expected_sections() -> None:
     assert payload['plugins'][0]['plugin_id'] == 'input.xinput'
     assert payload['workers'][0]['health'] == 'RUNNING'
     assert payload['envs'][0]['python_version'] == '3.12'
-    assert payload['logs']['recent'] == ['boot-complete']
+    assert payload['logs']['recent'][0] != 'Authorization: Bearer sk-secret-token'
+    assert '[REDACTED]' in payload['logs']['recent'][0]
     assert payload['overflow_counters']['frame_overflows'] == 2
     assert payload['restart_counters']['worker_restarts'] == 1
 
@@ -33,9 +34,11 @@ def test_diagnostics_export_writes_report() -> None:
         report_path.unlink()
 
     exporter = DiagnosticsExporter()
-    exporter.record_log('export-ready')
+    exporter.record_log(
+        'https://user:password@example.com/export-ready'
+    )  # pragma: allowlist secret
     exporter.write_report(report_path)
 
     assert report_path.exists()
     payload = json.loads(report_path.read_text(encoding='utf-8'))
-    assert payload['logs']['recent'] == ['export-ready']
+    assert 'password' not in payload['logs']['recent'][0]

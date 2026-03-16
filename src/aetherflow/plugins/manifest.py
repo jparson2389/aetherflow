@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 
 
 class PluginType(StrEnum):
@@ -15,6 +16,13 @@ class PluginType(StrEnum):
     DISPLAY = 'display'
     WORKER = 'worker'
     RESOURCE = 'resource'
+
+
+class PluginDistribution(StrEnum):
+    """Trusted plugin distribution origins."""
+
+    BUILTIN = 'builtin'
+    EXTERNAL = 'external'
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,10 +54,12 @@ class PluginManifest:
     api_version: str
     plugin_type: PluginType
     entrypoint: str
-    signed: bool
     premium: bool
     required_entitlements: list[str]
     requires_worker: bool
+    distribution: PluginDistribution = PluginDistribution.BUILTIN
+    artifact_path: Path | None = None
+    signed: bool = False
     requires_drivers: list[str] = field(default_factory=list)
     signature_scheme: str | None = None
     digest_algorithm: str | None = None

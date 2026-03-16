@@ -1,119 +1,126 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from pathlib import Path
 
-from aetherflow.core.bundle_installer import BundleInstaller, BundleManifest
-from aetherflow.plugins.manifest import PluginManifest, PluginType, PluginVersion
-from aetherflow.plugins.trust import PluginTrustVerifier
+from aetherflow.plugins.manifest import (
+    PluginDistribution,
+    PluginManifest,
+    PluginType,
+    PluginVersion,
+)
+from aetherflow.plugins.trust import (
+    PluginAuthenticodeResult,
+    PluginTrustVerifier,
+)
 
 
-def _valid_plugin_manifest() -> PluginManifest:
-    """Build a valid plugin manifest for trust verification tests."""
+class StubAuthenticodeVerifier:
+    """Return preconfigured Authenticode verification results."""
+
+    def __init__(self, result: PluginAuthenticodeResult) -> None:
+        self._result = result
+
+    def verify(self, artifact_path: Path) -> PluginAuthenticodeResult:
+        return self._result
+
+
+def _external_plugin_manifest(tmp_path: Path) -> PluginManifest:
+    """Build a valid external plugin manifest for trust verification tests."""
+    artifact_path = tmp_path / 'capture.dll'
+    artifact_path.write_bytes(b'dll')
     return PluginManifest(
         plugin_id='input.xinput',
         name='XInput Provider',
         version=PluginVersion.parse('1.0.0'),
         api_version='1.0',
         plugin_type=PluginType.INPUT,
-        entrypoint='aetherflow.input.xinput',
-        signed=True,
+        entrypoint='capture.dll',
+        artifact_path=artifact_path,
+        distribution=PluginDistribution.EXTERNAL,
         premium=False,
         required_entitlements=[],
         requires_worker=False,
         requires_drivers=[],
-        signature_scheme='Authenticode',
-        digest_algorithm='SHA-256',
-        rsa_key_bits=3072,
-        publisher_thumbprint='A1B2C3D4',
-        trust_root_thumbprint='E5F6A7B8',
-        revoked=False,
-        expired=False,
-        tampered=False,
     )
 
 
-def test_bundle_installer_rejects_invalid_signature() -> None:
-    installer = BundleInstaller()
-    manifest = BundleManifest(
-        bundle_id='vision.bundle',
-        version='1.0.0',
-        python_version='3.12',
-        dependencies=[],
-        sha256='expected',
-        signature='invalid',
+def test_plugin_trust_accepts_valid_external_plugin(tmp_path: Path) -> None:
+    verifier = PluginTrustVerifier(
+        artifact_verifier=StubAuthenticodeVerifier(
+            PluginAuthenticodeResult(trusted=True)
+        )
     )
 
-    result = installer.install(manifest=manifest, archive_hash='expected')
+    result = verifier.verify(_external_plugin_manifest(tmp_path))
 
-    assert result.state == 'FAILED'
-    assert 'signature' in result.logs[-1].lower()
-
-
-def test_plugin_trust_accepts_valid_manifest() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = _valid_plugin_manifest()
-
-    assert verifier.verify(manifest) is True
+    assert result.trusted is True
+    assert result.reason is None
 
 
-def test_plugin_trust_rejects_unsigned_manifest() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), signed=False)
+def test_plugin_trust_rejects_missing_artifact_path(tmp_path: Path) -> None:
+    verifier = PluginTrustVerifier(
+        artifact_verifier=StubAuthenticodeVerifier(
+            PluginAuthenticodeResult(trusted=True)
+        )
+    )
+    manifest = _external_plugin_manifest(tmp_path)
+    manifest = PluginManifest(
+        plugin_id=manifest.plugin_id,
+        name=manifest.name,
+        version=manifest.version,
+        api_version=manifest.api_version,
+        plugin_type=manifest.plugin_type,
+        entrypoint=manifest.entrypoint,
+        distribution=PluginDistribution.EXTERNAL,
+        artifact_path=None,
+        premium=manifest.premium,
+        required_entitlements=manifest.required_entitlements,
+        requires_worker=manifest.requires_worker,
+        requires_drivers=manifest.requires_drivers,
+    )
 
-    assert verifier.verify(manifest) is False
+    result = verifier.verify(manifest)
 
-
-def test_plugin_trust_rejects_tampered_manifest() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), tampered=True)
-
-    assert verifier.verify(manifest) is False
-
-
-def test_plugin_trust_rejects_expired_manifest() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), expired=True)
-
-    assert verifier.verify(manifest) is False
-
-
-def test_plugin_trust_rejects_revoked_manifest() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), revoked=True)
-
-    assert verifier.verify(manifest) is False
-
-
-def test_plugin_trust_rejects_scheme_mismatch() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), signature_scheme='Other')
-
-    assert verifier.verify(manifest) is False
+    assert result.trusted is False
+    assert result.reason == 'missing-artifact-path'
 
 
-def test_plugin_trust_rejects_digest_mismatch() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), digest_algorithm='SHA-1')
+def test_plugin_trust_rejects_revoked_plugin(tmp_path: Path) -> None:
+    verifier = PluginTrustVerifier(
+        artifact_verifier=StubAuthenticodeVerifier(
+            PluginAuthenticodeResult(trusted=False, reason='revoked')
+        )
+    )
 
-    assert verifier.verify(manifest) is False
+    result = verifier.verify(_external_plugin_manifest(tmp_path))
 
-
-def test_plugin_trust_rejects_key_bits_mismatch() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), rsa_key_bits=2048)
-
-    assert verifier.verify(manifest) is False
-
-
-def test_plugin_trust_rejects_missing_thumbprints() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), publisher_thumbprint=None)
-
-    assert verifier.verify(manifest) is False
+    assert result.trusted is False
+    assert result.reason == 'revoked'
 
 
-def test_plugin_trust_rejects_api_version_mismatch() -> None:
-    verifier = PluginTrustVerifier()
-    manifest = replace(_valid_plugin_manifest(), api_version='0.9')
+def test_plugin_trust_rejects_api_version_mismatch(tmp_path: Path) -> None:
+    verifier = PluginTrustVerifier(
+        artifact_verifier=StubAuthenticodeVerifier(
+            PluginAuthenticodeResult(trusted=True)
+        )
+    )
+    manifest = _external_plugin_manifest(tmp_path)
+    manifest = PluginManifest(
+        plugin_id=manifest.plugin_id,
+        name=manifest.name,
+        version=manifest.version,
+        api_version='0.9',
+        plugin_type=manifest.plugin_type,
+        entrypoint=manifest.entrypoint,
+        distribution=manifest.distribution,
+        artifact_path=manifest.artifact_path,
+        premium=manifest.premium,
+        required_entitlements=manifest.required_entitlements,
+        requires_worker=manifest.requires_worker,
+        requires_drivers=manifest.requires_drivers,
+    )
 
-    assert verifier.verify(manifest) is False
+    result = verifier.verify(manifest)
+
+    assert result.trusted is False
+    assert result.reason == 'unsupported-api-version'

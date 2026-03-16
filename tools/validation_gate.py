@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import io
 import re
+import shlex
 import subprocess
 import tokenize
 from dataclasses import field
@@ -290,11 +291,19 @@ def run_validation_command(
     heuristically to extract failing test identifiers, assertion
     excerpts and exception excerpts.
     """
-    normalized_command = normalize_powershell_command(command)
+    try:
+        argv = _parse_validation_command(command, repo_root=repo_root)
+    except ValueError as exc:
+        return GateResult(
+            layer=2,
+            passed=False,
+            errors=[f'Disallowed command syntax: {exc}'],
+            command=command,
+        )
     try:
         result = subprocess.run(
-            normalized_command,
-            shell=True,
+            argv,
+            shell=False,
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -346,7 +355,7 @@ def run_validation_command(
             passed=passed,
             evidence=evidence,
             errors=errors,
-            command=normalized_command,
+            command=' '.join(argv),
             returncode=result.returncode,
             stdout_excerpt=stdout_excerpt,
             stderr_excerpt=stderr_excerpt,
@@ -359,17 +368,57 @@ def run_validation_command(
             layer=2,
             passed=False,
             errors=[
-                f'Validation command timed out after {timeout}s: {normalized_command}'
+                f'Validation command timed out after {timeout}s: {" ".join(argv)}'
             ],
-            command=normalized_command,
+            command=' '.join(argv),
         )
     except Exception as exc:
         return GateResult(
             layer=2,
             passed=False,
             errors=[f'Validation command raised exception: {exc}'],
-            command=normalized_command,
+            command=' '.join(argv),
         )
+
+
+_DISALLOWED_COMMAND_TOKENS = (';', '&&', '||', '|', '>', '<', '$(', '`')
+
+
+def _parse_validation_command(command: str, *, repo_root: Path) -> list[str]:
+    """Parse and allowlist supported validation commands.
+
+    Args:
+        command: Raw command string extracted from docs.
+        repo_root: Repository root for path validation.
+
+    Returns:
+        Safe argv list for subprocess execution.
+
+    Raises:
+        ValueError: If the command contains disallowed syntax or is unsupported.
+
+    """
+    if any(token in command for token in _DISALLOWED_COMMAND_TOKENS):
+        raise ValueError('command chaining and redirection are not allowed')
+    argv = shlex.split(command, posix=False)
+    if not argv:
+        raise ValueError('empty command')
+    head = argv[0].lower()
+    if argv[:3] == ['uv', 'run', 'pytest']:
+        return argv
+    if argv[:4] == ['uv', 'run', 'ruff', 'check']:
+        return argv
+    if head in {'powershell', 'pwsh'}:
+        normalized = list(argv)
+        normalized[0] = normalize_powershell_command(head)
+        if normalized[1:4] != ['-ExecutionPolicy', 'Bypass', '-File']:
+            raise ValueError('only PowerShell -ExecutionPolicy Bypass -File is allowed')
+        script_path = (repo_root / normalized[4]).resolve()
+        if repo_root.resolve() not in script_path.parents:
+            raise ValueError('PowerShell file must stay within repo root')
+        normalized[4] = str(script_path)
+        return normalized
+    raise ValueError('command is not in the validation allowlist')
 
 
 # ── Public entry point ───────────────────────────────────────────────────────

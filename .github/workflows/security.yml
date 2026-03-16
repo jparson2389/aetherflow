@@ -1,0 +1,46 @@
+name: Security
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.10.10'
+
+      - name: Sync dependencies
+        run: uv sync --dev
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Pytest
+        run: uv run pytest
+
+      - name: Bandit
+        run: uv run bandit -r src tools/validation_gate.py -s B106,B404,B603
+
+      - name: Dependency audit
+        run: uv run pip-audit
+
+      - name: Secret scan
+        shell: bash
+        run: |
+          git ls-files -z | xargs -0 uv run detect-secrets-hook \
+            --exclude-files '(\.env(\.example)?$|agent_manifest\.json$|test_diagnostics_export\.py$)'

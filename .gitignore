@@ -52,6 +52,8 @@ secrets.json
 *.pb.h
 *.grpc.pb.cc
 *.grpc.pb.h
+logs/*.json
+logs/*.ndjson
 logs/env_report.json
 logs/*.log
 logs/*.md

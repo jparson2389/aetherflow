@@ -1,23 +1,20 @@
 from aetherflow.core.entitlements import EntitlementState, RoleName, UserRole
 from aetherflow.core.services import create_default_services
 from aetherflow.plugins.catalog import CatalogLockState
-from aetherflow.plugins.manifest import PluginManifest, PluginType, PluginVersion
+from aetherflow.plugins.manifest import (
+    PluginDistribution,
+    PluginManifest,
+    PluginType,
+    PluginVersion,
+)
 from aetherflow.plugins.registry import PluginRegistry
-
-DEFAULT_SIGNATURE = {
-    'signature_scheme': 'Authenticode',
-    'digest_algorithm': 'SHA-256',
-    'rsa_key_bits': 3072,
-    'publisher_thumbprint': 'aetherflow-publisher',
-    'trust_root_thumbprint': 'aetherflow-root',
-}
 
 
 def make_manifest(
     plugin_id: str,
     *,
     premium: bool = False,
-    signed: bool = True,
+    distribution: PluginDistribution = PluginDistribution.BUILTIN,
 ) -> PluginManifest:
     return PluginManifest(
         plugin_id=plugin_id,
@@ -26,24 +23,29 @@ def make_manifest(
         api_version='1.0',
         plugin_type=PluginType.CAPTURE,
         entrypoint=f'{plugin_id}.dll',
-        signed=signed,
+        distribution=distribution,
+        artifact_path=None,
         premium=premium,
         required_entitlements=['vision'] if premium else [],
         requires_worker=False,
-        **DEFAULT_SIGNATURE,
     )
 
 
-def test_registry_blocks_unsigned_plugins() -> None:
+def test_registry_blocks_external_plugins_without_verified_artifact() -> None:
     services = create_default_services()
     registry = PluginRegistry(services=services)
 
-    result = registry.register(make_manifest('capture.unsigned', signed=False))
+    result = registry.register(
+        make_manifest(
+            'capture.unsigned',
+            distribution=PluginDistribution.EXTERNAL,
+        )
+    )
     entry = registry.catalog()[0]
 
     assert result.loaded is False
-    assert result.reason == 'unsigned-plugin'
-    assert entry.lock_reason == 'unsigned-plugin'
+    assert result.reason == 'missing-artifact-path'
+    assert entry.lock_reason == 'missing-artifact-path'
     assert entry.entitlement_state is EntitlementState.LOCKED
     assert entry.plugin_type is PluginType.CAPTURE
     assert entry.version == '1.0.0'

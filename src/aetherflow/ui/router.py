@@ -103,23 +103,28 @@ class RouterModel:
             if self.routes[name].is_visible(role)
         ]
 
-    def navigate(self, route_name: str) -> str:
+    def navigate(self, route_name: str, *, role: RoleName | None) -> str:
         """Activate a route and return its panel identifier.
 
         Args:
             route_name: Name of the route to activate.
+            role: Active role attempting the navigation.
 
         Returns:
             The panel identifier for the active route.
 
         Raises:
             KeyError: If the route is unknown.
+            PermissionError: If the route is not visible to the role.
 
         """
         if route_name not in self.routes:
             raise KeyError(f'Unknown route: {route_name}')
+        route = self.routes[route_name]
+        if not route.is_visible(role):
+            raise PermissionError(f'Route access denied: {route_name}')
         self.active_route = route_name
-        panel_id = self.routes[route_name].panel_id
+        panel_id = route.panel_id
         self._record_event(
             route_name=route_name,
             panel_id=panel_id,

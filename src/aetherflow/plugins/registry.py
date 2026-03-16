@@ -40,17 +40,19 @@ class PluginRegistry:
 
     def register(self, manifest: PluginManifest) -> RegistrationResult:
         """Validate and register a plugin manifest."""
-        if not self._services.trust_verifier.verify(manifest):
+        trust_result = self._services.trust_verifier.verify(manifest)
+        if not trust_result.trusted:
+            reason = trust_result.reason or 'untrusted-plugin'
             entry = self._catalog_entry(
                 manifest,
                 lock_state=CatalogLockState.LOCKED,
                 selectable=False,
                 purchase_cta='Signed publisher certificate required',
                 entitlement_state=EntitlementState.LOCKED,
-                lock_reason='unsigned-plugin',
+                lock_reason=reason,
             )
             self._catalog.append(entry)
-            return RegistrationResult(loaded=False, reason='unsigned-plugin')
+            return RegistrationResult(loaded=False, reason=reason)
 
         entitlement_state = self._services.entitlements.evaluate(
             manifest.plugin_id,
