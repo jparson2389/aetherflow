@@ -60,7 +60,11 @@ extend-exclude = ["*_pb2.py", "*_pb2_grpc.py", ".venv", "build"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "venv", ".venv", "build", "*_pb2.py", "*_pb2_grpc.py"]
-skips = ["B101"] # Matches your Ruff ignore for 'assert'
+skips = [
+    "B101", # assert used
+    "B104", # string '0.0.0.0' used only in URL heuristic, not binding
+    "B608", # string concatenation for LLM prompts, not SQL
+]
 level = "medium"
 confidence = "high"
 
@@ -106,7 +110,7 @@ docstring-quotes = "single"
 
 [tool.pyright]
 include = ["src", "tools"]
-exclude = ["**/node_modules", "**/__pycache__", ".venv"]
+exclude = ["**/node_modules", "**/__pycache__", ".venv", "src/aetherflow/proto"]
 extraPaths = ["src", "."]
 venvPath = "."
 venv = ".venv"

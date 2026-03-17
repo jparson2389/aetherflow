@@ -7,6 +7,7 @@ import re
 import shlex
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -328,7 +329,7 @@ def evaluate_plan_item(
     *,
     repo_root: Path,
     item: PlanItem,
-    validation_runner: callable | None = None,
+    validation_runner: Callable[[Path, str], bool] | None = None,
 ) -> VerificationResult:
     """Evaluate one plan item against the evidence standard.
 
@@ -643,16 +644,19 @@ def _apply_repo_defaults(items: list[PlanItem]) -> list[PlanItem]:
 
     for item in items:
         item_defaults = defaults.get(item.item_id, {})
-        item.lifecycle_state = item_defaults.get(
-            'lifecycle_state', item.lifecycle_state
+        if 'lifecycle_state' in item_defaults:
+            item.lifecycle_state = str(item_defaults['lifecycle_state'])
+        item.feature_class = (
+            str(item_defaults.get('feature_class', item.feature_class or '')) or None
         )
-        item.feature_class = item_defaults.get('feature_class', item.feature_class)
-        item.entry_point = item_defaults.get('entry_point', item.entry_point)
-        item.required_proofs = list(
-            item_defaults.get('required_proofs', item.required_proofs)
+        item.entry_point = (
+            str(item_defaults.get('entry_point', item.entry_point or '')) or None
         )
-        item.failure_modes = list(
-            item_defaults.get('failure_modes', item.failure_modes)
+        item.required_proofs = list(  # type: ignore
+            item_defaults.get('required_proofs', item.required_proofs)  # type: ignore
+        )
+        item.failure_modes = list(  # type: ignore
+            item_defaults.get('failure_modes', item.failure_modes)  # type: ignore
         )
     return items
 
