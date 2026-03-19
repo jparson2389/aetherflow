@@ -9,6 +9,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from tools.shell_utils import resolve_powershell_executable
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE_PATH = PROJECT_ROOT / 'logs' / 'verify-requirements-evidence.md'
 
