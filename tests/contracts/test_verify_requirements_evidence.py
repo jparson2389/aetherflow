@@ -40,7 +40,7 @@ def _run_verify_requirements() -> None:
     script = PROJECT_ROOT / '.cursor' / 'workflows' / 'verify-requirements.ps1'
     subprocess.run(
         [
-            'powershell',
+            resolve_powershell_executable(),
             '-NoProfile',
             '-ExecutionPolicy',
             'Bypass',

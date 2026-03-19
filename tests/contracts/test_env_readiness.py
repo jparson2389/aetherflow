@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 from tools.shell_utils import resolve_powershell_executable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only: requires MSVC toolchain')
 def test_verify_env_generates_report() -> None:
     report_path = PROJECT_ROOT / 'logs' / 'env_report.json'
     if report_path.exists():
