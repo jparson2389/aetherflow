@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 from tools.shell_utils import resolve_powershell_executable
 
@@ -36,6 +39,7 @@ def _run_build_script() -> subprocess.CompletedProcess[str]:
     )
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only: requires MSVC')
 def test_build_native_harness_creates_executable_and_report() -> None:
     build_path = PROJECT_ROOT / 'build' / 'native_harness.exe'
     report_path = PROJECT_ROOT / 'build' / 'native_harness_report.json'
@@ -61,6 +65,7 @@ def test_build_native_harness_creates_executable_and_report() -> None:
     assert report['boundary']['src_native_files'] == []
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only: requires MSVC')
 def test_native_harness_rejects_cpp_sources_inside_src(tmp_path: Path) -> None:
     result = _run_build_script()
     assert result.returncode == 0, result.stdout + result.stderr

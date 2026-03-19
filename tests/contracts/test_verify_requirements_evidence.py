@@ -7,7 +7,12 @@ run it.
 
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
+
+from tools.shell_utils import resolve_powershell_executable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE_PATH = PROJECT_ROOT / 'logs' / 'verify-requirements-evidence.md'
@@ -40,7 +45,7 @@ def _run_verify_requirements() -> None:
     script = PROJECT_ROOT / '.cursor' / 'workflows' / 'verify-requirements.ps1'
     subprocess.run(
         [
-            'powershell',
+            resolve_powershell_executable(),
             '-NoProfile',
             '-ExecutionPolicy',
             'Bypass',
@@ -65,6 +70,7 @@ def _parse_evidence() -> dict[str, bool]:
     return result
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only: requires verify-requirements.ps1')
 def test_verify_requirements_evidence_golden_expectations() -> None:
     """Assert golden files have expected placeholder status."""
     evidence = _parse_evidence()

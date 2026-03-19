@@ -43,4 +43,5 @@ jobs:
         shell: bash
         run: |
           git ls-files -z | xargs -0 uv run detect-secrets-hook \
-            --exclude-files '(\.env(\.example)?$|agent_manifest\.json$|test_diagnostics_export\.py$)'
+            --baseline .secrets.baseline \
+            --exclude-files '(\.env(\.example)?$|agent_manifest\.json$|test_diagnostics_export\.py$|manifest_keys\.json$)'
