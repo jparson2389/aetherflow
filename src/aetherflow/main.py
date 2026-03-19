@@ -5,6 +5,7 @@ from pathlib import Path
 from loguru import logger
 
 from aetherflow.core.developer_app_checks import PendingAppCheckStore
+from aetherflow.core.dotenv_bootstrap import configure_environment
 from aetherflow.ui.shell import ShellModel
 
 
@@ -31,6 +32,7 @@ def main() -> int:
         Process exit code.
 
     """
+    configure_environment()
     shell = build_shell()
     logger.info('Starting Aetherflow shell bootstrap.')
     logger.debug('Startup notices loaded: {}', len(shell.notices))
