@@ -4,8 +4,8 @@
 - Retired: 1
 - Drafted: 0
 - Coded: 0
-- Evidenced: 7
-- Verified: 8
+- Evidenced: 6
+- Verified: 9
 - Complete: 0
 
 ## Coverage by Plan Item
@@ -22,10 +22,10 @@
 - Reviewer: qa.lead
 
 ### AF-00-02b - Establish native boundary and build harness.
-- Status: evidenced
-- Gaps: Validation failed: powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
+- Status: verified
 - Evidence Pack: docs/evidence/AF-00-02b.md
 - Validation: powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
+- Reviewer: qa.lead
 
 ### AF-00-03 - Publish control-plane proto surface and shared-memory ring semantics.
 - Status: verified

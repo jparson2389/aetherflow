@@ -21,7 +21,15 @@ def build_shell() -> ShellModel:
         pending_path=Path('logs') / 'verification' / 'pending_app_checks.json',
         snapshot_path=Path('logs') / 'verification' / 'status_snapshot.json',
     )
-    shell.load_pending_app_checks(store.pending_alerts())
+
+    # Load pending alerts and persist acknowledgment status
+    pending_alerts = store.pending_alerts()
+    shell.load_pending_app_checks(pending_alerts)
+    store.acknowledge()
+
+    # Clear acknowledged notices from the shell
+    shell.clear_acknowledged_notices(pending_alerts)
+
     return shell
 
 

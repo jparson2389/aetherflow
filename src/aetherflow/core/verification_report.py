@@ -125,7 +125,9 @@ _ACCEPTANCE_RE = re.compile(r'^- AC\d+:\s*(?P<value>.+)$')
 # PLAN.md metadata fields
 _FEATURE_CLASS_RE = re.compile(r'^\s*> \*\*Feature-Class:\*\* `(?P<value>[^`]+)`')
 _ENTRY_POINT_RE = re.compile(r'^\s*> \*\*Entry-Point:\*\* `(?P<value>[^`]+)`')
-_REQUIRED_PROOF_RE = re.compile(r'^\s*> \*\*Required-Proof-Types:\*\* `(?P<value>[^`]+)`')
+_REQUIRED_PROOF_RE = re.compile(
+    r'^\s*> \*\*Required-Proof-Types:\*\* `(?P<value>[^`]+)`'
+)
 _APP_TESTABLE_RE_PLAN = re.compile(r'^\s*> \*\*App-Testable:\*\* `(?P<value>[^`]+)`')
 _LIFECYCLE_RE = re.compile(r'^\s*> \*\*Lifecycle:\*\* `(?P<value>[^`]+)`')
 
@@ -680,13 +682,9 @@ def _apply_repo_defaults(items: list[PlanItem]) -> list[PlanItem]:
             item.lifecycle_state = str(item_defaults['lifecycle_state'])
         # Feature metadata: prefer values already parsed from PLAN.md; fall back to defaults.
         if item.feature_class is None:
-            item.feature_class = (
-                str(item_defaults.get('feature_class', '')) or None
-            )
+            item.feature_class = str(item_defaults.get('feature_class', '')) or None
         if item.entry_point is None:
-            item.entry_point = (
-                str(item_defaults.get('entry_point', '')) or None
-            )
+            item.entry_point = str(item_defaults.get('entry_point', '')) or None
         if not item.required_proofs:
             item.required_proofs = list(  # type: ignore
                 item_defaults.get('required_proofs', [])  # type: ignore
