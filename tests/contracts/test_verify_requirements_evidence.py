@@ -7,7 +7,10 @@ run it.
 
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 from tools.shell_utils import resolve_powershell_executable
 
@@ -67,6 +70,7 @@ def _parse_evidence() -> dict[str, bool]:
     return result
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only: requires verify-requirements.ps1')
 def test_verify_requirements_evidence_golden_expectations() -> None:
     """Assert golden files have expected placeholder status."""
     evidence = _parse_evidence()
