@@ -1,9 +1,9 @@
 {
   "item_id": "AF-04-01",
   "title": "Implement worker supervision with restart ceilings and escalation UX.",
-  "status": "coded",
+  "status": "evidenced",
   "gaps": [
-    "Missing evidence pack"
+    "Reviewer sign-off is not approved"
   ],
   "evidence_pack": "docs/evidence/AF-04-01.md",
   "validation_commands": [

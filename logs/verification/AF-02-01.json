@@ -1,9 +1,9 @@
 {
   "item_id": "AF-02-01",
   "title": "Deliver profiles, mapping, translation, diagnostics, and input plugins.",
-  "status": "coded",
+  "status": "evidenced",
   "gaps": [
-    "Missing evidence pack"
+    "Reviewer sign-off is not approved"
   ],
   "evidence_pack": "docs/evidence/AF-02-01.md",
   "validation_commands": [

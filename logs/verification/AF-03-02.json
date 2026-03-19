@@ -1,9 +1,9 @@
 {
   "item_id": "AF-03-02",
   "title": "Add premium capture backends, CPU/GPU render modes, and one validated 120 FPS path.",
-  "status": "coded",
+  "status": "evidenced",
   "gaps": [
-    "Missing evidence pack"
+    "Reviewer sign-off is not approved"
   ],
   "evidence_pack": "docs/evidence/AF-03-02.md",
   "validation_commands": [

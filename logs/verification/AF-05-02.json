@@ -1,9 +1,9 @@
 {
   "item_id": "AF-05-02",
   "title": "Implement admin, diagnostics export, packaging, and evidence collectors.",
-  "status": "coded",
+  "status": "evidenced",
   "gaps": [
-    "Missing evidence pack"
+    "Reviewer sign-off is not approved"
   ],
   "evidence_pack": "docs/evidence/AF-05-02.md",
   "validation_commands": [

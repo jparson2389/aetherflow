@@ -1,9 +1,9 @@
 {
   "item_id": "AF-05-01",
   "title": "Build Online Resources trust flow with mock-provider fallback.",
-  "status": "coded",
+  "status": "evidenced",
   "gaps": [
-    "Missing evidence pack"
+    "Reviewer sign-off is not approved"
   ],
   "evidence_pack": "docs/evidence/AF-05-01.md",
   "validation_commands": [
