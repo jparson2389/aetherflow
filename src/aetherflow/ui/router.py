@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -73,7 +74,7 @@ class RouterModel:
     order: list[str] = field(default_factory=list)
     active_route: str | None = None
     failed_routes: dict[str, str] = field(default_factory=dict)
-    events: list[RouteEvent] = field(default_factory=list)
+    events: deque[RouteEvent] = field(default_factory=lambda: deque(maxlen=500))
 
     def register_route(self, route: RouteDefinition) -> None:
         """Register a route definition.
@@ -154,6 +155,8 @@ class RouterModel:
             reason: Human-readable failure reason.
 
         """
+        if route_name not in self.routes:
+            logger.warning('mark_failed called for unknown route: {}', route_name)
         self.failed_routes[route_name] = reason
         panel_id = (
             self.routes[route_name].panel_id if route_name in self.routes else None

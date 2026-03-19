@@ -27,6 +27,15 @@ class PluginTrustResult:
     reason: str | None = None
 
 
+_REASON_MAP: dict[int, str] = {
+    1: 'unsigned',
+    2: 'hash-mismatch',
+    3: 'untrusted-publisher',
+    6: 'revoked',
+    7: 'expired',
+}
+
+
 class PluginAuthenticodeVerifier:
     """Verify native plugin signatures with PowerShell Authenticode checks."""
 
@@ -55,6 +64,8 @@ class PluginAuthenticodeVerifier:
         """
         if not artifact_path.exists():
             return PluginAuthenticodeResult(trusted=False, reason='missing-artifact')
+        if "'" in str(artifact_path):
+            return PluginAuthenticodeResult(trusted=False, reason='invalid-artifact-path')
         command = [
             'powershell',
             '-NoProfile',
@@ -74,8 +85,9 @@ class PluginAuthenticodeVerifier:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=10,
             )
-        except OSError:
+        except (OSError, subprocess.TimeoutExpired):
             return PluginAuthenticodeResult(
                 trusted=False,
                 reason='verification-error',
@@ -92,19 +104,15 @@ class PluginAuthenticodeVerifier:
                 trusted=False,
                 reason='verification-error',
             )
-        status = str(payload.get('Status', '')).lower()
-        if status == 'valid':
+        # ConvertTo-Json serializes the SignatureStatus enum as its integer value,
+        # not its name. 0 = Valid, 1 = NotSigned, 2 = HashMismatch, 3 = NotTrusted,
+        # 6 = CertificateRevoked, 7 = NotTimeValid.
+        status_code = payload.get('Status')
+        if status_code == 0:
             return PluginAuthenticodeResult(trusted=True)
-        reason_map = {
-            'notsigned': 'unsigned',
-            'hashmismatch': 'hash-mismatch',
-            'nottrusted': 'untrusted-publisher',
-            'certificaterevoked': 'revoked',
-            'nottimevalid': 'expired',
-        }
         return PluginAuthenticodeResult(
             trusted=False,
-            reason=reason_map.get(status, 'verification-error'),
+            reason=_REASON_MAP.get(status_code, 'verification-error'),
         )
 
 
@@ -131,6 +139,12 @@ class PluginTrustVerifier:
                 trusted=False,
                 reason='unsupported-api-version',
             )
+        if manifest.revoked:
+            return PluginTrustResult(trusted=False, reason='revoked')
+        if manifest.tampered:
+            return PluginTrustResult(trusted=False, reason='tampered')
+        if manifest.expired:
+            return PluginTrustResult(trusted=False, reason='expired')
         if manifest.distribution is PluginDistribution.BUILTIN:
             return PluginTrustResult(trusted=True)
         if manifest.artifact_path is None:

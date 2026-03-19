@@ -30,6 +30,7 @@ def _read(path: str) -> str:
 
     Returns:
         The decoded file content.
+
     """
     return Path(path).read_text(encoding='utf-8', errors='ignore')
 
@@ -42,6 +43,7 @@ def _parse_json(s: str) -> dict[str, Any] | None:
 
     Returns:
         The parsed JSON object when successful, otherwise ``None``.
+
     """
     try:
         return parse_json_object(s, stage='agent_call')
@@ -58,6 +60,7 @@ def _build_messages(system: str, user: str) -> list[dict[str, str]]:
 
     Returns:
         OpenAI-compatible chat messages.
+
     """
     return [
         {'role': 'system', 'content': system},
@@ -74,6 +77,7 @@ def _build_extra_body(*, model: str, use_local_backend: bool) -> dict[str, Any]:
 
     Returns:
         Extra request fields for the chat completions call.
+
     """
     if use_local_backend and model == 'pm':
         return {'reasoning_format': 'deepseek'}
@@ -85,6 +89,7 @@ def main() -> int:
 
     Returns:
         Process exit code.
+
     """
     ap = argparse.ArgumentParser()
     ap.add_argument(

@@ -15,6 +15,7 @@ def resolve_powershell_executable() -> str:
     Raises:
         FileNotFoundError: If neither Windows PowerShell nor PowerShell 7 is
             available.
+
     """
     candidates = [
         shutil.which('powershell'),
@@ -51,6 +52,7 @@ def normalize_powershell_command(command: str) -> str:
     Returns:
         The normalized command string. Commands that do not begin with a
         PowerShell alias are returned unchanged.
+
     """
     if not re.match(r'^\s*(powershell|pwsh)(?=\s|$)', command, re.IGNORECASE):
         return command

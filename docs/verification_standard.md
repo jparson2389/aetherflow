@@ -12,12 +12,12 @@ explicit acceptance criteria, and approved by a human reviewer.
 
 ## Definitions
 
-- *Implementation*: code or documents exist for the claimed work item.
-- *Behavioral proof*: executable evidence showing an observable effect through
+- _Implementation_: code or documents exist for the claimed work item.
+- _Behavioral proof_: executable evidence showing an observable effect through
   the intended entry point.
-- *Structural checks*: file existence, placeholder scans, lint, or import
+- _Structural checks_: file existence, placeholder scans, lint, or import
   success. These can block progress but cannot prove completion.
-- *Evidence pack*: item-specific proof record that ties acceptance criteria to
+- _Evidence pack_: item-specific proof record that ties acceptance criteria to
   commands, tests, and reviewer sign-off.
 
 ## Verification States

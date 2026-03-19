@@ -18,7 +18,6 @@ def build_argument_parser() -> argparse.ArgumentParser:
         Configured CLI parser.
 
     """
-
     parser = argparse.ArgumentParser(
         description='Generate evidence-based verification outputs.'
     )
@@ -37,7 +36,6 @@ def main() -> int:
         Process exit code.
 
     """
-
     args = build_argument_parser().parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     results = generate_results(repo_root=repo_root, plan_path=repo_root / args.plan)

@@ -111,6 +111,7 @@ def is_local_backend(base_url: str) -> bool:
 
     Returns:
         True if the URL points to a local server.
+
     """
     url = str(base_url).lower()
     return any(host in url for host in ('127.0.0.1', 'localhost', '0.0.0.0'))

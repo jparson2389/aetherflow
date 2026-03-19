@@ -1,6 +1,8 @@
 # tools/json_utils.py
-"""Shared JSON extraction utilities. Single source of truth for both
-plan_exec.py and agent_call.py."""
+"""Shared JSON extraction utilities.
+
+Single source of truth for both plan_exec.py and agent_call.py.
+"""
 
 from __future__ import annotations
 
@@ -145,8 +147,9 @@ def parse_json_object(
     stage: str = 'unknown',
     _dump_on_failure: str | None = None,
 ) -> dict[str, Any]:
-    """Try to parse a JSON object from raw text using three strategies:
-    direct parse, fenced code block extraction, and brace-counting.
+    """Try to parse a JSON object from raw text using three strategies.
+
+    Strategies: direct parse, fenced code block extraction, and brace-counting.
 
     Args:
         raw: Raw text from an LLM response.
@@ -158,6 +161,7 @@ def parse_json_object(
 
     Raises:
         ValueError: If no valid JSON object is found.
+
     """
     text = raw.strip()
     candidates: list[tuple[str, str]] = []
@@ -194,6 +198,7 @@ def safe_json_from_model(stage: str, raw_text: str) -> dict[str, Any]:
 
     Raises:
         ValueError: If no valid JSON object is found.
+
     """
     return parse_json_object(raw_text, stage=stage)
 

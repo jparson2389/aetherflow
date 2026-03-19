@@ -1,29 +1,4 @@
-from __future__ import annotations
-
-import argparse
-import json
-import re
-import subprocess
-import sys
-from collections.abc import Callable
-from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
-
-from loguru import logger
-from pydantic import BaseModel, Field, field_validator
-
-if TYPE_CHECKING:
-    from openai import OpenAI
-else:
-    try:
-        from openai import OpenAI
-    except ModuleNotFoundError:  # pragma: no cover
-        OpenAI = Any  # type: ignore[misc,assignment]
-
-"""
-plan_exec.py — Implementation plan executor with deterministic PM selection, schema repair,
-and stricter PM verification handling.
+"""plan_exec.py — Implementation plan executor with deterministic PM selection, schema repair, and stricter PM verification handling.
 
 This module orchestrates the execution of PLAN.md work items. It interacts with
 LLM agents to select the next item, implement it, run build/quality/validation
@@ -45,6 +20,30 @@ The code retains the original retry loop structure but uses a `while` loop
 instead of a `for` loop so that certain repairs do not consume an attempt.
 
 """
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
+
+from loguru import logger
+from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from openai import OpenAI
+else:
+    try:
+        from openai import OpenAI
+    except ModuleNotFoundError:  # pragma: no cover
+        OpenAI = Any  # type: ignore[misc,assignment]
 
 try:
     # Prefer the local tools package if available
@@ -150,14 +149,11 @@ def _gather_gate_evidence(report: Any) -> list[str]:
     persistence into plan state/history.
     """
     items: list[str] = []
-    try:
-        for layer in getattr(report, 'layers', []):
-            if getattr(layer, 'errors', None):
-                items.extend([e for e in layer.errors if e])
-            if getattr(layer, 'evidence', None):
-                items.extend([e for e in layer.evidence if e])
-    except Exception:
-        pass
+    for layer in getattr(report, 'layers', []):
+        if getattr(layer, 'errors', None):
+            items.extend([e for e in layer.errors if e])
+        if getattr(layer, 'evidence', None):
+            items.extend([e for e in layer.evidence if e])
     return items
 
 
@@ -942,10 +938,16 @@ def reconcile_state_with_repo(
             notes=notes,
         )
         updated_item = next(
-            candidate
-            for candidate in state.get('items', [])
-            if isinstance(candidate, dict) and candidate.get('id') == item_id
+            (
+                candidate
+                for candidate in state.get('items', [])
+                if isinstance(candidate, dict) and candidate.get('id') == item_id
+            ),
+            None,
         )
+        if updated_item is None:
+            logger.warning(f'[reconcile] item={item_id} missing from state after update — skipping')
+            continue
         reconciled.append(updated_item)
         audit_entries.append(
             format_reconciliation_audit_entry(
@@ -1112,10 +1114,11 @@ def call_json_with_retry(
     if both attempts fail.
     """
     debug_dir = ROOT / 'logs'
-    debug_dir.mkdir(exist_ok=True)
     safe_stage = stage.replace('/', '_').replace('\\', '_')
-    (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(system, encoding='utf-8')
-    (debug_dir / f'prompt_user_{safe_stage}.txt').write_text(user, encoding='utf-8')
+    if os.environ.get('PLAN_EXEC_DUMP_PROMPTS'):
+        debug_dir.mkdir(exist_ok=True)
+        (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(system, encoding='utf-8')
+        (debug_dir / f'prompt_user_{safe_stage}.txt').write_text(user, encoding='utf-8')
 
     initial = call(
         client,
@@ -1149,9 +1152,10 @@ def call_json_with_retry(
         'Previous response:\n'
         f'{initial.content}'
     )
-    (debug_dir / f'prompt_repair_user_{safe_stage}.txt').write_text(
-        repair_user, encoding='utf-8'
-    )
+    if os.environ.get('PLAN_EXEC_DUMP_PROMPTS'):
+        (debug_dir / f'prompt_repair_user_{safe_stage}.txt').write_text(
+            repair_user, encoding='utf-8'
+        )
     repaired = call(
         client,
         model,
