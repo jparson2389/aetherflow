@@ -48,6 +48,7 @@ logs/*.ndjson
 logs/env_report.json
 logs/*.log
 logs/*.md
+logs/*.txt
 
 # --- Personal / Machine-Specific Launchers ---
 start-loop2.ps1
@@ -59,4 +60,24 @@ logs/bundle_install_report.json
 logs/diagnostics_export.json
 security_report.html
 scripts/start-llama-server.ps1
+
+DEV-COMMANDS.md
+logs/verification/AF-01-01.json
+logs/verification/AF-04-02.json
+logs/verification/status_snapshot.json
+.claude/settings.json
+.claude/settings.local.json
+
+# --- IDE / Editor Configurations ---
+.vscode/
+
+# --- Misc ---
+.claude/
+.tmp/
+.agents/
+.codex/
+.cursor/
+.devcontainer/
+.pytest-basetemp/
+.uv-cache/
 

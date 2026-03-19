@@ -137,20 +137,20 @@ Three dependency groups exist. Never add, remove, or change a dependency without
   - Full type hints on EVERY argument + return.
 
   - **Docstrings:**
-    - **Single-quoted delimiters:** Use `'''` (never `"""`) for all docstrings.
+    - **Double-quoted delimiters:** Use `"""` (never `'''`) for all docstrings — `ruff format` enforces this.
 
-    - **Google docstring format:** Use Args:, Returns:, Raises: as in the following (single-quoted) example:
+    - **Google docstring format:** Use Args:, Returns:, Raises: as in the following example:
 
     ```python
     def foo(x: int) -> bool:
-        '''Check whether x is valid.
+        """Check whether x is valid.
 
         Args:
             x: The value to check.
 
         Returns:
             True if x is positive.
-        '''
+        """
 
     ```
 
@@ -172,9 +172,9 @@ Three dependency groups exist. Never add, remove, or change a dependency without
 
   * F (Pyflakes), E (pycodestyle), I (isort), UP (pyupgrade), B (flake8-bugbear), RUF, D (pydocstyle), ARG (unused args), PTH (use pathlib)
 
-* **ignore:** E203, D203, D213, D300, E501, D100
+* **ignore:** E203, D203, D213, D300, Q002, E501, D100
 
-  * D300 (ignore triple-double required, allowing single-quoted docstrings as standard)
+  * D300 + Q002 (formatter uses `"""` for docstrings; these rules would conflict with `ruff format`)
 
   * D212/D213: Pick D212 multi-line summary, ignore D213
 
@@ -264,7 +264,7 @@ Three dependency groups exist. Never add, remove, or change a dependency without
 
 * TDD: Write test files before feature code.
 
-* Add **type hints and single-quoted, Google-format docstrings** to all Python code.
+* Add **type hints and Google-format docstrings** (`"""`) to all Python code.
 
 * Run `uv run ruff check && uv run pytest` before marking done.
 

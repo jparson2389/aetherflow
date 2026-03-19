@@ -29,6 +29,36 @@ The repository currently contains:
 - The native harness enforces the repo boundary and validates the frozen
   contract inputs.
 
+```mermaid
+flowchart TB
+    User[User] --> UI["PySide6 UI Host Shell"]
+    UI --> UIRouter[UI Router]
+    UIRouter --> PluginLoader["Plugin Loader / Registry"]
+
+    subgraph Host["Microkernel Host"]
+        PluginLoader
+        ServiceContainer["Service Container"]
+        WorkerSupervisor["Worker Supervisor"]
+        IPC["gRPC + Shared Memory"]
+    end
+
+    subgraph Plugins["Native Plugin Layer"]
+        Input["Input Provider"]
+        Output["Output Provider"]
+        Capture["Capture Provider"]
+    end
+
+    subgraph Workers["Python Workers (uv)"]
+        CV["CV Worker"]
+        ML["Inference Worker"]
+        Script["Script Worker"]
+    end
+
+    PluginLoader --> Plugins
+    WorkerSupervisor --> Workers
+    IPC <--> Workers
+```
+
 See `docs/architecture/system_overview.md` for the higher-level runtime view.
 
 ## Repository Layout
