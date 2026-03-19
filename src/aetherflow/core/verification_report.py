@@ -122,6 +122,13 @@ _APP_SURFACE_RE = re.compile(r'^- App Surface:\s*(?P<value>.+)$')
 _DEVELOPER_ALERT_RE = re.compile(r'^- Developer Alert:\s*(?P<value>.+)$')
 _ACCEPTANCE_RE = re.compile(r'^- AC\d+:\s*(?P<value>.+)$')
 
+# PLAN.md metadata fields
+_FEATURE_CLASS_RE = re.compile(r'^\s*> \*\*Feature-Class:\*\* `(?P<value>[^`]+)`')
+_ENTRY_POINT_RE = re.compile(r'^\s*> \*\*Entry-Point:\*\* `(?P<value>[^`]+)`')
+_REQUIRED_PROOF_RE = re.compile(r'^\s*> \*\*Required-Proof-Types:\*\* `(?P<value>[^`]+)`')
+_APP_TESTABLE_RE_PLAN = re.compile(r'^\s*> \*\*App-Testable:\*\* `(?P<value>[^`]+)`')
+_LIFECYCLE_RE = re.compile(r'^\s*> \*\*Lifecycle:\*\* `(?P<value>[^`]+)`')
+
 
 def default_evidence_pack_path(item_id: str) -> Path:
     """Return the default evidence-pack path for a plan item.
@@ -173,6 +180,30 @@ def parse_plan_items(plan_text: str) -> list[PlanItem]:
         validation_match = _VALIDATION_RE.match(raw_line)
         if validation_match:
             current.validations.append(validation_match.group('command').strip())
+            continue
+
+        feature_class_match = _FEATURE_CLASS_RE.match(raw_line)
+        if feature_class_match:
+            current.feature_class = feature_class_match.group('value').strip()
+            continue
+
+        entry_point_match = _ENTRY_POINT_RE.match(raw_line)
+        if entry_point_match:
+            current.entry_point = entry_point_match.group('value').strip()
+            continue
+
+        required_proof_match = _REQUIRED_PROOF_RE.match(raw_line)
+        if required_proof_match:
+            raw_proofs = required_proof_match.group('value').strip()
+            current.required_proofs = [
+                p.strip() for p in raw_proofs.split(',') if p.strip()
+            ]
+            continue
+
+        lifecycle_match = _LIFECYCLE_RE.match(raw_line)
+        if lifecycle_match:
+            current.lifecycle_state = lifecycle_match.group('value').strip()
+            continue
 
     return items
 
@@ -644,20 +675,26 @@ def _apply_repo_defaults(items: list[PlanItem]) -> list[PlanItem]:
 
     for item in items:
         item_defaults = defaults.get(item.item_id, {})
-        if 'lifecycle_state' in item_defaults:
+        # Lifecycle state from PLAN.md takes precedence; fall back to hardcoded default.
+        if item.lifecycle_state is None and 'lifecycle_state' in item_defaults:
             item.lifecycle_state = str(item_defaults['lifecycle_state'])
-        item.feature_class = (
-            str(item_defaults.get('feature_class', item.feature_class or '')) or None
-        )
-        item.entry_point = (
-            str(item_defaults.get('entry_point', item.entry_point or '')) or None
-        )
-        item.required_proofs = list(  # type: ignore
-            item_defaults.get('required_proofs', item.required_proofs)  # type: ignore
-        )
-        item.failure_modes = list(  # type: ignore
-            item_defaults.get('failure_modes', item.failure_modes)  # type: ignore
-        )
+        # Feature metadata: prefer values already parsed from PLAN.md; fall back to defaults.
+        if item.feature_class is None:
+            item.feature_class = (
+                str(item_defaults.get('feature_class', '')) or None
+            )
+        if item.entry_point is None:
+            item.entry_point = (
+                str(item_defaults.get('entry_point', '')) or None
+            )
+        if not item.required_proofs:
+            item.required_proofs = list(  # type: ignore
+                item_defaults.get('required_proofs', [])  # type: ignore
+            )
+        if not item.failure_modes:
+            item.failure_modes = list(  # type: ignore
+                item_defaults.get('failure_modes', [])  # type: ignore
+            )
     return items
 
 
@@ -676,6 +713,7 @@ def write_results(
 
     """
     results_dir.mkdir(parents=True, exist_ok=True)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     for result in results:
         (results_dir / f'{result.item_id}.json').write_text(
             json.dumps(result.to_payload(), indent=2) + '\n',

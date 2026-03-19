@@ -490,3 +490,28 @@ def run_validation_gate(
         }
     )
     return ValidationReport(**report_kwargs)
+
+
+def validate_feature_class_requirements(
+    item_required_proofs: list[str],
+    evidence_proof_types: list[str],
+) -> list[str]:
+    """Check that evidence proof types satisfy item required proof types.
+
+    Structural checks (file existence, placeholder detection) remain as Layer 1
+    hygiene and cannot independently promote items to verified status.
+
+    Args:
+        item_required_proofs: Proof types required by the plan item.
+        evidence_proof_types: Proof types declared in the evidence pack.
+
+    Returns:
+        List of missing proof type gap strings.
+
+    """
+    gaps = []
+    normalized = {pt.casefold() for pt in evidence_proof_types}
+    for required in item_required_proofs:
+        if required.casefold() not in normalized:
+            gaps.append(f'Missing required proof type: {required}')
+    return gaps
