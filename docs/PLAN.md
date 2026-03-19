@@ -66,7 +66,7 @@ steps 1–3 first.
 ## Assumptions And Sign-Off Gates
 
 - `[ASM-01]` `proto/` remains the authoritative proto source; generated Python
-  lands under `src/aetherflow/core/ipc/`.
+  lands under `src/aetherflow/proto/`.
 - `[ASM-02]` Auth provider selection remains product-open until before
   `AF-05-01`. Fallback: provider-agnostic OAuth interface plus disabled
   `MockOAuthProvider`.

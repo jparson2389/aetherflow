@@ -24,7 +24,7 @@ Development is driven by an automated AI loop orchestrated with OpenAI Python SD
 
   - Python workers
 
-  - Generated Python gRPC stubs (`src/aetherflow/core/ipc/` per ASM-01)
+  - Generated Python gRPC stubs (`src/aetherflow/proto/` per ASM-01)
 
   - Shared memory layout
 
@@ -49,7 +49,7 @@ Development is driven by an automated AI loop orchestrated with OpenAI Python SD
 
 - proto/capture.proto is canonical control-plane, strictly enforced.
 
-- Generated Python stubs MUST go in src/aetherflow/core/ipc/. Never hand-edit, never move.
+- Generated Python stubs MUST go in `src/aetherflow/proto/`. Never hand-edit, never move.
 
 - UV is the only way to invoke all Python commands: uv run ...
 
@@ -65,7 +65,7 @@ Development is driven by an automated AI loop orchestrated with OpenAI Python SD
 
 - proto/ is the only authoritative proto source.
 
-- Only place generated gRPC stubs in src/aetherflow/core/ipc/. Never modify by hand.
+- Only place generated gRPC stubs in `src/aetherflow/proto/`. Never modify by hand.
 
 ### Dependencies
 
@@ -226,7 +226,7 @@ Three dependency groups exist. Never add, remove, or change a dependency without
 
 * **gRPC boundary:**
 
-  * Generated stubs: `src/aetherflow/core/ipc/` artifacts only, never modify or move.
+  * Generated stubs: `src/aetherflow/proto/` artifacts only, never modify or move.
 
   * **FROZEN CONTRACT:** `proto/capture.proto` is the authority. Validated by `host/native_harness.cpp` at build.
 
@@ -270,7 +270,7 @@ Three dependency groups exist. Never add, remove, or change a dependency without
 
 * Treat `proto/capture.proto` as FROZEN.
 
-* Generated gRPC stubs: always in `src/aetherflow/core/ipc/`, never hand-edit.
+* Generated gRPC stubs: always in `src/aetherflow/proto/`, never hand-edit.
 
 * Request approval before any entitlement state machine or frozen contract semantic change.
 

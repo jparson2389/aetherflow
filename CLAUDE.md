@@ -59,7 +59,7 @@ C++ host (host/) + plugins (include/plugin_system.hpp)
 | `src/aetherflow/plugins/`                     | Catalog, manifest, registry, and trust verifier                                 |
 | `src/aetherflow/ui/`                          | PySide6 shell, router, and status HUD models                                    |
 | `proto/capture.proto`                         | **Frozen** gRPC control-plane contract — never modify without explicit approval |
-| `src/aetherflow/core/ipc/`                    | Generated gRPC stubs (`*_pb2.py`, `*_pb2_grpc.py`) — never hand-edit            |
+| `src/aetherflow/proto/`                       | Generated gRPC stubs (`*_pb2.py`, `*_pb2_grpc.py`) — never hand-edit            |
 
 ### Automated plan execution (tools/)
 
