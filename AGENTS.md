@@ -196,11 +196,11 @@ Three dependency groups exist. Never add, remove, or change a dependency without
 
   * `src/**/__init__.py`: D104
 
-* **Exclude from Ruff/lint/edit:** `*_pb2.py`, `*_pb2_grpc.py`, `.venv`, `build`
+* **Exclude from Ruff/lint/edit:** `*_pb2.py`, `*_pb2_grpc.py`, `.venv`, `build`, `.claude`, `.tmp`
 
-* **Bandit:** Level=medium, confidence=high, skips B101/B104/B608, excludes tests, build, venv, `*_pb2.py`, `*_pb2_grpc.py`
+* **Bandit:** Level=medium, confidence=high, skips B101/B104/B608, excludes tests, `venv`, `.venv`, `build`, `*_pb2.py`, `*_pb2_grpc.py`
 
-* **Pyright:** typeCheckingMode=basic, include=src/tools, exclude=src/aetherflow/proto
+* **Pyright:** typeCheckingMode=basic, include=`src`, `tools`, exclude=`**/node_modules`, `**/__pycache__`, `.venv`, `src/aetherflow/proto`
 
 **Generated Artifacts**
 
