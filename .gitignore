@@ -56,6 +56,9 @@ DEV-COMMANDS.md
 logs/verification/status_snapshot.json
 .claude/settings.json
 .claude/settings.local.json
+.codex/skills/security-best-practices/references
+.codex/config.toml
+.codex/skills/openai-docs
 
 # --- IDE / Editor Configurations ---
 .vscode/settings.json
@@ -77,3 +80,4 @@ logs/verification/status_snapshot.json
 !logs/env_report.json
 !logs/lazy-agent-report-rework-plan.log
 !logs/plan_exec_report
+.codex/environments/environment.toml
