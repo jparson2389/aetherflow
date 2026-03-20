@@ -66,6 +66,7 @@ logs/verification/status_snapshot.json
 # --- Misc ---
 .tmp/
 .devcontainer/
+.worktrees/
 
 # --- Exceptions (Files we want to keep) ---
 !audit_plan_completion.py
