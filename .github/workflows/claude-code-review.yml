@@ -2,33 +2,22 @@ name: Claude Code Review
 
 on:
   pull_request_target:
-    types:
-      - opened
-      - synchronize
-      - reopened
-
-permissions:
-  contents: read
-  pull-requests: write
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
+    types: [opened, synchronize, ready_for_review, reopened]
 jobs:
-  review:
+  claude-review:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
 
     steps:
-      # SECURITY: checkout uses PR head SHA explicitly.
-      # No code from the checked-out tree is built or executed in this job.
-      - name: Checkout PR head
-        uses: actions/checkout@v4
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-actions@v1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-
-      - name: Claude Code Review
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
