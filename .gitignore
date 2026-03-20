@@ -1,8 +1,6 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
-build/
-dist/
 wheels/
 *.egg-info
 .pytest_cache/
@@ -17,8 +15,6 @@ secrets.json
 *.key
 
 # --- C++ Build Outputs (Windows/MSVC/CMake) ---
-*.obj
-*.exe
 *.pdb
 *.ilk
 *.lib
@@ -51,35 +47,33 @@ logs/*.md
 logs/*.txt
 
 # --- Personal / Machine-Specific Launchers ---
-start-loop2.ps1
 state/plan_state.json
-docs/requirements-report.md
-logs/verify-requirements-evidence.md
-reset_env.ps1
 logs/bundle_install_report.json
 logs/diagnostics_export.json
 security_report.html
-scripts/start-llama-server.ps1
 
 DEV-COMMANDS.md
-logs/verification/AF-01-01.json
-logs/verification/AF-04-02.json
 logs/verification/status_snapshot.json
 .claude/settings.json
 .claude/settings.local.json
 
 # --- IDE / Editor Configurations ---
-.vscode/
+.vscode/settings.json
 
 # --- Misc ---
-.claude/
 .tmp/
-.agents/
-.codex/
-.cursor/
 .devcontainer/
-.pytest-basetemp/
-.uv-cache/
+
+# --- Exceptions (Files we want to keep) ---
 !audit_plan_completion.py
 !.codex/skills/lazy-agent/scripts/audit_plan_completion.py
-
+!logs/quality-gate.log
+!logs/verify-requirements-evidence.md
+!logs/native_harness_validation.log
+!logs/native_harness_build.log
+!admin_audit.ndjson
+!logs/bundle_install_report.json
+!logs/diagnostics_export.json
+!logs/env_report.json
+!logs/lazy-agent-report-rework-plan.log
+!logs/plan_exec_report
