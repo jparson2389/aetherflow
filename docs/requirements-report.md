@@ -4,8 +4,8 @@
 - Retired: 1
 - Drafted: 0
 - Coded: 0
-- Evidenced: 6
-- Verified: 9
+- Evidenced: 14
+- Verified: 1
 - Complete: 0
 
 ## Coverage by Plan Item
@@ -22,42 +22,40 @@
 - Reviewer: qa.lead
 
 ### AF-00-02b - Establish native boundary and build harness.
-- Status: verified
+- Status: evidenced
+- Gaps: Acceptance criterion not covered in proof matrix: AC2; Validation failed: powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
 - Evidence Pack: docs/evidence/AF-00-02b.md
 - Validation: powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
-- Reviewer: qa.lead
 
 ### AF-00-03 - Publish control-plane proto surface and shared-memory ring semantics.
-- Status: verified
+- Status: evidenced
+- Gaps: Acceptance criterion not covered in proof matrix: AC2
 - Evidence Pack: docs/evidence/AF-00-03.md
 - Validation: uv run pytest tests/contracts/test_execution_contracts.py -k "proto or overflow"
-- Reviewer: qa.lead
 
 ### AF-00-04 - Publish signing and runtime-state ABI, then freeze contracts.
-- Status: verified
+- Status: evidenced
+- Gaps: Acceptance criterion not covered in proof matrix: AC2
 - Evidence Pack: docs/evidence/AF-00-04.md
 - Validation: uv run pytest tests/contracts/test_execution_contracts.py tests/contracts/test_frozen_contracts.py
-- Reviewer: qa.lead
 
 ### AF-00-05 - Publish bounded sign-off packets and failure-UX state model.
-- Status: verified
+- Status: evidenced
+- Gaps: Acceptance criterion not covered in proof matrix: AC2
 - Evidence Pack: docs/evidence/AF-00-05.md
 - Validation: uv run pytest tests/contracts/test_prd_execution_readiness.py -k plan
-- Reviewer: qa.lead
 
 ### AF-01-01 - Implement trust verification and plugin/resource catalog policy.
-- Status: verified
+- Status: evidenced
+- Gaps: Acceptance criterion not covered in proof matrix: AC2
 - Evidence Pack: docs/evidence/AF-01-01.md
 - Validation: uv run pytest tests/unit/test_plugin_registry.py tests/integration/test_signed_plugin_loading.py tests/test_security.py
-- Reviewer: qa.lead
 
 ### AF-01-02 - Implement entitlement runtime states and shell-safe degradation model.
-- Status: verified
+- Status: evidenced
+- Gaps: Acceptance criterion not covered in proof matrix: AC2; Acceptance criterion not covered in proof matrix: AC3
 - Evidence Pack: docs/evidence/AF-01-02.md
 - Validation: uv run pytest tests/unit/test_entitlements.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py
-- Reviewer: qa.lead
-- App-Testable: yes
-- App Surface: status-hud
 
 ### AF-02-01 - Deliver profiles, mapping, translation, diagnostics, and input plugins.
 - Status: evidenced
@@ -66,12 +64,10 @@
 - Validation: uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py
 
 ### AF-02-02 - Add virtual output, masking, and plugin-failure-safe output UX.
-- Status: verified
+- Status: evidenced
+- Gaps: Acceptance criterion not covered in proof matrix: AC2
 - Evidence Pack: docs/evidence/AF-02-02.md
 - Validation: uv run pytest tests/integration/test_output_virtualization.py tests/ui/test_driver_panel.py
-- Reviewer: qa.lead
-- App-Testable: yes
-- App Surface: driver-status-panel
 
 ### AF-03-01 - Implement OpenCV capture, mode matrix enforcement, and 60 FPS baseline validation.
 - Status: evidenced
@@ -92,12 +88,10 @@
 - Validation: uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py
 
 ### AF-04-02 - Deliver environment manager and bounded bundle validation workflow.
-- Status: verified
+- Status: evidenced
+- Gaps: Acceptance criterion not covered in proof matrix: AC2
 - Evidence Pack: docs/evidence/AF-04-02.md
 - Validation: uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py
-- Reviewer: qa.lead
-- App-Testable: yes
-- App Surface: environment-panel
 
 ### AF-05-01 - Build Online Resources trust flow with mock-provider fallback.
 - Status: evidenced

@@ -1,15 +1,17 @@
 {
   "item_id": "AF-04-02",
   "title": "Deliver environment manager and bounded bundle validation workflow.",
-  "status": "verified",
-  "gaps": [],
+  "status": "evidenced",
+  "gaps": [
+    "Acceptance criterion not covered in proof matrix: AC2"
+  ],
   "evidence_pack": "docs/evidence/AF-04-02.md",
   "validation_commands": [
     "uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py"
   ],
-  "approved_by": "qa.lead",
-  "app_testable": true,
-  "app_surface": "environment-panel",
-  "developer_alert": "New feature added, check for functionality",
-  "reviewer_status": "approved"
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending"
 }
