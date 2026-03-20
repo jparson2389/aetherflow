@@ -80,4 +80,6 @@ logs/verification/status_snapshot.json
 .devcontainer/
 .pytest-basetemp/
 .uv-cache/
+!audit_plan_completion.py
+!.codex/skills/lazy-agent/scripts/audit_plan_completion.py
 
