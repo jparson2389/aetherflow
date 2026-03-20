@@ -26,7 +26,7 @@ def _write_evidence_pack(
     """Write a minimal evidence pack markdown file for testing."""
     ac_lines = acceptance_criteria or ['AC1: Feature works as intended.']
     matrix_rows = '\n'.join(
-        f'| AC{i + 1}: {ac} | {pt} | tests/test_feature.py | main-window | error handled |'
+        f'| AC{i + 1} | {pt} | tests/test_feature.py | main-window | error handled |'
         for i, (ac, pt) in enumerate(zip(ac_lines, proof_types, strict=False))
     )
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -66,6 +66,7 @@ def _make_item(
     failure_modes: list[str] | None = None,
     lifecycle_state: str | None = None,
     create_target: bool = True,
+    acceptance_criteria: list[str] | None = None,
 ) -> PlanItem:
     """Create a minimal PlanItem for testing."""
     if create_target:
@@ -87,6 +88,7 @@ def _make_item(
         required_proofs=required_proofs or ['integration'],
         failure_modes=failure_modes or [],
         lifecycle_state=lifecycle_state,
+        acceptance_criteria=acceptance_criteria or [],
     )
 
 
@@ -432,3 +434,75 @@ def test_previously_verified_item_downgraded_on_regrade(tmp_path: Path) -> None:
         f'Expected downgrade to evidenced, got {result.status!r}'
     )
     assert any('Validation failed' in gap for gap in result.gaps)
+
+
+def test_partial_ac_coverage_produces_gap(tmp_path: Path) -> None:
+    """Plan item with AC1-AC3 but only AC1 in proof matrix must not reach verified."""
+    item = _make_item(
+        tmp_path,
+        required_proofs=['integration'],
+        acceptance_criteria=['AC1', 'AC2', 'AC3'],
+    )
+    _write_evidence_pack(
+        tmp_path / 'docs' / 'evidence' / 'AF-TEST-01.md',
+        reviewer_status='approved',
+        proof_types=['integration'],
+        acceptance_criteria=['Feature works as intended.'],
+    )
+
+    result = evaluate_plan_item(
+        repo_root=tmp_path,
+        item=item,
+        validation_runner=lambda _r, _c: True,
+    )
+
+    assert result.status == 'evidenced'
+    ac_gaps = [g for g in result.gaps if 'Acceptance criterion not covered' in g]
+    assert any('AC2' in g for g in ac_gaps)
+    assert any('AC3' in g for g in ac_gaps)
+
+
+def test_full_ac_coverage_clears_ac_gap(tmp_path: Path) -> None:
+    """Plan item with AC1-AC2 and matching proof-matrix rows reaches verified."""
+    item = _make_item(
+        tmp_path,
+        required_proofs=['integration'],
+        acceptance_criteria=['AC1', 'AC2'],
+    )
+    _write_evidence_pack(
+        tmp_path / 'docs' / 'evidence' / 'AF-TEST-01.md',
+        reviewer_status='approved',
+        proof_types=['integration', 'integration'],
+        acceptance_criteria=['First criterion.', 'Second criterion.'],
+    )
+
+    result = evaluate_plan_item(
+        repo_root=tmp_path,
+        item=item,
+        validation_runner=lambda _r, _c: True,
+    )
+
+    assert result.status == 'verified'
+    assert not any('Acceptance criterion not covered' in g for g in result.gaps)
+
+
+def test_item_without_plan_acs_skips_ac_check(tmp_path: Path) -> None:
+    """Plan item with no declared ACs does not produce AC coverage gaps."""
+    item = _make_item(
+        tmp_path,
+        required_proofs=['integration'],
+        acceptance_criteria=[],
+    )
+    _write_evidence_pack(
+        tmp_path / 'docs' / 'evidence' / 'AF-TEST-01.md',
+        reviewer_status='approved',
+        proof_types=['integration'],
+    )
+
+    result = evaluate_plan_item(
+        repo_root=tmp_path,
+        item=item,
+        validation_runner=lambda _r, _c: True,
+    )
+
+    assert not any('Acceptance criterion not covered' in g for g in result.gaps)

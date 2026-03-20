@@ -29,6 +29,7 @@ class PlanItem:
         required_proofs: Required proof types for the item.
         failure_modes: Required failure or edge conditions.
         lifecycle_state: Optional lifecycle override such as `retired`.
+        acceptance_criteria: Acceptance-criterion labels declared in the plan (e.g. ``["AC1", "AC2"]``).
 
     """
 
@@ -42,6 +43,7 @@ class PlanItem:
     required_proofs: list[str] = field(default_factory=list)
     failure_modes: list[str] = field(default_factory=list)
     lifecycle_state: str | None = None
+    acceptance_criteria: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -56,6 +58,7 @@ class EvidencePack:
         proof_types: Proof types declared in the proof matrix.
         entry_points: Entry points declared in the proof matrix.
         failure_coverages: Failure coverage entries from the proof matrix.
+        criteria_covered: Criterion labels from the proof-matrix criterion column (e.g. ``["AC1"]``).
         app_testable: Whether the item should generate app-check alerts.
         app_surface: GUI or startup surface exposed by the feature.
         developer_alert: Developer-facing alert message.
@@ -69,6 +72,7 @@ class EvidencePack:
     proof_types: list[str]
     entry_points: list[str]
     failure_coverages: list[str]
+    criteria_covered: list[str]
     app_testable: bool
     app_surface: str | None
     developer_alert: str | None
@@ -130,6 +134,7 @@ _REQUIRED_PROOF_RE = re.compile(
 )
 _APP_TESTABLE_RE_PLAN = re.compile(r'^\s*> \*\*App-Testable:\*\* `(?P<value>[^`]+)`')
 _LIFECYCLE_RE = re.compile(r'^\s*> \*\*Lifecycle:\*\* `(?P<value>[^`]+)`')
+_PLAN_AC_LABEL_RE = re.compile(r'^\s*> - (AC\d+):')
 
 
 def default_evidence_pack_path(item_id: str) -> Path:
@@ -207,6 +212,11 @@ def parse_plan_items(plan_text: str) -> list[PlanItem]:
             current.lifecycle_state = lifecycle_match.group('value').strip()
             continue
 
+        ac_label_match = _PLAN_AC_LABEL_RE.match(raw_line)
+        if ac_label_match:
+            current.acceptance_criteria.append(ac_label_match.group(1))
+            continue
+
     return items
 
 
@@ -237,7 +247,9 @@ def parse_evidence_pack(path: Path) -> EvidencePack:
     if not acceptance_criteria:
         raise ValueError(f'Missing acceptance criteria in {path.as_posix()}')
 
-    proof_types, entry_points, failure_coverages = _extract_proof_matrix(lines, path)
+    criteria_covered, proof_types, entry_points, failure_coverages = _extract_proof_matrix(
+        lines, path
+    )
     return EvidencePack(
         reviewer_status=reviewer_status.casefold(),
         reviewer=reviewer,
@@ -246,6 +258,7 @@ def parse_evidence_pack(path: Path) -> EvidencePack:
         proof_types=proof_types,
         entry_points=entry_points,
         failure_coverages=failure_coverages,
+        criteria_covered=criteria_covered,
         app_testable=app_testable_raw.strip().casefold() in {'yes', 'true'},
         app_surface=app_surface,
         developer_alert=developer_alert,
@@ -321,7 +334,7 @@ def _extract_section_bullets(lines: list[str], heading: str) -> list[str]:
 
 def _extract_proof_matrix(
     lines: list[str], path: Path
-) -> tuple[list[str], list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str], list[str]]:
     """Extract proof-matrix columns from markdown.
 
     Args:
@@ -329,12 +342,13 @@ def _extract_proof_matrix(
         path: Source file path.
 
     Returns:
-        Proof types, entry points, and failure coverage lists.
+        Criteria covered, proof types, entry points, and failure coverage lists.
 
     Raises:
         ValueError: If the matrix is missing.
 
     """
+    criteria_covered: list[str] = []
     proof_types: list[str] = []
     entry_points: list[str] = []
     failure_coverages: list[str] = []
@@ -349,13 +363,14 @@ def _extract_proof_matrix(
         if in_section and line.startswith('| AC'):
             parts = [part.strip() for part in line.strip('|').split('|')]
             if len(parts) >= 5:
+                criteria_covered.append(parts[0])
                 proof_types.append(parts[1].casefold())
                 entry_points.append(parts[3])
                 failure_coverages.append(parts[4])
 
     if not proof_types:
         raise ValueError(f'Missing proof matrix in {path.as_posix()}')
-    return proof_types, entry_points, failure_coverages
+    return criteria_covered, proof_types, entry_points, failure_coverages
 
 
 def evaluate_plan_item(
@@ -505,6 +520,13 @@ def _collect_evidence_gaps(*, item: PlanItem, evidence_pack: EvidencePack) -> li
         normalized_entries = {entry.casefold() for entry in evidence_pack.entry_points}
         if item.entry_point.casefold() not in normalized_entries:
             gaps.append(f'Entry point not exercised: {item.entry_point}')
+
+    if item.acceptance_criteria:
+        covered = {c.casefold() for c in evidence_pack.criteria_covered}
+        for ac_label in item.acceptance_criteria:
+            if ac_label.casefold() not in covered:
+                gaps.append(f'Acceptance criterion not covered in proof matrix: {ac_label}')
+
     return gaps
 
 

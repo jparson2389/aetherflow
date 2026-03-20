@@ -3,8 +3,10 @@ from __future__ import annotations
 import importlib
 import os
 import subprocess
+import sys
 from pathlib import Path
 
+import pytest
 from loguru import logger as loguru_logger
 
 from tools import plan_exec
@@ -77,6 +79,7 @@ def test_unrelated_logs_do_not_appear_without_active_plan_exec_sink(
     assert 'outside after' not in text
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='requires Windows PowerShell and .cursor/ scripts')
 def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     logs_dir = tmp_path / 'logs'
     logs_dir.mkdir()

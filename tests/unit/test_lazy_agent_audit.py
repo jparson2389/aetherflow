@@ -19,6 +19,8 @@ SCRIPT_PATH = (
 
 
 def _load_lazy_agent_module() -> ModuleType:
+    if not SCRIPT_PATH.exists():
+        pytest.skip('lazy-agent audit script not available in this environment')
     spec = importlib.util.spec_from_file_location('lazy_agent_audit_test', SCRIPT_PATH)
     assert spec is not None
     assert spec.loader is not None
