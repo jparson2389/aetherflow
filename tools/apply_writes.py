@@ -17,7 +17,7 @@ ALLOWED_WRITE_PREFIXES: tuple[str, ...] = (
     'host/',
     '.cursor/',
     '.github/',
-    'proto/',
+    'proto/',        # intentional: build-assets.ps1 reads proto/ to regenerate stubs; proto is frozen by process, not by this allowlist
     'assets/',
     'tests/',
     'docs/',
@@ -75,6 +75,11 @@ class ExistingFileSnapshot:
 
 
 def is_write_path_allowed(path: str) -> bool:
+    """Return True if path is permitted by the write allowlist.
+
+    A path is allowed when it is not a placeholder, not explicitly denied,
+    and either matches an allowed root file or starts with an allowed prefix.
+    """
     raw = path
     p = _norm_path(raw)
 
@@ -121,7 +126,7 @@ def validate_writes_payload(payload: dict[str, Any]) -> Any:
 def _safe_path(repo_root: Path, rel: str) -> Path:
     p = (repo_root / rel).resolve()
     rr = repo_root.resolve()
-    if p == rr or rr in p.parents:
+    if p != rr and rr in p.parents:
         return p
     raise ValueError(f'Refusing to write outside repo root: {rel}')
 
@@ -161,6 +166,7 @@ def capture_existing_file_snapshots(
 
 
 def apply_writes(repo_root: Path, payload: dict[str, Any]) -> list[Path]:
+    """Validate payload and write all files to disk under repo_root."""
     model = validate_writes_payload(payload)
 
     changed: list[Path] = []
@@ -177,6 +183,7 @@ def apply_writes(repo_root: Path, payload: dict[str, Any]) -> list[Path]:
 
 
 def main() -> int:
+    """CLI entrypoint: read a writes payload and apply it to the repo."""
     ap = argparse.ArgumentParser()
     ap.add_argument('--repo-root', default='.')
     ap.add_argument(

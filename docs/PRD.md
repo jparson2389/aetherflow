@@ -54,9 +54,6 @@ this document.
   protected artifacts.
 - NEVER place C++ code under `src/`; C++ belongs only in `host/` and `include/`.
 - NEVER bypass gRPC for worker-to-host control traffic.
-- ALWAYS use Loguru, type hints, and Google-style docstrings in public Python
-  functions.
-- ALWAYS run `uv run ruff check .` and `uv run pytest` before marking work done.
 
 ---
 

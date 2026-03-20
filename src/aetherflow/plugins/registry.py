@@ -37,9 +37,12 @@ class PluginRegistry:
         self._services = services
         self._plugins: dict[str, PluginManifest] = {}
         self._catalog: list[CatalogEntry] = []
+        self._catalog_ids: set[str] = set()
 
     def register(self, manifest: PluginManifest) -> RegistrationResult:
         """Validate and register a plugin manifest."""
+        if manifest.plugin_id in self._catalog_ids:
+            return RegistrationResult(loaded=False, reason='duplicate-plugin-id')
         trust_result = self._services.trust_verifier.verify(manifest)
         if not trust_result.trusted:
             reason = trust_result.reason or 'untrusted-plugin'
@@ -52,6 +55,7 @@ class PluginRegistry:
                 lock_reason=reason,
             )
             self._catalog.append(entry)
+            self._catalog_ids.add(manifest.plugin_id)
             return RegistrationResult(loaded=False, reason=reason)
 
         entitlement_state = self._services.entitlements.evaluate(
@@ -69,6 +73,7 @@ class PluginRegistry:
                     lock_reason='locked-premium-plugin',
                 )
             )
+            self._catalog_ids.add(manifest.plugin_id)
             return RegistrationResult(
                 loaded=False,
                 reason='locked-premium-plugin',
@@ -87,6 +92,7 @@ class PluginRegistry:
                 lock_reason=None,
             )
         )
+        self._catalog_ids.add(manifest.plugin_id)
         return RegistrationResult(loaded=True, state=entitlement_state)
 
     def get(self, plugin_id: str) -> PluginManifest | None:
@@ -111,12 +117,7 @@ class PluginRegistry:
         entitlement_state: EntitlementState | None,
         lock_reason: str | None,
     ) -> CatalogEntry:
-        allowed_roles = (
-            RoleName.POWER_GAMER,
-            RoleName.VISION_ML_TINKERER,
-            RoleName.ACCESSIBILITY_MODDER,
-            RoleName.ADMIN_OPERATOR,
-        )
+        allowed_roles = tuple(RoleName)
         return build_catalog_entry(
             manifest,
             lock_state=lock_state,

@@ -10,13 +10,18 @@ from loguru import logger
 
 def count_tokens(text: str) -> int:
     """Count tokens using a simple whitespace-based approach.
-    For more accurate counting, consider integrating a proper tokenizer."""
+
+    For more accurate counting, consider integrating a proper tokenizer.
+    """
     words = re.findall(r'\S+', text)
     return len(words)
 
 
 class ContextMonitor:
+    """Tracks LLM context window usage and overflow statistics."""
+
     def __init__(self):
+        """Initialize context monitor with empty stats."""
         self.context_stats = {
             'total_attempts': 0,
             'successful_attempts': 0,
@@ -29,7 +34,7 @@ class ContextMonitor:
         }
 
     def track_usage(self, model_name: str, prompt_length: int, max_window: int) -> bool:
-        """Track context window usage and return if it's within thresholds"""
+        """Track context window usage and return if it's within thresholds."""
         self.context_stats['total_attempts'] += 1
         usage_percentage = (prompt_length / max_window) * 100
 
@@ -62,7 +67,7 @@ class ContextMonitor:
         return True
 
     def get_model_stats(self, model_name: str) -> dict[str, Any]:
-        """Get statistics for a specific model"""
+        """Get statistics for a specific model."""
         model_data = self.context_stats['model_usage'].get(model_name, {})
         if not model_data:
             return {}
@@ -87,7 +92,7 @@ class ContextMonitor:
         }
 
     def save_stats(self, file_path: str = 'context_usage_stats.json'):
-        """Save context usage statistics to a JSON file"""
+        """Save context usage statistics to a JSON file."""
         stats_to_save = {
             **self.context_stats,
             'model_details': {
@@ -99,7 +104,7 @@ class ContextMonitor:
         Path(file_path).write_text(json.dumps(stats_to_save, indent=2))
 
     def load_stats(self, file_path: str = 'context_usage_stats.json'):
-        """Load context usage statistics from a JSON file"""
+        """Load context usage statistics from a JSON file."""
         try:
             stats = json.loads(Path(file_path).read_text())
             self.context_stats.update(

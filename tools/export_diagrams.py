@@ -5,12 +5,12 @@ from loguru import logger
 
 
 def export_mermaid_diagrams(input_path: str, output_path: str) -> None:
-    """
-    Exports Mermaid diagrams from a markdown file to a PNG image using mmdc.
+    """Export Mermaid diagrams from a markdown file to a PNG image using mmdc.
 
     Args:
         input_path (str): The relative path to the input .md file.
         output_path (str): The relative path to the output .png file.
+
     """
     input_file = Path(input_path)
     output_file = Path(output_path)

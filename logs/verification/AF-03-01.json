@@ -1,0 +1,17 @@
+{
+  "item_id": "AF-03-01",
+  "title": "Implement OpenCV capture, mode matrix enforcement, and 60 FPS baseline validation.",
+  "status": "evidenced",
+  "gaps": [
+    "Reviewer sign-off is not approved"
+  ],
+  "evidence_pack": "docs/evidence/AF-03-01.md",
+  "validation_commands": [
+    "uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mode_matrix.py tests/integration/test_capture_stability.py"
+  ],
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending"
+}

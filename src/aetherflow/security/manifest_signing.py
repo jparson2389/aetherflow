@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 from base64 import b64decode
 from dataclasses import dataclass
@@ -12,6 +13,11 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from aetherflow.core.settings import AetherflowSettings
+
+
+@functools.cache
+def _get_settings() -> AetherflowSettings:
+    return AetherflowSettings()
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +53,7 @@ def resolve_manifest_trust_store_path(trust_store_path: Path | None = None) -> P
     """
     if trust_store_path is not None:
         return trust_store_path
-    return AetherflowSettings().manifest_trust_store_path
+    return _get_settings().manifest_trust_store_path
 
 
 def verify_manifest_signature(
@@ -77,24 +83,34 @@ def verify_manifest_signature(
     if not store_path.exists():
         return SignatureVerificationResult(valid=False, reason='missing-trust-store')
 
-    store = json.loads(store_path.read_text(encoding='utf-8'))
+    try:
+        store = json.loads(store_path.read_text(encoding='utf-8'))
+    except (json.JSONDecodeError, OSError):
+        return SignatureVerificationResult(valid=False, reason='invalid-trust-store')
+
+    raw_keys = store.get('keys')
+    if not isinstance(raw_keys, list):
+        return SignatureVerificationResult(valid=False, reason='invalid-trust-store')
+
     keys = {
         entry['key_id']: entry
-        for entry in store.get('keys', [])
-        if isinstance(entry, dict) and entry.get('key_id')
+        for entry in raw_keys
+        if isinstance(entry, dict) and isinstance(entry.get('key_id'), str) and entry['key_id']
     }
     key_entry = keys.get(signing_key_id)
     if key_entry is None:
         return SignatureVerificationResult(valid=False, reason='unknown-signing-key')
     if key_entry.get('algorithm') != 'ed25519':
         return SignatureVerificationResult(valid=False, reason='unsupported-algorithm')
+    if not isinstance(key_entry.get('public_key'), str):
+        return SignatureVerificationResult(valid=False, reason='invalid-trust-store')
 
     try:
         public_key = Ed25519PublicKey.from_public_bytes(
             b64decode(key_entry['public_key'])
         )
         public_key.verify(b64decode(signature), canonicalize_payload(payload))
-    except (InvalidSignature, ValueError, TypeError, KeyError):
+    except (InvalidSignature, ValueError, TypeError):
         return SignatureVerificationResult(valid=False, reason='invalid-signature')
 
     return SignatureVerificationResult(valid=True)

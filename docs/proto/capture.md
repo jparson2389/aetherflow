@@ -15,7 +15,7 @@ The PRD runtime budgets apply to this surface:
 - worker marked `DEGRADED` after 2 missed heartbeats
 - worker escalates after 3 consecutive missed heartbeats
 
-Generated Python modules should be placed under `src/aetherflow/core/ipc/`.
+Generated Python modules should be placed under `src/aetherflow/proto/`.
 
 ## Timeouts And Retry Posture
 

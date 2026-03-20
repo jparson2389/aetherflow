@@ -10,7 +10,7 @@ class EntitlementState(StrEnum):
     """Supported entitlement states for plugin gating."""
 
     LOADED = 'LOADED'
-    ELIGIBLE = 'ELIGIBLE'
+    ELIGIBLE = 'ELIGIBLE'   # reserved — not yet produced by evaluate(); for future partial-grant support
     LOCKED = 'LOCKED'
     GRACE = 'GRACE'
 
@@ -61,7 +61,13 @@ class UserRole:
 
     def __post_init__(self) -> None:
         """Populate the derived role capabilities."""
-        object.__setattr__(self, 'capabilities', ROLE_CAPABILITIES[self.name])
+        try:
+            object.__setattr__(self, 'capabilities', ROLE_CAPABILITIES[self.name])
+        except KeyError as exc:
+            valid = ', '.join(r.value for r in RoleName)
+            raise ValueError(
+                f'Unknown role {self.name!r}. Valid roles: {valid}'
+            ) from exc
 
 
 class EntitlementStore:
@@ -79,8 +85,26 @@ class EntitlementStore:
             plugin_id: Plugin or resource identifier.
             required_entitlements: Required entitlement names.
 
+        Raises:
+            ValueError: If plugin_id already has granted entitlements.
+                Call revoke() before re-granting.
+
         """
+        if plugin_id in self._entitlements:
+            raise ValueError(
+                f'Entitlements for {plugin_id!r} are already granted. '
+                'Call revoke() before re-granting.'
+            )
         self._entitlements[plugin_id] = set(required_entitlements)
+
+    def revoke(self, plugin_id: str) -> None:
+        """Revoke previously granted entitlements for a plugin.
+
+        Args:
+            plugin_id: Plugin or resource identifier.
+
+        """
+        self._entitlements.pop(plugin_id, None)
 
     def activate_grace(
         self,

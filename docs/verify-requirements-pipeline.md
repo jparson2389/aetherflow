@@ -36,19 +36,21 @@ flowchart LR
 ## Misclassified Files (Pre-Fix)
 
 <!-- markdownlint-disable MD060 -->
-| File                                      | Size   | Markers                   | Why Misclassified                                  |
-| ----------------------------------------- | ------ | ------------------------- | -------------------------------------------------- |
-| tools/plan_exec.py                        | 72,176 | placeholder;minimal;model | "model" in Pydantic, "minimal" in docstrings       |
-| tools/validation_gate.py                  | 16,937 | model                     | "model" in `BaseModel`, `model_validator`          |
-| tools/agent_call.py                       | 5,543  | model                     | "model" in API/LLM context                         |
-| tools/context_utils.py                    | 3,999  | model                     | "model" in data-model context                      |
-| tools/gbnf_grammars.py                    | 4,128  | model                     | "model" in grammar/model context                   |
-| tools/json_utils.py                       | 5,909  | model                     | "model" in data-model context                      |
-| src/aetherflow/core/entitlements.py       | 3,538  | model                     | "model" in Pydantic/schema context                 |
-| src/aetherflow/core/shared_memory_layout.py | 7,262  | minimal;descriptor        | "descriptor" in proto/shmem context                |
-| src/aetherflow/proto/capture_pb2.py       | 3,699  | descriptor                | Generated proto; "descriptor" is structural        |
-| docs/PLAN.md                              | 31,883 | placeholder;minimal;model | "model" in completion policy ("model-only wrappers") |
-| docs/PRD.md                               | 16,046 | model                     | "model" in requirements terminology                |
+
+| File                                        | Size   | Markers                   | Why Misclassified                                    |
+| ------------------------------------------- | ------ | ------------------------- | ---------------------------------------------------- |
+| tools/plan_exec.py                          | 72,176 | placeholder;minimal;model | "model" in Pydantic, "minimal" in docstrings         |
+| tools/validation_gate.py                    | 16,937 | model                     | "model" in `BaseModel`, `model_validator`            |
+| tools/agent_call.py                         | 5,543  | model                     | "model" in API/LLM context                           |
+| tools/context_utils.py                      | 3,999  | model                     | "model" in data-model context                        |
+| tools/gbnf_grammars.py                      | 4,128  | model                     | "model" in grammar/model context                     |
+| tools/json_utils.py                         | 5,909  | model                     | "model" in data-model context                        |
+| src/aetherflow/core/entitlements.py         | 3,538  | model                     | "model" in Pydantic/schema context                   |
+| src/aetherflow/core/shared_memory_layout.py | 7,262  | minimal;descriptor        | "descriptor" in proto/shmem context                  |
+| src/aetherflow/proto/capture_pb2.py         | 3,699  | descriptor                | Generated proto; "descriptor" is structural          |
+| docs/PLAN.md                                | 31,883 | placeholder;minimal;model | "model" in completion policy ("model-only wrappers") |
+| docs/PRD.md                                 | 16,046 | model                     | "model" in requirements terminology                  |
+
 <!-- markdownlint-enable MD060 -->
 
 Root cause: `Get-PlaceholderMarkers` includes `model`, `minimal`, and

@@ -32,10 +32,9 @@ import re
 import shlex
 import subprocess
 import tokenize
-from dataclasses import field
 from pathlib import Path
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 try:
     from tools.shell_utils import normalize_powershell_command
@@ -145,8 +144,8 @@ class GateResult(BaseModel):
     layer: int
     passed: bool
     # User-facing evidence and error lists remain simple strings.
-    evidence: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
     # Structured diagnostics (optional depending on the layer)
     command: str | None = None
     returncode: int | None = None
@@ -203,11 +202,10 @@ def check_filesystem_existence(
     instructions: str,
     changed_files: list[str],
 ) -> GateResult:
-    """
-    Layer 1 gate: verify every Target File listed in instructions physically
-    exists on disk.  Also accepts any file present in ``changed_files``.
-    Structured diagnostics record the list of target files seen and which
-    were satisfied.
+    """Layer 1 gate: verify every Target File listed in instructions physically exists on disk.
+
+    Also accepts any file present in ``changed_files``.
+    Structured diagnostics record the list of target files seen and which were satisfied.
     """
     target_paths = extract_target_files(instructions)
     # If there are no explicit targets then any changed file counts.  We
@@ -283,12 +281,11 @@ def run_validation_command(
     command: str,
     timeout: int = 120,
 ) -> GateResult:
-    """
-    Layer 2 gate: execute the declared validation command in the repo root.
-    A non-zero exit code is treated as a hard failure.  Structured
-    diagnostics capture the invoked command, return code and
-    excerpts of stdout/stderr.  When possible the output is parsed
-    heuristically to extract failing test identifiers, assertion
+    """Layer 2 gate: execute the declared validation command in the repo root.
+
+    A non-zero exit code is treated as a hard failure.  Structured diagnostics capture
+    the invoked command, return code and excerpts of stdout/stderr.  When possible the
+    output is parsed heuristically to extract failing test identifiers, assertion
     excerpts and exception excerpts.
     """
     try:
@@ -427,8 +424,7 @@ def run_validation_gate(
     instructions: str,
     changed_files: list[str],
 ) -> ValidationReport:
-    """
-    Run all physical validation layers.
+    """Run all physical validation layers.
 
     The caller receives a ``ValidationReport`` which aggregates results and
     surfaces structured diagnostics from the deepest executed layer.  If
@@ -494,3 +490,28 @@ def run_validation_gate(
         }
     )
     return ValidationReport(**report_kwargs)
+
+
+def validate_feature_class_requirements(
+    item_required_proofs: list[str],
+    evidence_proof_types: list[str],
+) -> list[str]:
+    """Check that evidence proof types satisfy item required proof types.
+
+    Structural checks (file existence, placeholder detection) remain as Layer 1
+    hygiene and cannot independently promote items to verified status.
+
+    Args:
+        item_required_proofs: Proof types required by the plan item.
+        evidence_proof_types: Proof types declared in the evidence pack.
+
+    Returns:
+        List of missing proof type gap strings.
+
+    """
+    gaps = []
+    normalized = {pt.casefold() for pt in evidence_proof_types}
+    for required in item_required_proofs:
+        if required.casefold() not in normalized:
+            gaps.append(f'Missing required proof type: {required}')
+    return gaps

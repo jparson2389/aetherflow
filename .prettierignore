@@ -1,9 +1,13 @@
 .venv/
 .ruff_cache/
 __pycache__/
+node_modules/
 dist/
+build/
+out/
 logs/
 .agents/
 .codex/
 .cursor/
+.claude/
 docs/requirements-report.md

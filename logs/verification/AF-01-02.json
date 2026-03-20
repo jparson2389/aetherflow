@@ -1,0 +1,18 @@
+{
+  "item_id": "AF-01-02",
+  "title": "Implement entitlement runtime states and shell-safe degradation model.",
+  "status": "evidenced",
+  "gaps": [
+    "Acceptance criterion not covered in proof matrix: AC2",
+    "Acceptance criterion not covered in proof matrix: AC3"
+  ],
+  "evidence_pack": "docs/evidence/AF-01-02.md",
+  "validation_commands": [
+    "uv run pytest tests/unit/test_entitlements.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py"
+  ],
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending"
+}

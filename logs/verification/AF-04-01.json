@@ -1,0 +1,17 @@
+{
+  "item_id": "AF-04-01",
+  "title": "Implement worker supervision with restart ceilings and escalation UX.",
+  "status": "evidenced",
+  "gaps": [
+    "Reviewer sign-off is not approved"
+  ],
+  "evidence_pack": "docs/evidence/AF-04-01.md",
+  "validation_commands": [
+    "uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py"
+  ],
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending"
+}

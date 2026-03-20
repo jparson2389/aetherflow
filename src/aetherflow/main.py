@@ -1,8 +1,34 @@
 """Application entrypoints for Aetherflow."""
 
+from pathlib import Path
+
 from loguru import logger
 
+from aetherflow.core.developer_app_checks import PendingAppCheckStore
 from aetherflow.core.dotenv_bootstrap import configure_environment
+from aetherflow.ui.shell import ShellModel
+
+
+def build_shell() -> ShellModel:
+    """Build the shell model and load pending developer app checks.
+
+    Returns:
+        Shell model ready for startup.
+
+    """
+    shell = ShellModel()
+    store = PendingAppCheckStore(
+        pending_path=Path('logs') / 'verification' / 'pending_app_checks.json',
+        snapshot_path=Path('logs') / 'verification' / 'status_snapshot.json',
+    )
+
+    # Load pending alerts and acknowledge each so they don't reappear next startup
+    pending_alerts = store.pending_alerts()
+    shell.load_pending_app_checks(pending_alerts)
+    for alert in pending_alerts:
+        store.acknowledge(alert.item_id)
+
+    return shell
 
 
 def main() -> int:
@@ -13,5 +39,7 @@ def main() -> int:
 
     """
     configure_environment()
+    shell = build_shell()
     logger.info('Starting Aetherflow shell bootstrap.')
+    logger.debug('Startup notices loaded: {}', len(shell.notices))
     return 0

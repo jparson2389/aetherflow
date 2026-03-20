@@ -1,3 +1,4 @@
+
 """Minimal shell composition models."""
 
 from __future__ import annotations
@@ -7,6 +8,7 @@ from datetime import UTC, datetime
 
 from loguru import logger
 
+from aetherflow.core.developer_app_checks import PendingAppCheck
 from aetherflow.core.entitlements import RoleName
 from aetherflow.core.runtime_state import RuntimeState
 from aetherflow.ui.router import RouterModel
@@ -78,6 +80,21 @@ class ShellModel:
                 timestamp_utc=datetime.now(UTC),
             )
         )
+
+    def load_pending_app_checks(self, alerts: list[PendingAppCheck]) -> None:
+        """Load pending developer app-check notices into the shell.
+
+        Args:
+            alerts: Pending developer alerts from verification results.
+
+        """
+        for alert in alerts:
+            self.add_notice(
+                message=f'{alert.message} [{alert.item_id}: {alert.app_surface}]',
+                severity='info',
+            )
+        if alerts:
+            logger.info('Loaded {} pending developer app checks.', len(alerts))
 
     def set_status_hud(self, hud: StatusHUDModel) -> None:
         """Update the status HUD model.

@@ -1,29 +1,4 @@
-from __future__ import annotations
-
-import argparse
-import json
-import re
-import subprocess
-import sys
-from collections.abc import Callable
-from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
-
-from loguru import logger
-from pydantic import BaseModel, Field, field_validator
-
-if TYPE_CHECKING:
-    from openai import OpenAI
-else:
-    try:
-        from openai import OpenAI
-    except ModuleNotFoundError:  # pragma: no cover
-        OpenAI = Any  # type: ignore[misc,assignment]
-
-"""
-plan_exec.py — Implementation plan executor with deterministic PM selection, schema repair,
-and stricter PM verification handling.
+"""plan_exec.py — Implementation plan executor with deterministic PM selection, schema repair, and stricter PM verification handling.
 
 This module orchestrates the execution of PLAN.md work items. It interacts with
 LLM agents to select the next item, implement it, run build/quality/validation
@@ -45,6 +20,30 @@ The code retains the original retry loop structure but uses a `while` loop
 instead of a `for` loop so that certain repairs do not consume an attempt.
 
 """
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
+
+from loguru import logger
+from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from openai import OpenAI
+else:
+    try:
+        from openai import OpenAI
+    except ModuleNotFoundError:  # pragma: no cover
+        OpenAI = Any  # type: ignore[misc,assignment]
 
 try:
     # Prefer the local tools package if available
@@ -150,14 +149,11 @@ def _gather_gate_evidence(report: Any) -> list[str]:
     persistence into plan state/history.
     """
     items: list[str] = []
-    try:
-        for layer in getattr(report, 'layers', []):
-            if getattr(layer, 'errors', None):
-                items.extend([e for e in layer.errors if e])
-            if getattr(layer, 'evidence', None):
-                items.extend([e for e in layer.evidence if e])
-    except Exception:
-        pass
+    for layer in getattr(report, 'layers', []):
+        if getattr(layer, 'errors', None):
+            items.extend([e for e in layer.errors if e])
+        if getattr(layer, 'evidence', None):
+            items.extend([e for e in layer.evidence if e])
     return items
 
 
@@ -165,12 +161,21 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = ROOT / 'state' / 'plan_state.json'
 RECONCILIATION_AUDIT_PATH = ROOT / 'logs' / 'plan_reconciliation_audit.md'
 
-# Configure Loguru to write to a specific logs folder
 LOG_DIR = ROOT / 'logs'
-LOG_DIR.mkdir(exist_ok=True)
-logger.add(
-    LOG_DIR / 'plan_execution_{time:YYYY-MM-DD}.log', rotation='1 MB', level='DEBUG'
-)
+
+
+def setup_plan_execution_logging() -> tuple[int, Path]:
+    """Create a per-run plan execution log sink."""
+    LOG_DIR.mkdir(exist_ok=True)
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    log_path = LOG_DIR / f'plan_execution_{timestamp}.log'
+    suffix = 1
+    while log_path.exists():
+        log_path = LOG_DIR / f'plan_execution_{timestamp}_{suffix:02d}.log'
+        suffix += 1
+    sink_id = logger.add(log_path, level='DEBUG')
+    return sink_id, log_path
+
 
 # ---------------------------------------------------------------------------
 # Schema hints and constants
@@ -396,6 +401,7 @@ def extract_work_item_token(title: str) -> str | None:
 
     Returns:
         The normalized token when present, otherwise ``None``.
+
     """
     match = _WORK_ITEM_TOKEN_RE.search(title)
     if not match:
@@ -414,6 +420,7 @@ def work_item_id(phase: str, title: str) -> str:
         A stable slug derived from the explicit task token when available.
         Falls back to the legacy phase-and-title slug for titles that do not
         declare a token.
+
     """
     token = extract_work_item_token(title)
     if token is not None:
@@ -422,6 +429,7 @@ def work_item_id(phase: str, title: str) -> str:
 
 
 def phase_number(phase: str) -> int:
+    """Extract the numeric phase index from a phase label string."""
     match = re.search(r'phase\s+(\d+)', phase, re.IGNORECASE)
     if not match:
         return 999
@@ -930,10 +938,16 @@ def reconcile_state_with_repo(
             notes=notes,
         )
         updated_item = next(
-            candidate
-            for candidate in state.get('items', [])
-            if isinstance(candidate, dict) and candidate.get('id') == item_id
+            (
+                candidate
+                for candidate in state.get('items', [])
+                if isinstance(candidate, dict) and candidate.get('id') == item_id
+            ),
+            None,
         )
+        if updated_item is None:
+            logger.warning(f'[reconcile] item={item_id} missing from state after update — skipping')
+            continue
         reconciled.append(updated_item)
         audit_entries.append(
             format_reconciliation_audit_entry(
@@ -1000,6 +1014,7 @@ def _build_messages(system: str, user: str) -> list[dict[str, str]]:
 
     Returns:
         OpenAI-compatible chat messages.
+
     """
     return [
         {'role': 'system', 'content': system},
@@ -1022,6 +1037,7 @@ def _build_extra_body(
 
     Returns:
         Extra request fields for the chat completions call.
+
     """
     extra_body: dict[str, Any] = {}
     if grammar is not None:
@@ -1097,12 +1113,12 @@ def call_json_with_retry(
     response fails to parse, a repair prompt is sent.  Raises ValueError
     if both attempts fail.
     """
-
     debug_dir = ROOT / 'logs'
-    debug_dir.mkdir(exist_ok=True)
     safe_stage = stage.replace('/', '_').replace('\\', '_')
-    (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(system, encoding='utf-8')
-    (debug_dir / f'prompt_user_{safe_stage}.txt').write_text(user, encoding='utf-8')
+    if os.environ.get('PLAN_EXEC_DUMP_PROMPTS'):
+        debug_dir.mkdir(exist_ok=True)
+        (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(system, encoding='utf-8')
+        (debug_dir / f'prompt_user_{safe_stage}.txt').write_text(user, encoding='utf-8')
 
     initial = call(
         client,
@@ -1136,9 +1152,10 @@ def call_json_with_retry(
         'Previous response:\n'
         f'{initial.content}'
     )
-    (debug_dir / f'prompt_repair_user_{safe_stage}.txt').write_text(
-        repair_user, encoding='utf-8'
-    )
+    if os.environ.get('PLAN_EXEC_DUMP_PROMPTS'):
+        (debug_dir / f'prompt_repair_user_{safe_stage}.txt').write_text(
+            repair_user, encoding='utf-8'
+        )
     repaired = call(
         client,
         model,
@@ -1254,8 +1271,7 @@ def extract_prd_hard_requirements(prd: str, max_chars: int = 12000) -> str:
 
 
 def coerce_impl_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
-    """
-    Attempt to repair a malformed implementation payload.
+    """Attempt to repair a malformed implementation payload.
 
     Only unambiguous repairs are allowed. If the payload is already valid or
     cannot be safely repaired the original payload is returned with changed=False.
@@ -1315,7 +1331,7 @@ def classify_validate_error(exc: Exception) -> str:
 # ---------------------------------------------------------------------------
 
 
-def main(argv: list[str] | None = None) -> int:
+def _run_plan_exec(argv: list[str] | None = None) -> int:
     """Execute the implementation plan iteratively."""
     ap = argparse.ArgumentParser(prog='tools.plan_exec')
     ap.add_argument('--max-doc-chars', type=int, default=32000)
@@ -2012,6 +2028,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     save_plan_state(state)
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Execute the implementation plan with run-scoped logging."""
+    sink_id, log_path = setup_plan_execution_logging()
+    logger.info(f'[state] plan execution log active: {log_path}')
+    try:
+        return _run_plan_exec(argv)
+    finally:
+        logger.remove(sink_id)
 
 
 if __name__ == '__main__':
