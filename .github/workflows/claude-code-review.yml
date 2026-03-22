@@ -1,7 +1,7 @@
 name: Run Claude Code Review
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
 jobs:
   claude-review:
