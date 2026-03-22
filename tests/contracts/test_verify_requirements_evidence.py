@@ -1,18 +1,8 @@
-"""Contract tests for verify-requirements evidence heuristics.
-
-Asserts that key files have expected placeholder status to prevent regression
-when heuristics change. Run verify-requirements.ps1 first, or the test will
-run it.
-"""
+"""Contract tests for verify-requirements evidence heuristics."""
 
 import re
 import subprocess
-import sys
 from pathlib import Path
-
-import pytest
-
-from tools.shell_utils import resolve_powershell_executable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE_PATH = PROJECT_ROOT / 'logs' / 'verify-requirements-evidence.md'
@@ -41,17 +31,9 @@ GOLDEN_EXPECTATIONS = {
 
 
 def _run_verify_requirements() -> None:
-    """Run verify-requirements.ps1 to refresh evidence."""
-    script = PROJECT_ROOT / '.cursor' / 'workflows' / 'verify-requirements.ps1'
+    """Run the repo-owned verify-requirements entrypoint to refresh evidence."""
     subprocess.run(
-        [
-            resolve_powershell_executable(),
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-File',
-            str(script),
-        ],
+        ['uv', 'run', 'python', '-m', 'tools.verify_requirements'],
         cwd=PROJECT_ROOT,
         check=True,
         capture_output=True,
@@ -70,7 +52,6 @@ def _parse_evidence() -> dict[str, bool]:
     return result
 
 
-@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only: requires verify-requirements.ps1')
 def test_verify_requirements_evidence_golden_expectations() -> None:
     """Assert golden files have expected placeholder status."""
     evidence = _parse_evidence()

@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Environment
+
+- **Dev platform**: WSL2 (Ubuntu) on Windows — shell is `bash`, Python tooling runs natively under Linux
+- **Deployment target**: Windows-first (the compiled C++ host and plugins target Windows)
+- **PowerShell scripts** (`scripts/*.ps1`) require PowerShell Core (`pwsh`) installed in WSL. Prefer the `uv run python -m tools.*` equivalents for daily dev — they are the canonical cross-platform entry points.
+- **Native C++ build** (`scripts/build-native.ps1`) requires MSVC and must be run on Windows or via a Windows build agent; it cannot compile inside WSL.
+
 ## Commands
 
 ```bash
@@ -22,14 +29,19 @@ uv run pytest                             # All tests
 uv run pytest tests/unit/                 # Unit tests only
 uv run pytest tests/unit/test_foo.py -k "test_bar"  # Single test
 
+# Build generated assets
+uv run python -m tools.build_assets       # Cross-platform (preferred in WSL)
+pwsh -ExecutionPolicy Bypass -File scripts/build-assets.ps1  # Requires pwsh in WSL
+
 # Security
 uv run bandit -r src/                     # Security audit
 uv run detect-secrets scan                # Secret scanning
 
 # Quality gate (combined lint + test + security)
-pwsh -ExecutionPolicy Bypass -File .cursor/workflows/check-quality.ps1
+uv run python -m tools.check_quality      # Cross-platform (preferred in WSL)
+pwsh -ExecutionPolicy Bypass -File scripts/check-quality.ps1  # Requires pwsh in WSL
 
-# Native C++ build
+# Native C++ build (Windows only — run on Windows build agent, not in WSL)
 pwsh -ExecutionPolicy Bypass -File scripts/build-native.ps1
 ```
 
@@ -65,7 +77,7 @@ C++ host (host/) + plugins (include/plugin_system.hpp)
 
 The `tools/` directory contains an AI-driven implementation loop:
 
-- `tools/plan_exec.py` — Main orchestrator that reads `PLAN.md`, selects work items via an LLM PM agent, dispatches to implementation agents, and validates results through a 3-layer gate
+- `tools/plan_exec.py` — Main orchestrator that reads `PLAN.md`, selects work items via an LLM PM agent, dispatches to implementation agents, builds repo-owned assets, and validates results through a 3-layer gate
 - `tools/validation_gate.py` — Layer 1: file existence; Layer 2: command execution (pytest/ruff); Layer 3: PM semantic verification
 - `tools/apply_writes.py` — Secure file writer with path allowlist enforcement
 - `tools/prompts.py` — Canonical system prompts for all agent roles
@@ -79,6 +91,6 @@ Plan state persists to `state/plan_state.json`. Per-run logs go to `logs/plan_ex
 - **Double-quoted docstrings** — `"""` not `'''`; enforced by `ruff format` (formatter always uses `"""` per Black convention)
 - **Entitlements** — never inline entitlement logic; always `EntitlementStore.evaluate(...)`
 - **Dependencies** — never add/remove without human approval (3 groups: runtime, dev, automation)
-- **proto/ is frozen** — `proto/capture.proto` is the authority; re-generate stubs with grpcio-tools, never hand-edit
+- **proto/ is frozen** — `proto/capture.proto` is the authority; rebuild stubs with `uv run python -m tools.build_assets`, never hand-edit
 
 See `AGENTS.md` for complete coding standards.

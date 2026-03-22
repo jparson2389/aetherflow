@@ -3,14 +3,11 @@ from __future__ import annotations
 import importlib
 import os
 import subprocess
-import sys
 from pathlib import Path
 
-import pytest
 from loguru import logger as loguru_logger
 
 from tools import plan_exec
-from tools.shell_utils import resolve_powershell_executable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -79,7 +76,6 @@ def test_unrelated_logs_do_not_appear_without_active_plan_exec_sink(
     assert 'outside after' not in text
 
 
-@pytest.mark.skipif(sys.platform != 'win32', reason='requires Windows PowerShell and .cursor/ scripts')
 def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     logs_dir = tmp_path / 'logs'
     logs_dir.mkdir()
@@ -102,20 +98,16 @@ def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     os.utime(older_log, (1_710_690_000, 1_710_690_000))
     os.utime(newer_log, (1_710_693_600, 1_710_693_600))
 
-    script_path = PROJECT_ROOT / '.cursor' / 'workflows' / 'plan-exec-report.ps1'
     result = subprocess.run(
-        [
-            resolve_powershell_executable(),
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-File',
-            str(script_path),
-        ],
+        ['uv', 'run', 'python', '-m', 'tools.plan_exec_report'],
         cwd=tmp_path,
         check=False,
         capture_output=True,
         text=True,
+        env={
+            **os.environ,
+            'PYTHONPATH': str(PROJECT_ROOT),
+        },
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
@@ -132,3 +124,43 @@ def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     )
     assert 'new warning' in report_text
     assert 'old warning' not in report_text
+
+
+def test_plan_exec_report_emits_section_headers_once(tmp_path: Path) -> None:
+    logs_dir = tmp_path / 'logs'
+    logs_dir.mkdir()
+    log_path = logs_dir / 'plan_execution_2026-03-17_120000.log'
+    log_path.write_text(
+        '\n'.join(
+            [
+                '2026-03-17 12:00:00.000 | INFO     | tools.plan_exec:main:1 - start',
+                '2026-03-17 12:00:01.000 | INFO     | tools.plan_exec:main:2 - [state] done',
+                '2026-03-17 12:00:02.000 | INFO     | tools.plan_exec:main:3 - Execution Summary | ok',
+            ]
+        )
+        + '\n',
+        encoding='utf-8',
+    )
+
+    result = subprocess.run(
+        ['uv', 'run', 'python', '-m', 'tools.plan_exec_report'],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            'PYTHONPATH': str(PROJECT_ROOT),
+        },
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    report_path = max(
+        logs_dir.glob('plan_exec_report_*.md'), key=lambda path: path.stat().st_mtime
+    )
+    report_text = report_path.read_text(encoding='utf-8')
+
+    assert report_text.count('## Plan State Snapshots') == 1
+    assert report_text.count('## Execution Summaries') == 1
+    assert report_text.count('## Warnings And Errors') == 1
