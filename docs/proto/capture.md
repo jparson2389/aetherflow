@@ -16,6 +16,7 @@ The PRD runtime budgets apply to this surface:
 - worker escalates after 3 consecutive missed heartbeats
 
 Generated Python modules should be placed under `src/aetherflow/proto/`.
+Rebuild them with `uv run python -m tools.build_assets`.
 
 ## Timeouts And Retry Posture
 

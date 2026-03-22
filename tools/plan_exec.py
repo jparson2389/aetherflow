@@ -810,7 +810,7 @@ def format_reconciliation_audit_entry(
         f'- Responsible tool/script: `{responsible_script}`\n'
         f'- Behavior expectation: {behavior}\n'
         f'- Validation command: `{command_text}`\n'
-        f'- Status change: `{previous_status}` -> `verified`\n'
+        f'- Status change: `{previous_status}` -> `done`\n'
         f'- Evidence: {evidence_text or "`No explicit target files captured`"}'
     )
 
@@ -923,7 +923,7 @@ def reconcile_state_with_repo(
         update_state_item(
             state,
             item_id,
-            status='verified',
+            status='done',
             notes=notes,
             missing=[],
             evidence=evidence,
@@ -933,7 +933,7 @@ def reconcile_state_with_repo(
             item_id=item_id,
             phase=str(item.get('phase', '')),
             title=str(item.get('title', '')),
-            status='verified',
+            status='done',
             changed_files=evidence,
             notes=notes,
         )
@@ -958,7 +958,7 @@ def reconcile_state_with_repo(
         )
         logger.info(
             f'[reconcile] item={item_id} phase={selected_phase} '
-            f'previous={previous_status} new=verified'
+            f'previous={previous_status} new=done'
         )
 
     if reconciled:
@@ -986,6 +986,31 @@ def run_ps(path: str, args: list[str] | None = None) -> tuple[int, str]:
     )
     out = (proc.stdout or '') + (proc.stderr or '')
     return proc.returncode, out
+
+
+def run_command(command: list[str], *, cwd: Path | None = None) -> tuple[int, str]:
+    """Run a command list and return (rc, combined output)."""
+    proc = subprocess.run(
+        command,
+        cwd=cwd or ROOT,
+        capture_output=True,
+        text=True,
+    )
+    out = (proc.stdout or '') + (proc.stderr or '')
+    return proc.returncode, out
+
+
+def build_assets_command() -> list[str]:
+    """Return the repo-owned asset build command."""
+    return ['uv', 'run', 'python', '-m', 'tools.build_assets']
+
+
+def quality_command(paths: list[str]) -> list[str]:
+    """Return the repo-owned quality gate command."""
+    command = ['uv', 'run', 'python', '-m', 'tools.check_quality']
+    if paths:
+        command.extend(['--paths', *paths])
+    return command
 
 
 def apply_writes_relpaths(payload: dict[str, Any]) -> list[str]:
@@ -1728,8 +1753,8 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
                 f'Task: {selected_title} | Modified: {len(changed)}'
             )
 
-            # Build assets (PowerShell)
-            build_rc, build_out = run_ps('.cursor/workflows/build-assets.ps1')
+            # Build assets from repo-owned sources.
+            build_rc, build_out = run_command(build_assets_command())
             if build_rc != 0:
                 if attempt < max_retries - 1:
                     logger.warning(f'Attempt {attempt + 1}: Build failed.')
@@ -1757,9 +1782,7 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
 
             # Run quality gate
             quality_args = quality_scope_args(changed)
-            rc, quality_out = run_ps(
-                '.cursor/workflows/check-quality.ps1', quality_args
-            )
+            rc, quality_out = run_command(quality_command(quality_args[1:]))
             if rc != 0:
                 q_out_exc = _clip(quality_out, 12000) if quality_out else ''
                 q_fix_prompt = build_retry_prompt(
@@ -1816,8 +1839,8 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
                 quick_fix_snapshots = capture_existing_file_snapshots(ROOT, fix_payload)
                 existing_snapshots.update(quick_fix_snapshots)
                 changed += apply_writes_relpaths(fix_payload)
-                rc2, quality_out2 = run_ps(
-                    '.cursor/workflows/check-quality.ps1', quality_scope_args(changed)
+                rc2, quality_out2 = run_command(
+                    quality_command(quality_scope_args(changed)[1:])
                 )
                 if rc2 != 0:
                     if attempt < max_retries - 1:
@@ -2008,11 +2031,11 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
         break
 
     # Completed successfully
-    logger.success(f'Task Verified: {selected_title} — all 3 layers passed.')
+    logger.success(f'Task Complete: {selected_title} — all 3 layers passed.')
     update_state_item(
         state,
         str(selected_id),
-        status='verified',
+        status='done',
         notes=parsed_verdict.notes,
         missing=[],
         evidence=changed,
@@ -2022,7 +2045,7 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
         item_id=str(selected_id),
         phase=selected_phase,
         title=selected_title,
-        status='verified',
+        status='done',
         changed_files=changed,
         notes=parsed_verdict.notes,
     )

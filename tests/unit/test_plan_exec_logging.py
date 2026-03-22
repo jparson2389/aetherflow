@@ -3,14 +3,11 @@ from __future__ import annotations
 import importlib
 import os
 import subprocess
-import sys
 from pathlib import Path
 
-import pytest
 from loguru import logger as loguru_logger
 
 from tools import plan_exec
-from tools.shell_utils import resolve_powershell_executable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -79,7 +76,6 @@ def test_unrelated_logs_do_not_appear_without_active_plan_exec_sink(
     assert 'outside after' not in text
 
 
-@pytest.mark.skipif(sys.platform != 'win32', reason='requires Windows PowerShell and .cursor/ scripts')
 def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     logs_dir = tmp_path / 'logs'
     logs_dir.mkdir()
@@ -102,16 +98,8 @@ def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     os.utime(older_log, (1_710_690_000, 1_710_690_000))
     os.utime(newer_log, (1_710_693_600, 1_710_693_600))
 
-    script_path = PROJECT_ROOT / '.cursor' / 'workflows' / 'plan-exec-report.ps1'
     result = subprocess.run(
-        [
-            resolve_powershell_executable(),
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-File',
-            str(script_path),
-        ],
+        ['uv', 'run', 'python', str(PROJECT_ROOT / 'tools' / 'plan_exec_report.py')],
         cwd=tmp_path,
         check=False,
         capture_output=True,

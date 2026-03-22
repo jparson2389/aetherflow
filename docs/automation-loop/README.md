@@ -42,10 +42,14 @@ These files are the control plane for the loop:
   in LLM prompts.
 - `tools/plan_exec.py`
   Single-pass orchestration engine for one PLAN item.
-- `.cursor/workflows/build-assets.ps1`
-  Post-write asset build step.
-- `.cursor/workflows/check-quality.ps1`
-  Post-build quality gate wrapper.
+- `tools/build_assets.py`
+  Repo-owned post-write asset build step. It reads tracked source assets from
+  `proto/` and `assets/ui/`, then writes generated outputs under
+  `src/aetherflow/proto/` and `src/aetherflow/ui_<name>.py`.
+- `tools/check_quality.py`
+  Repo-owned post-build quality gate. It parses the changed-file scope,
+  filters to Python targets, writes `logs/quality-gate.log`, and runs Ruff and
+  pytest against either the scoped set or the full repo.
 - `state/plan_state.json`
   Persisted execution state and history.
 - `logs/`
@@ -473,12 +477,13 @@ Hard stop:
 
 ### Q. Build Assets
 
-`run_ps('.cursor/workflows/build-assets.ps1')` always runs after successful
-writes.
+`run_command(build_assets_command())` always runs after successful writes.
 
-That script currently does two things:
+Behavior:
 
 - compile every `.proto` file in `proto/` into `src/aetherflow/proto/`
+- ensure `src/aetherflow/proto/__init__.py` exists so generated modules are
+  importable
 - convert every `assets/ui/*.ui` file into `src/aetherflow/ui_<name>.py`
 
 If asset build fails:
@@ -488,14 +493,16 @@ If asset build fails:
 
 ### R. Run The Quality Gate
 
-The next step is:
+The next step is the repo-owned command:
 
-- `.cursor/workflows/check-quality.ps1`
+- `uv run python -m tools.check_quality`
 
 The executor scopes it with `quality_scope_args(changed)` when possible.
 
-Actual workflow behavior:
+Behavior:
 
+- write `logs/quality-gate.log`
+- parse the changed-file scope and keep only existing `.py` paths
 - if there are Python files in scope, it runs scoped `ruff check --fix` and
   scoped `ruff format`
 - it still runs full `pytest`, not a scoped test subset
@@ -613,7 +620,7 @@ On final PM semantic failure:
 The reporting loop is separate from execution, but it is part of day-to-day
 operation.
 
-`.cursor/workflows/plan-exec-report.ps1`:
+`tools/plan_exec_report.py`:
 
 - reads the latest `logs/plan_execution_*.log`
 - extracts `[state]` lines, execution summaries, warnings, and errors
@@ -667,7 +674,10 @@ Main log outputs:
 
 The repo also has a separate evidence/reporting path:
 
-- `.cursor/workflows/verify-requirements.ps1`
+- `tools/verify_requirements.py`
+- reads repository files under `src`, `include`, `host`, `tools`, `docs`,
+  `scripts`, `tests`, and `proto`
+- writes `logs/verify-requirements-evidence.md`
 - `tools/generate_verification_report.py`
 - `logs/verification/*.json`
 - `logs/verification/status_snapshot.json`
@@ -726,6 +736,9 @@ Repo execution helpers:
 - `append_reconciliation_audit_entries()`
 - `format_reconciliation_audit_entry()`
 - `run_ps()`
+- `run_command()`
+- `build_assets_command()`
+- `quality_command()`
 - `apply_writes_relpaths()`
 - `quality_scope_args()`
 
@@ -849,8 +862,12 @@ chain:
   Manual ad-hoc CLI for direct model prompts. It reuses prompts and
   `apply_writes`, but the main executor never imports or calls it.
 - `tools/generate_verification_report.py`
-  Used by `.cursor/workflows/verify-requirements.ps1` for the separate evidence
-  pipeline, not by `plan_exec.py`.
+  Separate verification helper for the repo-owned evidence pipeline, not used by
+  `plan_exec.py`.
+- `tools/plan_exec_report.py`
+  Reads the latest `logs/plan_execution_*.log`, parses warnings/errors/state
+  snapshots, inspects `git status --porcelain`, and writes
+  `logs/plan_exec_report_<timestamp>.md`.
 - `tools/export_diagrams.py`
   Standalone documentation asset helper for Mermaid export.
 - `tools/__init__.py`
@@ -864,7 +881,7 @@ Typical operator sequence today:
 2. Run one executor pass with `python -m tools.plan_exec`.
 3. Inspect `state/plan_state.json` and `logs/plan_execution_*.log`.
 4. If needed, generate a report with
-   `pwsh -ExecutionPolicy Bypass -File .cursor/workflows/plan-exec-report.ps1`.
+   `uv run python tools/plan_exec_report.py`.
 5. Repeat step 2 until the desired PLAN slice is complete.
 6. Run the separate requirements evidence pipeline when you need
    `docs/requirements-report.md` and `logs/verification/*.json`.

@@ -206,9 +206,9 @@ def test_reconcile_state_with_repo_promotes_missing_item_when_validation_passes(
     phase, open_items = plan_exec.next_open_work_items(state)
 
     assert len(updates) == 1
-    assert state['items'][0]['status'] == 'verified'
+    assert state['items'][0]['status'] == 'done'
     assert state['items'][0]['evidence'] == ['docs/artifact.md']
-    assert state['history'][0]['status'] == 'verified'
+    assert state['history'][0]['status'] == 'done'
     assert phase == 'Phase 1'
     assert [item['id'] for item in open_items] == ['af_01_01']
 
@@ -272,7 +272,7 @@ def test_reconcile_state_with_repo_promotes_blocked_item_before_selection(
     )
     phase, open_items = plan_exec.next_open_work_items(state)
 
-    assert state['items'][0]['status'] == 'verified'
+    assert state['items'][0]['status'] == 'done'
     assert phase == 'Phase 0'
     assert [item['id'] for item in open_items] == ['af_00_05']
 

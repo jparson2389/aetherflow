@@ -96,10 +96,11 @@ model, loads pending developer app checks, and starts the bootstrap sequence.
 
 Run the core validation commands before marking work complete:
 
+- Build generated assets: `uv run python -m tools.build_assets`
 - Lint: `uv run ruff check .`
 - Tests: `uv run pytest`
-- Combined quality gate:  
-  `pwsh -ExecutionPolicy Bypass -File .cursor/workflows/check-quality.ps1`
+- Combined quality gate: `uv run python -m tools.check_quality`
+- Windows wrapper: `pwsh -ExecutionPolicy Bypass -File scripts/check-quality.ps1`
 
 For the native harness specifically:
 
