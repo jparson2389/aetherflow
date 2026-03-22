@@ -129,10 +129,6 @@ def build_report(*, cwd: Path, log_file_path: str | None = None) -> Path:
         '',
         '## Plan State Snapshots',
         '',
-        '## Execution Summaries',
-        '',
-        '## Warnings And Errors',
-        '',
     ]
     if state_lines:
         report_lines.extend(f'- {line}' for line in state_lines)

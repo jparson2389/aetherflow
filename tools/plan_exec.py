@@ -1248,10 +1248,7 @@ def filter_acceptance_criteria(title: str, acceptance: list[Any]) -> list[str]:
 
 def quality_scope_args(changed_files: list[str]) -> list[str]:
     """Prepare arguments for the quality checker script based on changed files."""
-    unique_paths = [p for p in dict.fromkeys(changed_files) if p.strip()]
-    if not unique_paths:
-        return []
-    return ['-Paths', *unique_paths]
+    return [p for p in dict.fromkeys(changed_files) if p.strip()]
 
 
 def extract_plan_phase_summary(plan: str, max_chars: int = 12000) -> str:
@@ -1782,7 +1779,7 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
 
             # Run quality gate
             quality_args = quality_scope_args(changed)
-            rc, quality_out = run_command(quality_command(quality_args[1:]))
+            rc, quality_out = run_command(quality_command(quality_args))
             if rc != 0:
                 q_out_exc = _clip(quality_out, 12000) if quality_out else ''
                 q_fix_prompt = build_retry_prompt(
@@ -1840,7 +1837,7 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
                 existing_snapshots.update(quick_fix_snapshots)
                 changed += apply_writes_relpaths(fix_payload)
                 rc2, quality_out2 = run_command(
-                    quality_command(quality_scope_args(changed)[1:])
+                    quality_command(quality_scope_args(changed))
                 )
                 if rc2 != 0:
                     if attempt < max_retries - 1:

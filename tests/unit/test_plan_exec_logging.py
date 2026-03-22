@@ -124,3 +124,43 @@ def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     )
     assert 'new warning' in report_text
     assert 'old warning' not in report_text
+
+
+def test_plan_exec_report_emits_section_headers_once(tmp_path: Path) -> None:
+    logs_dir = tmp_path / 'logs'
+    logs_dir.mkdir()
+    log_path = logs_dir / 'plan_execution_2026-03-17_120000.log'
+    log_path.write_text(
+        '\n'.join(
+            [
+                '2026-03-17 12:00:00.000 | INFO     | tools.plan_exec:main:1 - start',
+                '2026-03-17 12:00:01.000 | INFO     | tools.plan_exec:main:2 - [state] done',
+                '2026-03-17 12:00:02.000 | INFO     | tools.plan_exec:main:3 - Execution Summary | ok',
+            ]
+        )
+        + '\n',
+        encoding='utf-8',
+    )
+
+    result = subprocess.run(
+        ['uv', 'run', 'python', '-m', 'tools.plan_exec_report'],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            'PYTHONPATH': str(PROJECT_ROOT),
+        },
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    report_path = max(
+        logs_dir.glob('plan_exec_report_*.md'), key=lambda path: path.stat().st_mtime
+    )
+    report_text = report_path.read_text(encoding='utf-8')
+
+    assert report_text.count('## Plan State Snapshots') == 1
+    assert report_text.count('## Execution Summaries') == 1
+    assert report_text.count('## Warnings And Errors') == 1

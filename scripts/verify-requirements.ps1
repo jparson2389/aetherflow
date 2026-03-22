@@ -8,12 +8,12 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 
 Push-Location $repoRoot
 try {
-    $args = @('run', 'python', '-m', 'tools.verify_requirements')
+    $cmdArgs = @('run', 'python', '-m', 'tools.verify_requirements')
     if ($Debug) {
-        $args += '--debug'
+        $cmdArgs += '--debug'
     }
 
-    & uv @args
+    & uv @cmdArgs
     if ($LASTEXITCODE -ne 0) {
         throw "verify-requirements failed with exit code $LASTEXITCODE."
     }
