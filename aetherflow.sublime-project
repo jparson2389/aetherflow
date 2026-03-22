@@ -1,0 +1,78 @@
+{
+    "folders": [
+        {
+            "path": ".",
+            "name": "Aetherflow",
+            "file_exclude_patterns": [
+                "*.pyc",
+                "*_pb2.py",
+                "*_pb2_grpc.py"
+            ],
+            "folder_exclude_patterns": [
+                "__pycache__",
+                ".venv",
+                ".pytest_cache",
+                ".ruff_cache",
+                ".claude",
+                ".codex",
+                ".agents",
+                ".tmp",
+                "build",
+                "src/aetherflow/proto"
+            ]
+        }
+    ],
+    "settings": {
+        "python_interpreter": "/home/auto23/Projects/aetherflow/.venv/bin/python",
+        "hardware_acceleration": "opengl",
+        "translate_tabs_to_spaces": true,
+        "tab_size": 4,
+        "rulers": [88]
+    },
+    "build_systems": [
+        {
+            "name": "Aetherflow: Ruff Check",
+            "cmd": ["uv", "run", "ruff", "check", "."],
+            "working_dir": "$project_path",
+            "selector": "source.python",
+            "file_regex": "^(.+?):(\\d+):(\\d+):\\s*(.*)$"
+        },
+        {
+            "name": "Aetherflow: Ruff Format",
+            "cmd": ["uv", "run", "ruff", "format", "."],
+            "working_dir": "$project_path",
+            "selector": "source.python"
+        },
+        {
+            "name": "Aetherflow: Pytest",
+            "cmd": ["uv", "run", "pytest"],
+            "working_dir": "$project_path",
+            "selector": "source.python",
+            "file_regex": "^(.*?):(\\d+):(?:\\s*)(.*)$"
+        },
+        {
+            "name": "Aetherflow: Build Assets",
+            "cmd": ["uv", "run", "build-assets"],
+            "working_dir": "$project_path",
+            "selector": "source.python"
+        },
+        {
+            "name": "Aetherflow: Check Quality",
+            "cmd": ["uv", "run", "check-quality"],
+            "working_dir": "$project_path",
+            "selector": "source.python"
+        },
+        {
+            "name": "Aetherflow: Verify Requirements",
+            "cmd": ["uv", "run", "verify-requirements"],
+            "working_dir": "$project_path",
+            "selector": "source.python"
+        },
+        {
+            "name": "Aetherflow: Plan Exec Report",
+            "cmd": ["uv", "run", "plan-exec-report"],
+            "working_dir": "$project_path",
+            "selector": "source.python"
+        }
+    ]
+}
