@@ -99,11 +99,15 @@ def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     os.utime(newer_log, (1_710_693_600, 1_710_693_600))
 
     result = subprocess.run(
-        ['uv', 'run', 'python', str(PROJECT_ROOT / 'tools' / 'plan_exec_report.py')],
+        ['uv', 'run', 'python', '-m', 'tools.plan_exec_report'],
         cwd=tmp_path,
         check=False,
         capture_output=True,
         text=True,
+        env={
+            **os.environ,
+            'PYTHONPATH': str(PROJECT_ROOT),
+        },
     )
 
     assert result.returncode == 0, result.stdout + result.stderr

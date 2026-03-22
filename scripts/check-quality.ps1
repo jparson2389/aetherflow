@@ -8,13 +8,13 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 
 Push-Location $repoRoot
 try {
-    $args = @('run', 'python', '-m', 'tools.check_quality')
+    $cmdArgs = @('run', 'python', '-m', 'tools.check_quality')
     if ($Paths.Count -gt 0) {
-        $args += '--paths'
-        $args += $Paths
+        $cmdArgs += '--paths'
+        $cmdArgs += $Paths
     }
 
-    & uv @args
+    & uv @cmdArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Quality gate failed with exit code $LASTEXITCODE."
     }

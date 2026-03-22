@@ -53,3 +53,31 @@ def test_run_quality_gate_scoped_runs_ruff_and_pytest(
         ['uv', 'run', 'python', '-m', 'pytest'],
     ]
 
+
+def test_run_quality_gate_writes_log_under_repo_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    log_paths: list[Path] = []
+
+    def fake_write_log(message: str, *, log_path: Path = check_quality.LOG_PATH) -> None:
+        del message
+        log_paths.append(log_path)
+
+    def fake_run_quality_step(
+        label: str,
+        command: list[str],
+        *,
+        cwd: Path,
+        log_path: Path = check_quality.LOG_PATH,
+    ) -> None:
+        del label, command, cwd
+        log_paths.append(log_path)
+
+    monkeypatch.setattr(check_quality, 'write_log', fake_write_log)
+    monkeypatch.setattr(check_quality, 'run_quality_step', fake_run_quality_step)
+
+    rc = check_quality.run_quality_gate(tmp_path)
+
+    assert rc == 0
+    assert log_paths
+    assert all(path == tmp_path / 'logs' / 'quality-gate.log' for path in log_paths)

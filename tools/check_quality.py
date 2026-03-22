@@ -59,8 +59,8 @@ def scoped_python_targets(repo_root: Path, paths: list[str]) -> list[str]:
 
 def run_quality_gate(repo_root: Path, paths: list[str] | None = None) -> int:
     """Run the repo-owned quality gate, optionally scoped to changed Python files."""
-    write_log('=== Quality Gate ===', log_path=repo_root / 'logs' / 'quality-gate.log')
     log_path = repo_root / 'logs' / 'quality-gate.log'
+    write_log('=== Quality Gate ===', log_path=log_path)
     scoped_paths = scoped_python_targets(repo_root, paths or [])
     if paths and not scoped_paths:
         message = 'No Python files in scope. Skipping lint/format/test.'
