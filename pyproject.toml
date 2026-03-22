@@ -43,6 +43,10 @@ addopts = "-ra -q"
 
 [project.scripts]
 aetherflow = "aetherflow.main:main"
+build-assets = "tools.build_assets:main"
+check-quality = "tools.check_quality:main"
+verify-requirements = "tools.verify_requirements:main"
+plan-exec-report = "tools.plan_exec_report:main"
 
 [project.gui-scripts]
 aetherflow-gui = "aetherflow.main:main"
