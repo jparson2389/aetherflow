@@ -56,10 +56,28 @@ target-version = "py312"
 line-length = 88
 fix = true
 src = ["src", "."]
-extend-exclude = ["*_pb2.py", "*_pb2_grpc.py", ".venv", "build", ".claude", ".tmp"]
+extend-exclude = [
+    "*_pb2.py",
+    "*_pb2_grpc.py",
+    ".venv",
+    "build",
+    ".claude",
+    ".codex",
+    ".agents",
+    ".tmp",
+]
 
 [tool.bandit]
-exclude_dirs = ["tests", "venv", ".venv", "build", "*_pb2.py", "*_pb2_grpc.py"]
+exclude_dirs = [
+    "tests",
+    "venv",
+    ".venv",
+    "build",
+    ".codex",
+    ".agents",
+    "*_pb2.py",
+    "*_pb2_grpc.py",
+]
 skips = [
     "B101", # assert used
     "B104", # string '0.0.0.0' used only in URL heuristic, not binding
@@ -112,7 +130,14 @@ inline-quotes = "single"
 
 [tool.pyright]
 include = ["src", "tools"]
-exclude = ["**/node_modules", "**/__pycache__", ".venv", "src/aetherflow/proto"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv",
+    ".codex",
+    ".agents",
+    "src/aetherflow/proto",
+]
 extraPaths = ["src", "."]
 venvPath = "."
 venv = ".venv"
