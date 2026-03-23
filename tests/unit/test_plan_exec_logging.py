@@ -102,7 +102,7 @@ def test_plan_exec_report_uses_a_single_newest_run_log(tmp_path: Path) -> None:
     os.utime(older_log, (1_710_690_000, 1_710_690_000))
     os.utime(newer_log, (1_710_693_600, 1_710_693_600))
 
-    script_path = PROJECT_ROOT / '.cursor' / 'workflows' / 'plan-exec-report.ps1'
+    script_path = PROJECT_ROOT / 'scripts' / 'plan-exec-report.ps1'
     result = subprocess.run(
         [
             resolve_powershell_executable(),
