@@ -45,6 +45,7 @@ def test_configure_environment_does_not_override_existing_values(
 def test_main_loads_dotenv_during_startup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv('AETHERFLOW_HEADLESS', '1')
     calls: list[str] = []
 
     def fake_configure_environment() -> Path | None:
