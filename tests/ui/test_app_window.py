@@ -6,6 +6,11 @@ import sys
 
 import pytest
 
+pytestmark = pytest.mark.skipif(
+    sys.platform != 'win32',
+    reason='Qt widget tests run on Windows only',
+)
+
 
 @pytest.fixture(scope='module')
 def _qt_app():
@@ -103,7 +108,9 @@ class TestPanelHost:
 
         router = RouterModel()
         router.register_route(
-            RouteDefinition(name='dashboard', title='Dashboard', panel_id='panel.dashboard')
+            RouteDefinition(
+                name='dashboard', title='Dashboard', panel_id='panel.dashboard'
+            )
         )
         host = PanelHost(router)
         placeholder = QLabel('Dashboard panel')
