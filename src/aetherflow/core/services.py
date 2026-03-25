@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from loguru import logger
 
@@ -19,9 +19,9 @@ class AppServices:
 
     entitlements: EntitlementStore
     trust_verifier: PluginTrustVerifier
-    roles: list[UserRole] = field(default_factory=list)
-    profile_store: ProfileStore = field(default_factory=ProfileStore)
-    profile_repo: ProfileRepository = field(default_factory=ProfileRepository)
+    roles: list[UserRole]
+    profile_store: ProfileStore
+    profile_repo: ProfileRepository
 
 
 def create_default_services(
