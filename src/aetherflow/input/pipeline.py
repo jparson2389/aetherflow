@@ -47,6 +47,10 @@ class DeviceIngestionPipeline:
                 raise RuntimeError('Cannot restart a stopped pipeline.')
             if self._state is IngestionState.RUNNING:
                 return
+            if self._state is IngestionState.PAUSED:
+                # Listener was already started; only resume dispatch.
+                self._state = IngestionState.RUNNING
+                return
             self._state = IngestionState.RUNNING
         self._listener.start(on_event=self._dispatch)
 

@@ -1,8 +1,29 @@
+from collections.abc import Callable
+
 from aetherflow.core.profiles import ProfileStore
 from aetherflow.input.events import InputEvent, InputEventKind, MappedEvent
 from aetherflow.input.listener import FakeOSListener
-from aetherflow.input.mapping import InputLatencyTelemetry, MappingPipeline
-from aetherflow.input.pipeline import DeviceIngestionPipeline
+from aetherflow.input.mapping import MappingPipeline
+from aetherflow.input.pipeline import DeviceIngestionPipeline, IngestionState
+
+
+class _CountingOSListener:
+    """Test double that records how many times start() was invoked."""
+
+    def __init__(self) -> None:
+        self.start_count = 0
+        self._callback: Callable[[InputEvent], None] | None = None
+
+    def start(self, on_event: Callable[[InputEvent], None]) -> None:
+        self.start_count += 1
+        self._callback = on_event
+
+    def stop(self) -> None:
+        self._callback = None
+
+    def push(self, event: InputEvent) -> None:
+        if self._callback is not None:
+            self._callback(event)
 
 
 def _make_key_event(key: str = 'KEY_A', ts: int = 1000) -> InputEvent:
@@ -16,6 +37,26 @@ def _make_key_event(key: str = 'KEY_A', ts: int = 1000) -> InputEvent:
 
 def _controls_dict(event: MappedEvent) -> dict:
     return dict(event.controls)
+
+
+def test_start_after_pause_does_not_invoke_listener_start_again() -> None:
+    """Paused pipeline must not call OS listener.start() twice (thread leak)."""
+    listener = _CountingOSListener()
+    pipeline = DeviceIngestionPipeline(listener=listener)
+
+    pipeline.start()
+    assert listener.start_count == 1
+    assert pipeline.state is IngestionState.RUNNING
+
+    pipeline.pause()
+    assert pipeline.state is IngestionState.PAUSED
+
+    pipeline.start()
+    assert listener.start_count == 1
+    assert pipeline.state is IngestionState.RUNNING
+
+    pipeline.stop()
+    assert pipeline.state is IngestionState.STOPPED
 
 
 def test_mapping_pipeline_translates_key_press() -> None:
