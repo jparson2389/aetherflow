@@ -2,11 +2,9 @@ name: Run Claude Code Review
 
 on:
   workflow_dispatch: {}
-    types: [opened, synchronize, ready_for_review, reopened]
 
 jobs:
   claude-review:
-    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
