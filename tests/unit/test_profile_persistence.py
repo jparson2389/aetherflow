@@ -63,7 +63,7 @@ def test_load_truncated_json_returns_empty_store(tmp_path: Path) -> None:
 def test_active_profile_preserved_on_round_trip(tmp_path: Path) -> None:
     path = tmp_path / 'profiles.json'
     store = ProfileStore()
-    p1 = store.create('First')
+    _p1 = store.create('First')
     p2 = store.create('Second')
     store.switch_active(p2.profile_id)
 
