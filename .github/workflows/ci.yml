@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - Master
+  pull_request: {}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.10.10'
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Pytest
+        run: uv run pytest
+
+      - name: Build assets smoke test
+        run: uv run python -m tools.build_assets

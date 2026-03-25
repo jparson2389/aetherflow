@@ -582,7 +582,9 @@ def _parse_validation_command(command: str, *, repo_root: Path) -> list[str] | N
     if argv[:4] == ['uv', 'run', 'ruff', 'check']:
         return argv
     if argv[0].casefold() in {'powershell', 'pwsh'}:
-        executable = shutil.which(argv[0]) or argv[0]
+        executable = shutil.which(argv[0])
+        if executable is None:
+            return None
         normalized = list(argv)
         normalized[0] = executable
         if len(normalized) < 5:

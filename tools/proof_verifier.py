@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
-import subprocess
 from pathlib import Path
 
 from loguru import logger
@@ -19,44 +17,6 @@ from aetherflow.core.verification_report import (
     parse_plan_items,
     write_results,
 )
-
-
-def resolve_powershell_executable() -> str:
-    """Resolve the correct PowerShell executable."""
-    # Check for PowerShell 7 (pwsh) first
-    pwsh_path = shutil.which('pwsh')
-    if pwsh_path:
-        return pwsh_path
-
-    # Fallback to Windows PowerShell
-    powershell_path = shutil.which('powershell')
-    if powershell_path:
-        return powershell_path
-
-    raise FileNotFoundError(
-        'No PowerShell executable found. Ensure PowerShell is installed.'
-    )
-
-
-def run_validation_command(command: str, repo_root: Path) -> bool:
-    """Run a validation command and handle PowerShell resolution."""
-    if command.startswith('powershell'):
-        # Replace the 'powershell' alias with the resolved executable
-        powershell_executable = resolve_powershell_executable()
-        command = command.replace('powershell', powershell_executable, 1)
-
-    try:
-        result = subprocess.run(
-            command,
-            cwd=repo_root,
-            shell=True,
-            check=True,
-            text=True,
-        )
-        return result.returncode == 0
-    except subprocess.CalledProcessError as e:
-        logger.error('Validation command failed: {}', e)
-        return False
 
 
 def parse_plan_metadata(plan_path: Path) -> list[PlanItem]:

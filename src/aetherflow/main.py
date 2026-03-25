@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 from loguru import logger
@@ -38,7 +40,12 @@ def build_shell(*, role: RoleName = RoleName.POWER_GAMER) -> ShellModel:
 
 
 def main() -> int:
-    """Run the minimal Aetherflow shell entrypoint.
+    """Run the Aetherflow application.
+
+    In normal mode, starts the Qt event loop and blocks until the window is
+    closed.  When ``AETHERFLOW_HEADLESS=1`` is set (used by tests and CI),
+    the window is created and immediately closed without entering the event
+    loop.
 
     Returns:
         Process exit code.
@@ -46,6 +53,19 @@ def main() -> int:
     """
     configure_environment()
     shell = build_shell()
-    logger.info('Starting Aetherflow shell bootstrap.')
+    logger.info('Starting Aetherflow.')
     logger.debug('Startup notices loaded: {}', len(shell.notices))
-    return 0
+
+    headless = os.environ.get('AETHERFLOW_HEADLESS', '').strip() == '1'
+    if headless:
+        logger.debug('Headless mode: skipping Qt startup.')
+        return 0
+
+    from PySide6.QtWidgets import QApplication
+
+    from aetherflow.ui.app_window import AppWindow
+
+    app = QApplication.instance() or QApplication(sys.argv[:1])
+    window = AppWindow(shell)
+    window.show()
+    return app.exec()

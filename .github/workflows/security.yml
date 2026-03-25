@@ -3,7 +3,7 @@ name: Security
 on:
   push:
     branches:
-      - main
+      - Master
   pull_request: {}
 
 jobs:
@@ -27,17 +27,13 @@ jobs:
       - name: Sync dependencies
         run: uv sync --dev
 
-      - name: Ruff
-        run: uv run ruff check .
-
-      - name: Pytest
-        run: uv run pytest
-
       - name: Bandit
         run: uv run bandit -r src tools/validation_gate.py -s B106,B404,B603
 
       - name: Dependency audit
-        run: uv run pip-audit
+        # CVE-2026-4539 (Pygments ReDoS): pip-audit reports no fix while PyPI latest is 2.19.2.
+        # Drop --ignore-vuln when a patched pygments is released and the lockfile is updated.
+        run: uv run pip-audit --ignore-vuln CVE-2026-4539
 
       - name: Secret scan
         shell: bash

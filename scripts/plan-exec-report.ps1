@@ -6,13 +6,19 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
-$uvArgs = @('run', '--project', $repoRoot, 'python', (Join-Path $repoRoot 'tools/plan_exec_report.py'))
-if (-not [string]::IsNullOrWhiteSpace($LogFilePath)) {
-    $uvArgs += '--log-file-path'
-    $uvArgs += $LogFilePath
-}
+Push-Location $repoRoot
+try {
+    $cmdArgs = @('run', 'python', '-m', 'tools.plan_exec_report')
+    if (-not [string]::IsNullOrWhiteSpace($LogFilePath)) {
+        $cmdArgs += '--log-file-path'
+        $cmdArgs += $LogFilePath
+    }
 
-& uv @uvArgs
-if ($LASTEXITCODE -ne 0) {
-    throw "plan-exec-report failed with exit code $LASTEXITCODE."
+    & uv @cmdArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "plan-exec-report failed with exit code $LASTEXITCODE."
+    }
+}
+finally {
+    Pop-Location
 }
