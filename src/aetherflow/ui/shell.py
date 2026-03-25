@@ -11,6 +11,7 @@ from loguru import logger
 from aetherflow.core.developer_app_checks import PendingAppCheck
 from aetherflow.core.entitlements import RoleName
 from aetherflow.core.runtime_state import RuntimeState
+from aetherflow.core.worker_supervisor import WorkerSupervisor
 from aetherflow.ui.router import RouterModel
 from aetherflow.ui.status_hud import StatusHUDModel
 
@@ -35,6 +36,7 @@ class ShellModel:
     router: RouterModel = field(default_factory=RouterModel)
     notices: list[ShellNotice] = field(default_factory=list)
     status_hud: StatusHUDModel | None = None
+    worker_supervisor: WorkerSupervisor = field(default_factory=WorkerSupervisor)
 
     def mark_degraded(self, plugin_id: str) -> None:
         """Record a degraded plugin without terminating the shell."""
@@ -130,3 +132,11 @@ class ShellModel:
 
         """
         return self.router.active_panel_id()
+
+    def shutdown(self) -> None:
+        """Gracefully shut down the shell and its components."""
+        logger.info('Starting shell shutdown.')
+        self.worker_supervisor.shutdown()
+        # Transition to a final state
+        self.runtime_state = RuntimeState.FAILED
+        logger.info('Shell shutdown complete.')

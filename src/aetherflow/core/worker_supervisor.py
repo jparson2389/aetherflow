@@ -16,6 +16,7 @@ class WorkerHealth(StrEnum):
     DEGRADED = 'DEGRADED'
     RECOVERING = 'RECOVERING'
     FAILED = 'FAILED'
+    STOPPED = 'STOPPED'
 
 
 @dataclass(slots=True)
@@ -66,6 +67,18 @@ class WorkerSupervisor:
     def start(self, worker_id: str) -> None:
         """Start tracking a worker."""
         self._records[worker_id] = WorkerRecord(health=WorkerHealth.RUNNING)
+
+    def stop(self, worker_id: str) -> None:
+        """Stop tracking and clean up a specific worker."""
+        if worker_id in self._records:
+            # In a real implementation, this would terminate the process
+            self._records[worker_id].health = WorkerHealth.STOPPED
+            self._records.pop(worker_id)
+
+    def shutdown(self) -> None:
+        """Gracefully stop and clean up all supervised workers."""
+        for worker_id in list(self._records.keys()):
+            self.stop(worker_id)
 
     def record_missed_heartbeat(self, worker_id: str) -> None:
         """Record a missed heartbeat for a worker."""
