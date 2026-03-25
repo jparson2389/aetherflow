@@ -75,6 +75,9 @@ QLabel#placeholder {{
 }}
 """
 
+# Reserved panel id for the empty-state view (no plugin panel loaded yet).
+EMPTY_PANEL_ID = 'panel.empty'
+
 
 def _default_hud_model(shell: ShellModel) -> StatusHUDModel:
     """Build a startup HUD model from shell state when no explicit model is set."""
@@ -160,9 +163,15 @@ class AppWindow(QMainWindow):
         palette.setColor(QPalette.ColorRole.Text, QColor(_TEXT))
         self.setPalette(palette)
 
-        hud_model = shell.status_hud if shell.status_hud is not None else _default_hud_model(shell)
+        hud_model = (
+            shell.status_hud
+            if shell.status_hud is not None
+            else _default_hud_model(shell)
+        )
         self.hud_widget = HudWidget(hud_model, parent=self)
         self.panel_host = PanelHost(shell.router, parent=self)
+        self.panel_host.register_panel(EMPTY_PANEL_ID, _build_placeholder_content())
+        self.panel_host.show_panel(EMPTY_PANEL_ID)
 
         # Assemble central widget
         central = QWidget(self)

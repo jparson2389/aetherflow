@@ -165,6 +165,15 @@ class TestAppWindow:
         assert window.panel_host is not None
         assert isinstance(window.panel_host, PanelHost)
 
+    def test_app_window_starts_with_empty_placeholder_panel(self, _qt_app) -> None:
+        from aetherflow.ui.app_window import EMPTY_PANEL_ID, AppWindow
+        from aetherflow.ui.shell import ShellModel
+
+        shell = ShellModel()
+        window = AppWindow(shell)
+
+        assert window.panel_host.current_panel_id() == EMPTY_PANEL_ID
+
     def test_app_window_shows_without_crashing(self, _qt_app) -> None:
         from aetherflow.ui.app_window import AppWindow
         from aetherflow.ui.shell import ShellModel
