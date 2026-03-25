@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
@@ -13,6 +14,9 @@ from aetherflow.core.dotenv_bootstrap import configure_environment
 from aetherflow.core.entitlements import RoleName
 from aetherflow.ui.bootstrap import configure_default_shell
 from aetherflow.ui.shell import ShellModel
+
+if TYPE_CHECKING:
+    from aetherflow.ui.window import AetherflowMainWindow
 
 
 def build_shell(*, role: RoleName = RoleName.POWER_GAMER) -> ShellModel:
@@ -37,6 +41,17 @@ def build_shell(*, role: RoleName = RoleName.POWER_GAMER) -> ShellModel:
         store.acknowledge(alert.item_id)
 
     return configure_default_shell(shell, role=role)
+
+
+def build_main_window(
+    shell: ShellModel,
+    *,
+    role: RoleName | None = None,
+) -> AetherflowMainWindow:
+    """Build the Qt main window used by UI tests (legacy shell layout)."""
+    from aetherflow.ui.window import AetherflowMainWindow
+
+    return AetherflowMainWindow(shell, role=role)
 
 
 def main() -> int:

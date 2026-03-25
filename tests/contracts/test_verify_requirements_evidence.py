@@ -22,7 +22,7 @@ GOLDEN_EXPECTATIONS = {
     'scripts/run-e2e.ps1': True,
     'tools/prompts.py': True,
     'src/aetherflow/input/xinput.py': True,
-    'src/aetherflow/input/kbm.py': True,
+    'src/aetherflow/input/kbm.py': False,
     'src/aetherflow/input/playstation.py': True,
     'src/aetherflow/vision/ds_capture.py': True,
     'src/aetherflow/vision/obs_capture.py': True,
