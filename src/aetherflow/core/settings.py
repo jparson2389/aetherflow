@@ -29,3 +29,6 @@ class AetherflowSettings(BaseSettings):
         default=Path('assets/trust/manifest_keys.json')
     )
     admin_audit_log_path: Path = Field(default=Path('logs/admin_audit.ndjson'))
+    input_profiles_path: Path = Field(
+        default=Path('data/input_profiles.json')
+    )

@@ -23,7 +23,7 @@
 
 ### AF-00-02b - Establish native boundary and build harness.
 - Status: evidenced
-- Gaps: Acceptance criterion not covered in proof matrix: AC2; Validation failed: powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
+- Gaps: Acceptance criterion not covered in proof matrix: AC2
 - Evidence Pack: docs/evidence/AF-00-02b.md
 - Validation: powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
 

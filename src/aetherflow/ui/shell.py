@@ -1,10 +1,10 @@
-
 """Minimal shell composition models."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
@@ -13,6 +13,9 @@ from aetherflow.core.entitlements import RoleName
 from aetherflow.core.runtime_state import RuntimeState
 from aetherflow.ui.router import RouterModel
 from aetherflow.ui.status_hud import StatusHUDModel
+
+if TYPE_CHECKING:
+    from aetherflow.ui.panels.plugin_catalog_panel import PluginCatalogPanelModel
 
 
 @dataclass(slots=True)
@@ -35,6 +38,7 @@ class ShellModel:
     router: RouterModel = field(default_factory=RouterModel)
     notices: list[ShellNotice] = field(default_factory=list)
     status_hud: StatusHUDModel | None = None
+    plugin_catalog: PluginCatalogPanelModel | None = None
 
     def mark_degraded(self, plugin_id: str) -> None:
         """Record a degraded plugin without terminating the shell."""
@@ -104,6 +108,15 @@ class ShellModel:
 
         """
         self.status_hud = hud
+
+    def set_plugin_catalog(self, catalog: PluginCatalogPanelModel) -> None:
+        """Update the plugin catalog model.
+
+        Args:
+            catalog: New plugin catalog panel model.
+
+        """
+        self.plugin_catalog = catalog
 
     def set_active_route(self, route_name: str, *, role: RoleName | None) -> str:
         """Activate a route and track its panel.

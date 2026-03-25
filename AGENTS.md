@@ -89,6 +89,8 @@ Three dependency groups exist. Never add, remove, or change a dependency without
 
 - pydantic>=2.12.5, pydantic-settings>=2.13.1
 
+- pynput>=1.7.7 — approved for KBM input plugin (AF-02-01); used for OS-level keyboard/mouse event ingestion
+
 - pyside6==6.9.1 — pinned exactly, do not change this pin
 
 - python-dotenv>=1.2.2

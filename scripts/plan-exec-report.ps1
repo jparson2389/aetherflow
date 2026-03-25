@@ -8,13 +8,13 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 
 Push-Location $repoRoot
 try {
-    $args = @('run', 'python', 'tools/plan_exec_report.py')
+    $cmdArgs = @('run', 'python', '-m', 'tools.plan_exec_report')
     if (-not [string]::IsNullOrWhiteSpace($LogFilePath)) {
-        $args += '--log-file-path'
-        $args += $LogFilePath
+        $cmdArgs += '--log-file-path'
+        $cmdArgs += $LogFilePath
     }
 
-    & uv @args
+    & uv @cmdArgs
     if ($LASTEXITCODE -ne 0) {
         throw "plan-exec-report failed with exit code $LASTEXITCODE."
     }

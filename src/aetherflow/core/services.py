@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from loguru import logger
 
 from aetherflow.core.entitlements import EntitlementStore, RoleName, UserRole
+from aetherflow.core.profile_persistence import ProfileRepository
+from aetherflow.core.profiles import ProfileStore
+from aetherflow.core.settings import AetherflowSettings
 from aetherflow.plugins.trust import PluginTrustVerifier
 
 
@@ -16,7 +19,9 @@ class AppServices:
 
     entitlements: EntitlementStore
     trust_verifier: PluginTrustVerifier
-    roles: list[UserRole] = field(default_factory=list)
+    roles: list[UserRole]
+    profile_store: ProfileStore
+    profile_repo: ProfileRepository
 
 
 def create_default_services(
@@ -34,8 +39,13 @@ def create_default_services(
     """
     resolved_roles = roles or [UserRole(name=RoleName.POWER_GAMER)]
     logger.debug('Creating default application services.')
+    settings = AetherflowSettings()
+    profile_repo = ProfileRepository(path=settings.input_profiles_path)
+    profile_store = profile_repo.load()
     return AppServices(
         entitlements=EntitlementStore(),
         trust_verifier=PluginTrustVerifier(),
         roles=resolved_roles,
+        profile_store=profile_store,
+        profile_repo=profile_repo,
     )
