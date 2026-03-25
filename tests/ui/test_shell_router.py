@@ -81,6 +81,7 @@ def test_shell_records_route_failures() -> None:
 
 
 def test_router_rejects_unauthorized_navigation() -> None:
+    """Reject navigation for roles that cannot access a route."""
     router = RouterModel()
     router.register_route(
         RouteDefinition(
@@ -100,6 +101,7 @@ def test_router_rejects_unauthorized_navigation() -> None:
 
 
 def test_build_shell_loads_pending_app_check_notices(monkeypatch, tmp_path) -> None:
+    """Load notices first and attach the default startup catalog."""
     verification_dir = tmp_path / 'logs' / 'verification'
     verification_dir.mkdir(parents=True)
     (verification_dir / 'pending_app_checks.json').write_text(
@@ -119,3 +121,27 @@ def test_build_shell_loads_pending_app_check_notices(monkeypatch, tmp_path) -> N
 
     assert len(shell.notices) == 1
     assert 'check for functionality' in shell.notices[0].message.lower()
+    assert shell.plugin_catalog is not None
+    assert [entry.plugin_id for entry in shell.plugin_catalog.entries] == [
+        'input.xinput',
+        'input.kbm',
+        'capture.mf',
+    ]
+
+
+def test_build_shell_accepts_admin_role_for_default_routes() -> None:
+    """Preserve role-aware startup route registration through build_shell."""
+    shell = build_shell(role=RoleName.ADMIN_OPERATOR)
+
+    assert [
+        route.name
+        for route in shell.router.available_routes(role=RoleName.ADMIN_OPERATOR)
+    ] == [
+        'home',
+        'catalog',
+        'capture',
+        'workers',
+        'environment',
+        'resources',
+        'admin',
+    ]
