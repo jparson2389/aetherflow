@@ -967,27 +967,6 @@ def reconcile_state_with_repo(
     return reconciled
 
 
-def run_ps(path: str, args: list[str] | None = None) -> tuple[int, str]:
-    """Run a PowerShell script under .cursor/workflows and return (rc, combined output)."""
-    cmd = [
-        resolve_powershell_executable(),
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        str(ROOT / path),
-    ]
-    if args:
-        cmd.extend(args)
-    proc = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-    out = (proc.stdout or '') + (proc.stderr or '')
-    return proc.returncode, out
-
-
 def run_command(command: list[str], *, cwd: Path | None = None) -> tuple[int, str]:
     """Run a command list and return (rc, combined output)."""
     proc = subprocess.run(
