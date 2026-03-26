@@ -30,7 +30,6 @@ dist/
 
 # Local editor and workspace folders
 .vscode/
-.agents/
 .tmp/
 .worktrees/
 
@@ -39,17 +38,24 @@ state/plan_state.json
 security_report.html
 DEV-COMMANDS.md
 
-# Local generated logs and transient reports
+# Generated logs, reports, prompts
 logs/*.log
 logs/*.ndjson
-
-# Local verification and runtime snapshots that should not churn in git
+logs/plan_exec_*.txt
+logs/plan_exec_*.md
+logs/prompt_*.txt
+logs/verify-requirements-prompt.txt
+logs/*claudeconvo*.txt
 logs/env_report.json
 logs/bundle_install_report.json
 logs/diagnostics_export.json
 logs/verification/status_snapshot.json
 
-# Keep meaningful checked-in log/report artifacts when intentionally added
+# Generated proto stubs
+src/aetherflow/proto/*_pb2.py
+src/aetherflow/proto/*_pb2_grpc.py
+
+# Keep intentional artifacts
 !logs/quality-gate.log
 !logs/verify-requirements-evidence.md
 !logs/native_harness_validation.log
@@ -59,12 +65,6 @@ logs/verification/status_snapshot.json
 # Codex local runtime junk only
 .codex/sessions/
 .codex/tmp/
-.codex/*.sqlite
-.codex/*.sqlite-shm
-.codex/*.sqlite-wal
-.codex/logs_*.sqlite
-.codex/logs_*.sqlite-shm
-.codex/logs_*.sqlite-wal
-.codex/state_*.sqlite
-.codex/state_*.sqlite-shm
-.codex/state_*.sqlite-wal
+.codex/*.sqlite*
+.codex/logs_*.sqlite*
+.codex/state_*.sqlite*
