@@ -10,7 +10,7 @@
 - `docs/requirements-report.md` - Referenced by the implementation plan or audit workflow.
 - `src/aetherflow/ui/shell.py` - Referenced by the implementation plan or audit workflow.
 - `logs/verification/pending_app_checks.json` - Referenced by the implementation plan or audit workflow.
-- `.codex/skills/lazy-agent/scripts/audit_plan_completion.py` - Referenced by the implementation plan or audit workflow.
+- `tools/audit_plan_completion.py` - Referenced by the implementation plan or audit workflow.
 - `tasks/tasks-rework-plan.md` - Referenced by the implementation plan or audit workflow.
 
 ### Notes
@@ -23,6 +23,7 @@
 **IMPORTANT:** As you complete each task, you must check it off in this markdown file by changing `- [ ]` to `- [x]`.
 
 Example:
+
 - `- [ ] 1.1 Read file` -> `- [x] 1.1 Read file` (after completing)
 
 Update the file after completing each sub-task, not just after completing an entire parent task.

@@ -8,19 +8,12 @@ from types import ModuleType
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT_PATH = (
-    PROJECT_ROOT
-    / '.codex'
-    / 'skills'
-    / 'lazy-agent'
-    / 'scripts'
-    / 'audit_plan_completion.py'
-)
+SCRIPT_PATH = PROJECT_ROOT / 'tools' / 'audit_plan_completion.py'
 
 
 def _load_lazy_agent_module() -> ModuleType:
     if not SCRIPT_PATH.exists():
-        pytest.skip('lazy-agent audit script not available in this environment')
+        pytest.skip('lazy-agent audit script not available in this repository')
     spec = importlib.util.spec_from_file_location('lazy_agent_audit_test', SCRIPT_PATH)
     assert spec is not None
     assert spec.loader is not None

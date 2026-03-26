@@ -138,7 +138,9 @@ def resolve_plan_path(plan_value: str | None, *, repo_root: Path) -> Path:
 
     root_candidates = discover_root_plan_candidates(repo_root)
     if len(root_candidates) > 1:
-        rendered = '\n'.join(f'- {path.relative_to(repo_root)}' for path in root_candidates)
+        rendered = '\n'.join(
+            f'- {path.relative_to(repo_root)}' for path in root_candidates
+        )
         raise SystemExit(
             'Multiple repo-root implementation plans match autodetection.\n'
             f'{rendered}\n'
@@ -195,7 +197,9 @@ def extract_path_references(text: str) -> list[str]:
         if '/' in inline or '\\' in inline:
             matches.append(inline)
 
-    raw_path_pattern = re.compile(r'(?<![A-Za-z0-9_.-])(?:[A-Za-z]:\\|\.{0,2}[\\/])?[\w.\-\\/]+\.([A-Za-z0-9]{1,8})')
+    raw_path_pattern = re.compile(
+        r'(?<![A-Za-z0-9_.-])(?:[A-Za-z]:\\|\.{0,2}[\\/])?[\w.\-\\/]+\.([A-Za-z0-9]{1,8})'
+    )
     for match in raw_path_pattern.finditer(text):
         matches.append(match.group(0))
 
@@ -351,7 +355,9 @@ def classify_text_entry(
 
     if validation_results and all(result.passed for result in validation_results):
         return 'satisfied', reasons, evidence, validation_results
-    if resolved_paths and not any(reason.startswith('missing path:') for reason in reasons):
+    if resolved_paths and not any(
+        reason.startswith('missing path:') for reason in reasons
+    ):
         return 'satisfied', reasons, evidence, validation_results
     if reasons and not evidence:
         return 'missing', reasons, evidence, validation_results
@@ -364,7 +370,9 @@ def audit_plan(
     plan_path: Path, *, repo_root: Path, run_validations: bool
 ) -> list[AuditEntry]:
     entries: list[AuditEntry] = []
-    for line_number, text in enumerate(plan_path.read_text(encoding='utf-8').splitlines(), start=1):
+    for line_number, text in enumerate(
+        plan_path.read_text(encoding='utf-8').splitlines(), start=1
+    ):
         if not text.strip():
             continue
         status, reasons, evidence, validation_results = classify_text_entry(
@@ -392,7 +400,9 @@ def parse_plan_sections(plan_path: Path) -> list[PlanSection]:
     sections: list[PlanSection] = []
     current: PlanSection | None = None
 
-    for line_number, text in enumerate(plan_path.read_text(encoding='utf-8').splitlines(), start=1):
+    for line_number, text in enumerate(
+        plan_path.read_text(encoding='utf-8').splitlines(), start=1
+    ):
         section_match = section_pattern.match(text)
         if section_match:
             current = PlanSection(
@@ -419,7 +429,9 @@ def parse_plan_sections(plan_path: Path) -> list[PlanSection]:
     return sections
 
 
-def render_task_list(plan_path: Path, sections: list[PlanSection], *, repo_root: Path) -> str:
+def render_task_list(
+    plan_path: Path, sections: list[PlanSection], *, repo_root: Path
+) -> str:
     relevant_files = [plan_path.relative_to(repo_root).as_posix()]
     relevant_files.extend(
         path
@@ -429,7 +441,7 @@ def render_task_list(plan_path: Path, sections: list[PlanSection], *, repo_root:
     )
     relevant_files.extend(
         [
-            '.codex/skills/lazy-agent/scripts/audit_plan_completion.py',
+            'tools/audit_plan_completion.py',
             f'tasks/tasks-{slugify(plan_path.stem)}.md',
         ]
     )
@@ -445,7 +457,9 @@ def render_task_list(plan_path: Path, sections: list[PlanSection], *, repo_root:
 
     lines = ['## Relevant Files', '']
     for file_path in deduped_files:
-        lines.append(f'- `{file_path}` - Referenced by the implementation plan or audit workflow.')
+        lines.append(
+            f'- `{file_path}` - Referenced by the implementation plan or audit workflow.'
+        )
     lines.extend(
         [
             '',
@@ -472,7 +486,9 @@ def render_task_list(plan_path: Path, sections: list[PlanSection], *, repo_root:
 
     for index, section in enumerate(sections, start=1):
         lines.append(f'- [ ] {index}.0 {section.title}')
-        subtasks = section.bullets or ['Review the implementation scope and complete this section.']
+        subtasks = section.bullets or [
+            'Review the implementation scope and complete this section.'
+        ]
         for sub_index, bullet in enumerate(subtasks, start=1):
             lines.append(f'  - [ ] {index}.{sub_index} {bullet}')
     lines.append('')
@@ -498,7 +514,9 @@ def load_task_list(task_list_path: Path) -> list[ChecklistTask]:
     tasks: list[ChecklistTask] = []
     stack: list[ChecklistTask] = []
 
-    for line_number, line in enumerate(task_list_path.read_text(encoding='utf-8').splitlines(), start=1):
+    for line_number, line in enumerate(
+        task_list_path.read_text(encoding='utf-8').splitlines(), start=1
+    ):
         match = task_pattern.match(line)
         if not match:
             continue
@@ -608,7 +626,9 @@ def render_report(
         entry for entry in checked_tasks if entry.status in {'missing', 'manual-review'}
     ]
     unchecked_with_evidence = [
-        entry for entry in unchecked_tasks if entry.status in {'satisfied', 'weak-evidence'}
+        entry
+        for entry in unchecked_tasks
+        if entry.status in {'satisfied', 'weak-evidence'}
     ]
     resume_here = [
         entry
@@ -635,10 +655,7 @@ def render_report(
 
     if resume_here:
         for entry in resume_here:
-            lines.append(
-                f'- `{entry.task.number}` {entry.task.title} '
-                f'[{entry.status}]'
-            )
+            lines.append(f'- `{entry.task.number}` {entry.task.title} [{entry.status}]')
     else:
         lines.append('- (no unchecked tasks found)')
 
@@ -668,11 +685,11 @@ def render_report(
             '',
             '## Plan Line Summary',
             '',
-            f"- satisfied: {status_counts['satisfied']}",
-            f"- weak-evidence: {status_counts['weak-evidence']}",
-            f"- missing: {status_counts['missing']}",
-            f"- manual-review: {status_counts['manual-review']}",
-            f"- structural: {status_counts['structural']}",
+            f'- satisfied: {status_counts["satisfied"]}',
+            f'- weak-evidence: {status_counts["weak-evidence"]}',
+            f'- missing: {status_counts["missing"]}',
+            f'- manual-review: {status_counts["manual-review"]}',
+            f'- structural: {status_counts["structural"]}',
             '',
             '## High-Risk Lines',
             '',
@@ -680,9 +697,7 @@ def render_report(
     )
 
     high_risk = [
-        entry
-        for entry in line_entries
-        if entry.status in {'missing', 'manual-review'}
+        entry for entry in line_entries if entry.status in {'missing', 'manual-review'}
     ][:15]
     if high_risk:
         for entry in high_risk:
@@ -707,8 +722,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Audit actual implementation progress against a plan and task list.'
     )
-    parser.add_argument('--plan', help='Implementation plan path. Autodetects when omitted.')
-    parser.add_argument('--task-list', help='Task list path. Defaults to tasks/tasks-<plan-stem>.md.')
+    parser.add_argument(
+        '--plan', help='Implementation plan path. Autodetects when omitted.'
+    )
+    parser.add_argument(
+        '--task-list', help='Task list path. Defaults to tasks/tasks-<plan-stem>.md.'
+    )
     parser.add_argument('--repo-root', default=str(REPO_ROOT), help='Repository root.')
     parser.add_argument('--output', help='Markdown output path.')
     parser.add_argument(

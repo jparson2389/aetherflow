@@ -1,11 +1,12 @@
-# Python-generated files
+# Python caches and tool caches
 __pycache__/
-*.py[oc]
-wheels/
-*.egg-info
+*.py[cod]
 .pytest_cache/
+.ruff_cache/
+*.egg-info/
+wheels/
 
-# --- Environment / Secrets (CRITICAL) ---
+# Local environment and secrets
 .env
 .env.local
 .env.shared
@@ -14,7 +15,7 @@ secrets.json
 *.pem
 *.key
 
-# --- C++ Build Outputs (Windows/MSVC/CMake) ---
+# Native and build outputs
 *.pdb
 *.ilk
 *.lib
@@ -24,61 +25,48 @@ out/
 x64/
 Release/
 Debug/
+build/
+dist/
 
-# ruff stuff
-.ruff_cache/
-
-# Ignore all text files
-*.txt
-
-# --- gRPC Generated Files (Python & C++) ---
-# We keep .proto, but ignore the messy generated source
-*_pb2.py
-*_pb2_grpc.py
-*.pb.cc
-*.pb.h
-*.grpc.pb.cc
-*.grpc.pb.h
-logs/*.json
-logs/*.ndjson
-logs/env_report.json
-logs/*.log
-logs/*.md
-logs/*.txt
-
-# --- Personal / Machine-Specific Launchers ---
-state/plan_state.json
-logs/bundle_install_report.json
-logs/diagnostics_export.json
-security_report.html
-
-DEV-COMMANDS.md
-logs/verification/status_snapshot.json
-.claude/settings.json
-.claude/settings.local.json
-.codex/skills/security-best-practices/references
-.codex/config.toml
-.codex/skills/openai-docs
-
-# --- IDE / Editor Configurations ---
-.vscode/settings.json
-
-# --- Misc ---
+# Local editor and workspace folders
+.vscode/
+.claude/
+.agents/
 .tmp/
 .devcontainer/
 .worktrees/
 
-# --- Exceptions (Files we want to keep) ---
-!audit_plan_completion.py
-!.codex/skills/lazy-agent/scripts/audit_plan_completion.py
+# Machine-local state and reports
+state/plan_state.json
+security_report.html
+DEV-COMMANDS.md
+
+# Local generated logs and transient reports
+logs/*.log
+logs/*.ndjson
+
+# Local verification and runtime snapshots that should not churn in git
+logs/env_report.json
+logs/bundle_install_report.json
+logs/diagnostics_export.json
+logs/verification/status_snapshot.json
+
+# Keep meaningful checked-in log/report artifacts when intentionally added
 !logs/quality-gate.log
 !logs/verify-requirements-evidence.md
 !logs/native_harness_validation.log
 !logs/native_harness_build.log
-!admin_audit.ndjson
-!logs/bundle_install_report.json
-!logs/diagnostics_export.json
-!logs/env_report.json
 !logs/lazy-agent-report-rework-plan.log
-!logs/plan_exec_report
-.codex/environments/environment.toml
+
+# Codex local runtime junk only
+.codex/sessions/
+.codex/tmp/
+.codex/*.sqlite
+.codex/*.sqlite-shm
+.codex/*.sqlite-wal
+.codex/logs_*.sqlite
+.codex/logs_*.sqlite-shm
+.codex/logs_*.sqlite-wal
+.codex/state_*.sqlite
+.codex/state_*.sqlite-shm
+.codex/state_*.sqlite-wal
