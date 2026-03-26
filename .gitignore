@@ -30,10 +30,8 @@ dist/
 
 # Local editor and workspace folders
 .vscode/
-.claude/
 .agents/
 .tmp/
-.devcontainer/
 .worktrees/
 
 # Machine-local state and reports
