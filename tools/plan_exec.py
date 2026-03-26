@@ -116,11 +116,6 @@ except ModuleNotFoundError:  # pragma: no cover
     )
 
 try:
-    from tools.shell_utils import resolve_powershell_executable
-except ModuleNotFoundError:  # pragma: no cover
-    from shell_utils import resolve_powershell_executable  # type: ignore[no-redef]
-
-try:
     from tools.validation_gate import (
         ValidationReport,
         extract_target_files,
