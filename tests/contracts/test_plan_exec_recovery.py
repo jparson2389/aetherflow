@@ -44,7 +44,7 @@ def test_plan_reformat_produces_instruction_blocks_for_af_00_01() -> None:
     assert extract_target_files(af_00_01.instructions) == [
         'docs/PRD.md',
         'README.md',
-        '.agents/rules/project-specific.md',
+        'AGENTS.md',
         'tests/contracts/test_canonical_identity.py',
         'tests/contracts/test_prd_execution_readiness.py',
     ]
