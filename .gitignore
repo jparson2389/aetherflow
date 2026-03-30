@@ -28,6 +28,7 @@ Release/
 Debug/
 build/
 dist/
+node_modules/
 
 # Local editor and workspace folders
 .vscode/settings.json
