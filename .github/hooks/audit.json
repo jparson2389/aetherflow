@@ -1,0 +1,13 @@
+{
+    "hooks": {
+        "PreToolUse": [
+            {
+                "type": "command",
+                "command": "./scripts/log-tool-use.sh",
+                "env": {
+                    "AUDIT_LOG": ".github/hooks/audit.log"
+                }
+            }
+        ]
+    }
+}

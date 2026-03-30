@@ -1,0 +1,11 @@
+{
+    "hooks": {
+        "PostToolUse": [
+            {
+                "type": "command",
+                "command": "./scripts/run-related-tests.sh",
+                "timeout": 60
+            }
+        ]
+    }
+}

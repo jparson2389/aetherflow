@@ -1,0 +1,11 @@
+{
+    "hooks": {
+        "PostToolUse": [
+            {
+                "type": "command",
+                "command": "./scripts/format-changed-files.sh",
+                "timeout": 30
+            }
+        ]
+    }
+}

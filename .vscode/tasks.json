@@ -1,0 +1,45 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "UV: Sync (Dev + Automation)",
+            "type": "shell",
+            "command": "uv sync --group dev --group automation",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Ruff: Format (src)",
+            "type": "shell",
+            "command": "uv run ruff format src",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Ruff: Check",
+            "type": "shell",
+            "command": "uv run ruff check .",
+            "group": "test",
+            "problemMatcher": "$python"
+        },
+        {
+            "label": "Pytest: Run All Tests",
+            "type": "shell",
+            "command": "uv run pytest",
+            "group": "test",
+            "problemMatcher": {
+                "owner": "python",
+                "fileLocation": ["relative", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^(.+\\.py):(\\d+):(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "message": 3
+                }
+            }
+        }
+    ]
+}

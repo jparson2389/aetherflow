@@ -1,10 +1,21 @@
-.venv
-.ruff_cache
-__pycache__
-dist
-logs
-.agents
-.codex
-.cursor
-.claude
+# Node
+node_modules/
+
+# Python / build
+.venv/
+build/
+dist/
+
+# AI agent workspaces
+.claude/
+.codex/
+.agents/
+.cursor/
+.tmp/
+
+# Logs
+logs/
+
+# Specific generated/noisy docs
 docs/requirements-report.md
+docs/evidence/

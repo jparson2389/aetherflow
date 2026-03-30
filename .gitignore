@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 wheels/
+.venv/
 
 # Local environment and secrets
 .env
@@ -29,49 +30,38 @@ build/
 dist/
 
 # Local editor and workspace folders
-.vscode/
+.vscode/settings.json
+.vscode/*.log
 .tmp/
 .worktrees/
 
 # Machine-local state and reports
 state/plan_state.json
 security_report.html
-DEV-COMMANDS.md
 
 # Generated logs, reports, prompts
-logs/*.txt
-logs/*.log
-logs/*.ndjson
-logs/verification/*.json
-logs/plan_exec_*.md
-logs/prompt_*.txt
-logs/*claudeconvo*.txt
-logs/env_report.json
-logs/bundle_install_report.json
-logs/diagnostics_export.json
-logs/verification/*.json
-logs/verify-requirements-evidence.md
+logs/
+tasks/*.md
 
 # Docs that are regenerated frequently
 docs/requirements-report.md
 docs/verification_standard.md
-docs/verify-requirements-pipeline.md
 docs/evidence/*.md
-docs/requirements-report.md
 
 # Generated proto stubs
 src/aetherflow/proto/*_pb2.py
 src/aetherflow/proto/*_pb2_grpc.py
 
 # Keep intentional artifacts
-!logs/quality-gate.log
-!logs/native_harness_validation.log
-!logs/native_harness_build.log
-!logs/lazy-agent-report-rework-plan.log
 
-# Codex local runtime junk only
-.codex/sessions/
-.codex/tmp/
-.codex/*.sqlite*
-.codex/logs_*.sqlite*
-.codex/state_*.sqlite*
+# AI local runtime junk only
+.codex
+.claude
+.agents
+.codex/
+.agents/
+.claude/.agents/
+_recovery/
+plan/
+package-lock.json
+.cursor/
