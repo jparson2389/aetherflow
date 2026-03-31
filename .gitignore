@@ -33,6 +33,7 @@ node_modules/
 # Local editor and workspace folders
 .vscode/settings.json
 .vscode/*.log
+.github/hooks/*.log
 .tmp/
 .worktrees/
 
