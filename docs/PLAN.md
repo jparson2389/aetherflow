@@ -120,7 +120,7 @@ columns remain readable without breaking each row into prose.
 
 ## Phase 0 - Canonical Identity And Execution Contracts
 
-- [ ] `AF-00-01` Canonicalize repo identity and self-contained docs.
+- [x] `AF-00-01` Canonicalize repo identity and self-contained docs.
   > **PRD Refs:** `§1`, `§2`, `REQ-01`
   > **Role:** `core-runtime`
   > **Lifecycle:** `retired`
@@ -139,7 +139,7 @@ columns remain readable without breaking each row into prose.
   > - Contract tests validate doc content and canonical package root.
   > - No placeholder or alias references remain in docs.
   >   **ARP Trigger:** if any canonical path conflicts with active repo structure, stop and capture the conflict.
-- [ ] `AF-00-02a` Verify Windows toolchain and `uv` environment.
+- [x] `AF-00-02a` Verify Windows toolchain and `uv` environment.
   > **PRD Refs:** `§5.3`, `REQ-01`
   > **Role:** `core-runtime`
   > **Feature-Class:** `boundary`
@@ -150,6 +150,7 @@ columns remain readable without breaking each row into prose.
   >   **Required-Proof-Types:** `contract`
   >   **Evidence-Pack:** `docs/evidence/AF-00-02a.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `missing toolchain detected`
   >   **Preconditions:** `AF-00-01`
   >   **Target File:** `scripts/verify-env.ps1`
   >   **Target File:** `tests/contracts/test_env_readiness.py`
@@ -161,7 +162,7 @@ columns remain readable without breaking each row into prose.
   > - Contract test passes and report is present in `logs/`.
   > - No manual or mocked outputs used.
   >   **ARP Trigger:** if toolchain is missing, halt execution until resolved.
-- [ ] `AF-00-02b` Establish native boundary and build harness.
+- [x] `AF-00-02b` Establish native boundary and build harness.
   > **PRD Refs:** `§5.3`, `REQ-01`
   > **Role:** `core-runtime`
   > **Feature-Class:** `boundary`
@@ -173,6 +174,7 @@ columns remain readable without breaking each row into prose.
   >   **Required-Proof-Types:** `contract`
   >   **Evidence-Pack:** `docs/evidence/AF-00-02b.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `native boundary violation rejected`
   >   **Preconditions:** `AF-00-02a`
   >   **Target File:** `host/`
   >   **Target File:** `include/`
@@ -186,7 +188,7 @@ columns remain readable without breaking each row into prose.
   > - Contract test verifies build success without manual steps.
   > - Native boundary is enforced (no C++ in `src/`).
   >   **ARP Trigger:** if build fails, capture compiler output and stop.
-- [ ] `AF-00-03` Publish control-plane proto surface and shared-memory ring semantics.
+- [x] `AF-00-03` Publish control-plane proto surface and shared-memory ring semantics.
   > **PRD Refs:** `§6`, `§7`, `REQ-01`, `REQ-02`, `REQ-08`
   > **Role:** `runtime-services`
   > **Feature-Class:** `boundary`
@@ -198,6 +200,7 @@ columns remain readable without breaking each row into prose.
   >   **Required-Proof-Types:** `contract`
   >   **Evidence-Pack:** `docs/evidence/AF-00-03.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `missing control-plane message rejected`
   >   **Preconditions:** `AF-00-02b`
   >   **Target File:** `proto/capture.proto`
   >   **Target File:** `src/aetherflow/core/shared_memory_layout.py`
@@ -211,7 +214,7 @@ columns remain readable without breaking each row into prose.
   > - Contract tests verify ring metadata and control-plane messages.
   > - Docs cover timeout and retry posture per RPC.
   >   **ARP Trigger:** if control-plane or ring semantics remain ambiguous, do not freeze them.
-- [ ] `AF-00-04` Publish signing and runtime-state ABI, then freeze contracts.
+- [x] `AF-00-04` Publish signing and runtime-state ABI, then freeze contracts.
   > **PRD Refs:** `§5.3`, `§7`, `§8`, `REQ-02`, `REQ-03`
   > **Role:** `trust-security`
   > **Feature-Class:** `boundary`
@@ -223,6 +226,7 @@ columns remain readable without breaking each row into prose.
   >   **Required-Proof-Types:** `contract`
   >   **Evidence-Pack:** `docs/evidence/AF-00-04.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `missing runtime state rejected`
   >   **Preconditions:** `AF-00-03`
   >   **Target File:** `include/plugin_system.hpp`
   >   **Target File:** `docs/breaking-changes/abi.md`
@@ -238,7 +242,7 @@ columns remain readable without breaking each row into prose.
   > - Contract tests verify trust/state symbols and freeze logs.
   > - No frozen-contract change without explicit sign-off entry.
   >   **ARP Trigger:** if trust policy or runtime states are still in flux, stop instead of publishing the freeze.
-- [ ] `AF-00-05` Publish bounded sign-off packets and failure-UX state model.
+- [x] `AF-00-05` Publish bounded sign-off packets and failure-UX state model.
   > **PRD Refs:** `§7.4`, `§8.3`, `§10`, `§14`, `REQ-02`, `REQ-08`, `REQ-09`
   > **Role:** `platform-entitlements`
   > **Feature-Class:** `workflow`
@@ -250,6 +254,7 @@ columns remain readable without breaking each row into prose.
   >   **Required-Proof-Types:** `contract`
   >   **Evidence-Pack:** `docs/evidence/AF-00-05.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `missing fallback guidance rejected`
   >   **Preconditions:** `AF-00-04`
   >   **Target File:** `docs/sign-offs/auth-provider.md`
   >   **Target File:** `docs/sign-offs/bundle-format.md`
@@ -275,7 +280,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
 
 ## Phase 1 - Trust, Entitlements, And Shell Resilience
 
-- [ ] `AF-01-01` Implement trust verification and plugin/resource catalog policy.
+- [x] `AF-01-01` Implement trust verification and plugin/resource catalog policy.
   > **PRD Refs:** `§8.1`, `§9.1`, `§9.9`, `REQ-02`, `REQ-03`
   > **Role:** `trust-security`
   > **Feature-Class:** `service`
@@ -287,6 +292,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
   >   **Required-Proof-Types:** `integration`
   >   **Evidence-Pack:** `docs/evidence/AF-01-01.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `unsigned plugin blocked`
   >   **Preconditions:** `AF-00-04`
   >   **Target File:** `src/aetherflow/plugins/trust.py`
   >   **Target File:** `src/aetherflow/plugins/registry.py`
@@ -302,7 +308,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
   > - Tests cover unsigned, tampered, revoked, and untrusted chains.
   > - Catalog and registry enforce trust before activation.
   >   **ARP Trigger:** any reachable unsigned path blocks the phase.
-- [ ] `AF-01-02` Implement entitlement runtime states and shell-safe degradation model.
+- [x] `AF-01-02` Implement entitlement runtime states and shell-safe degradation model.
   > **PRD Refs:** `§8.2`, `§8.3`, `§10.1`, `REQ-02`, `REQ-07`
   > **Role:** `platform-entitlements`
   > **Feature-Class:** `ui`
@@ -316,6 +322,8 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1
   >   **Evidence-Pack:** `docs/evidence/AF-01-02.md`
   >   **App-Testable:** `true`
   >   **App-Surface:** `status-hud`
+  >   **Required-Failure-Modes:** `unauthorized navigation blocked`
+  >   **Developer-Alert-Message:** `Entitlement state degraded — check plugin trust and license status`
   >   **Preconditions:** `AF-01-01`
   >   **Target File:** `src/aetherflow/core/entitlements.py`
   >   **Target File:** `src/aetherflow/ui/shell.py`
@@ -344,7 +352,7 @@ uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py
 
 ## Phase 2 - Controller Core, Input Layer, And Output Virtualization
 
-- [ ] `AF-02-01` Deliver profiles, mapping, translation, diagnostics, and input plugins.
+- [x] `AF-02-01` Deliver profiles, mapping, translation, diagnostics, and input plugins.
   > **PRD Refs:** `§6.1`, `§9.2`, `§9.6`, `REQ-04`
   > **Role:** `native-io-capture`
   > **Feature-Class:** `service`
@@ -356,6 +364,7 @@ uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py
   >   **Required-Proof-Types:** `integration`
   >   **Evidence-Pack:** `docs/evidence/AF-02-01.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `invalid profile rejected`
   >   **Preconditions:** `AF-01-02`
   >   **Target File:** `src/aetherflow/core/profiles.py`
   >   **Target File:** `src/aetherflow/core/diagnostics.py`
@@ -373,7 +382,7 @@ uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py
   > - Mapping pipeline includes latency telemetry outputs.
   > - CRUD and import/export flows are covered by tests.
   >   **ARP Trigger:** if latency or translation cannot be measured consistently, capture sample traces and stop.
-- [ ] `AF-02-02` Add virtual output, masking, and plugin-failure-safe output UX.
+- [x] `AF-02-02` Add virtual output, masking, and plugin-failure-safe output UX.
   > **PRD Refs:** `§9.3`, `§10.1`, `REQ-05`
   > **Role:** `native-io-capture`
   > **Feature-Class:** `ui`
@@ -386,6 +395,8 @@ uv run pytest tests/unit/test_plugin_registry.py tests/unit/test_entitlements.py
   >   **Evidence-Pack:** `docs/evidence/AF-02-02.md`
   >   **App-Testable:** `true`
   >   **App-Surface:** `driver-status-panel`
+  >   **Required-Failure-Modes:** `driver masking failure surfaced`
+  >   **Developer-Alert-Message:** `Output driver failure detected — check virtual controller and masking state`
   >   **Preconditions:** `AF-02-01`
   >   **Target File:** `src/aetherflow/output/virtual_controller.py`
   >   **Target File:** `src/aetherflow/output/device_masking.py`
@@ -412,7 +423,7 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
 
 ## Phase 3 - Capture And Display Compliance
 
-- [ ] `AF-03-01` Implement OpenCV capture, mode matrix enforcement, and 60 FPS baseline validation.
+- [x] `AF-03-01` Implement OpenCV capture, mode matrix enforcement, and 60 FPS baseline validation.
   > **PRD Refs:** `§6.4`, `§9.4`, `REQ-06`
   > **Role:** `native-io-capture`
   > **Feature-Class:** `service`
@@ -424,6 +435,11 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
   >   **Required-Proof-Types:** `integration`
   >   **Evidence-Pack:** `docs/evidence/AF-03-01.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `unsupported capture mode rejected`
+  >   **Performance-Claim:** `true`
+  >   **Performance-Threshold:** `60 FPS sustained`
+  >   **Performance-Evidence-Type:** `sustained-drop-detection`
+  >   **Performance-Evidence-Location:** `tests/integration/test_capture_stability.py`
   >   **Preconditions:** `AF-02-01`, `AF-01-02`
   >   **Target File:** `src/aetherflow/vision/opencv_capture.py`
   >   **Target File:** `src/aetherflow/ui/panels/capture_panel.py`
@@ -439,7 +455,7 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
   > - FPS and drop-rate measurements are real, not static tables.
   > - Tests cover sustained drops and capability matrix enforcement.
   >   **ARP Trigger:** if capability/UI mismatch occurs, capture hardware and mode diagnostics.
-- [ ] `AF-03-02` Add premium capture backends, CPU/GPU render modes, and one validated 120 FPS path.
+- [x] `AF-03-02` Add premium capture backends, CPU/GPU render modes, and one validated 120 FPS path.
   > **PRD Refs:** `§9.4`, `§9.5`, `§11`, `REQ-06`, `REQ-07`
   > **Role:** `native-io-capture`
   > **Feature-Class:** `service`
@@ -451,6 +467,11 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
   >   **Required-Proof-Types:** `integration, e2e`
   >   **Evidence-Pack:** `docs/evidence/AF-03-02.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `premium backend blocked when locked`
+  >   **Performance-Claim:** `true`
+  >   **Performance-Threshold:** `120 FPS validated path`
+  >   **Performance-Evidence-Type:** `capability-enumeration`
+  >   **Performance-Evidence-Location:** `tests/integration/test_capture_120fps_path.py`
   >   **Preconditions:** `AF-03-01`
   >   **Target File:** `src/aetherflow/vision/mf_capture.py`
   >   **Target File:** `src/aetherflow/vision/ds_capture.py`
@@ -460,8 +481,9 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
   >   **Target File:** `tests/ui/test_render_modes.py`
   >   **Target File:** `tests/ui/test_capture_fallback_actions.py`
   >   **Target File:** `tests/integration/test_capture_120fps_path.py`
+  >   **Target File:** `tests/e2e/test_capture_premium_e2e.py`
   >   **Behavior:** keep premium backends unloadable when locked, expose render tradeoffs clearly, and ship at least one validated 120 FPS path without promoting 240 FPS as guaranteed.
-  >   **Validation:** `uv run pytest tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py tests/integration/test_capture_120fps_path.py`
+  >   **Validation:** `uv run pytest tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py tests/integration/test_capture_120fps_path.py tests/e2e/test_capture_premium_e2e.py`
   >   **Evidence:** one 120 FPS evidence path exists and premium gating holds.
   >   **Completion Gates:**
   > - Premium backends implement real capture behavior.
@@ -473,7 +495,7 @@ uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipelin
 
 ```text
 uv run ruff check .
-uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mode_matrix.py tests/integration/test_capture_stability.py tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py tests/integration/test_capture_120fps_path.py
+uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mode_matrix.py tests/integration/test_capture_stability.py tests/integration/test_capture_premium_gating.py tests/ui/test_render_modes.py tests/ui/test_capture_fallback_actions.py tests/integration/test_capture_120fps_path.py tests/e2e/test_capture_premium_e2e.py
 ```
 
 ---
@@ -489,16 +511,18 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   >
   > - AC1: Restart ceilings are enforced and logged.
   > - AC2: Escalation to FAILED occurs on ceiling breach.
-  >   **Required-Proof-Types:** `integration`
+  >   **Required-Proof-Types:** `unit, integration, stress, ui`
   >   **Evidence-Pack:** `docs/evidence/AF-04-01.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `restart ceiling breach escalates to FAILED`
   >   **Preconditions:** `AF-00-03`, `AF-03-01`
   >   **Target File:** `src/aetherflow/core/worker_supervisor.py`
   >   **Target File:** `src/aetherflow/ui/panels/worker_health_panel.py`
   >   **Target File:** `tests/integration/test_worker_supervisor.py`
   >   **Target File:** `tests/stress/test_worker_crash_loop.py`
+  >   **Target File:** `tests/ui/test_worker_health_panel.py`
   >   **Behavior:** enforce heartbeat budgets, restart ceilings, escalation to `FAILED`, and host-safe worker degradation.
-  >   **Validation:** `uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py`
+  >   **Validation:** `uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py tests/ui/test_worker_health_panel.py`
   >   **Evidence:** host survivability is a hard phase gate.
   >   **Completion Gates:**
   > - Worker supervision is integrated with real worker processes.
@@ -518,14 +542,17 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   >   **Evidence-Pack:** `docs/evidence/AF-04-02.md`
   >   **App-Testable:** `true`
   >   **App-Surface:** `environment-panel`
+  >   **Required-Failure-Modes:** `invalid bundle rejected`
+  >   **Developer-Alert-Message:** `Environment validation failed — check bundle integrity and env configuration`
   >   **Preconditions:** `AF-00-05`, `AF-04-01`
   >   **Target File:** `src/aetherflow/core/env_manager.py`
   >   **Target File:** `src/aetherflow/core/bundle_installer.py`
   >   **Target File:** `src/aetherflow/ui/panels/environment_panel.py`
   >   **Target File:** `tests/unit/test_env_manager.py`
   >   **Target File:** `tests/test_bundle_installer.py`
+  >   **Target File:** `tests/ui/test_environment_panel.py`
   >   **Behavior:** implement env create/repair/recreate/delete, required-import validation, optional GPU probe result shape, and bundle install fallback semantics from the sign-off packet.
-  >   **Validation:** `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py`
+  >   **Validation:** `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py`
   >   **Evidence:** environment validation is consistent and bundle naming ambiguity does not block function.
   >   **Completion Gates:**
   > - Env create/repair/recreate operates on real environments.
@@ -537,7 +564,7 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
 
 ```text
 uv run ruff check .
-uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py tests/unit/test_env_manager.py tests/test_bundle_installer.py
+uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py
 ```
 
 ---
@@ -556,6 +583,7 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
   >   **Required-Proof-Types:** `integration`
   >   **Evidence-Pack:** `docs/evidence/AF-05-01.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `unsigned manifest rejected`
   >   **Preconditions:** `AF-00-05`, `AF-01-02`, `AF-04-02`
   >   **Target File:** `src/aetherflow/core/resources_manifest.py`
   >   **Target File:** `src/aetherflow/core/resources_client.py`
@@ -584,6 +612,7 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
   >   **Required-Proof-Types:** `integration, e2e`
   >   **Evidence-Pack:** `docs/evidence/AF-05-02.md`
   >   **App-Testable:** `false`
+  >   **Required-Failure-Modes:** `missing evidence artifact blocks release`
   >   **Preconditions:** `AF-05-01`
   >   **Target File:** `src/aetherflow/ui/panels/admin_panel.py`
   >   **Target File:** `src/aetherflow/core/audit_log.py`
