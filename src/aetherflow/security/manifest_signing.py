@@ -95,7 +95,9 @@ def verify_manifest_signature(
     keys = {
         entry['key_id']: entry
         for entry in raw_keys
-        if isinstance(entry, dict) and isinstance(entry.get('key_id'), str) and entry['key_id']
+        if isinstance(entry, dict)
+        and isinstance(entry.get('key_id'), str)
+        and entry['key_id']
     }
     key_entry = keys.get(signing_key_id)
     if key_entry is None:

@@ -37,6 +37,29 @@ class CatalogEntry:
     lock_reason: str | None = None
 
 
+def purchase_cta_for_trust_reason(reason: str | None) -> str:
+    """Return catalog guidance for a trust failure.
+
+    Args:
+        reason: Trust failure reason code.
+
+    Returns:
+        User-facing remediation copy.
+
+    """
+    if reason == 'untrusted-publisher':
+        return 'Publisher certificate is not trusted'
+    if reason in {'tampered', 'hash-mismatch'}:
+        return 'Plugin signature mismatch detected'
+    if reason == 'revoked':
+        return 'Publisher certificate revoked'
+    if reason == 'expired':
+        return 'Plugin signature expired'
+    if reason in {'unsigned', 'missing-artifact-path', 'invalid-artifact-path'}:
+        return 'Signed publisher certificate required'
+    return 'Plugin trust verification failed'
+
+
 def build_catalog_entry(
     manifest: PluginManifest,
     *,
