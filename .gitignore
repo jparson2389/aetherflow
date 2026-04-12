@@ -29,7 +29,7 @@ build/
 dist/
 
 # Local editor and workspace folders
-.vscode/
+.vscode/settings.json
 .tmp/
 .worktrees/
 
