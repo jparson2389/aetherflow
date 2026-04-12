@@ -35,7 +35,9 @@ def compile_proto_assets(repo_root: Path) -> None:
     proto_dir = repo_root / 'proto'
     proto_files = sorted(proto_dir.glob('*.proto'))
     if not proto_files:
-        logger.info('No .proto files found under {}. Skipping gRPC compilation.', proto_dir)
+        logger.info(
+            'No .proto files found under {}. Skipping gRPC compilation.', proto_dir
+        )
         return
 
     out_dir = repo_root / 'src' / 'aetherflow' / 'proto'
