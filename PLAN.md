@@ -1,296 +1,282 @@
-# Evidence-Based Verification Rewrite With Developer App-Check Alerts
+# Verification Authority Gap-Closure Plan
 
 ## Summary
 
-Replace the current completion model, which is mostly driven by file presence, placeholder/thin heuristics, and weak per-file test checks, with an evidence-based verification system. A plan item must no longer become `verified` because a script sees non-placeholder files and a validation command returns `0`; it must become `verified` only when its claimed behavior is backed by executable proof, mapped into an item-specific evidence pack, and approved by a human reviewer.
+The repository already contains a substantial evidence-based verification
+system:
 
-Regrade all currently `verified` items under the new standard, and retire obsolete bootstrap items that no longer protect anything meaningful, such as one-time canonicalization work that cannot realistically regress.
+- `docs/verification_standard.md`
+- `docs/PLAN.md`
+- `docs/evidence/<item-id>.md`
+- `logs/verification/<item-id>.json`
+- `tools/verify_requirements.py`
+- `tools/proof_verifier.py`
+- `tools/generate_verification_report.py`
+- `src/aetherflow/core/verification_report.py`
+- `src/aetherflow/core/developer_app_checks.py`
 
-Add a developer feedback loop on top of that system: whenever a newly verified plan item declares that it is app-testable from the GUI or startup flow, the app should generate an in-app startup notice and a persistent log entry telling the developer that a new feature was added and should be checked in the running application.
+The remaining problem is trust, not absence. The repo has multiple overlapping
+tools that can produce reports, indexes, and status files, but those outputs are
+not safe to treat as proof that a feature is truly functional or performant.
 
-## Implementation Changes
+This root plan is therefore no longer a rewrite-from-scratch plan. It is the
+current-state gap-closure plan for making verification trustworthy, reducing
+tooling ambiguity, and turning the remaining report gaps into explicit closure
+work.
 
-### 1. Define the new verification policy
+## Current Implemented State
 
-Add [docs/verification_standard.md](c:\Users\Dada\Projects\aetherflow\docs\verification_standard.md) as the canonical policy for completion and verification.
+### Implemented Verification Assets
 
-The document should define:
+- `docs/verification_standard.md` defines high-level verification rules.
+- `docs/PLAN.md` is the canonical implementation plan referenced by repo docs.
+- `docs/evidence/` contains per-item evidence packs.
+- `logs/verification/` contains per-item verification JSON, pending app-check
+  state, and the status snapshot.
+- `tools/verify_requirements.py` is the repo-owned command that writes the
+  evidence index and invokes the regrade path.
+- `tools/proof_verifier.py` performs the repo-wide regrade.
+- `src/aetherflow/core/verification_report.py` parses plan metadata, parses
+  evidence packs, evaluates plan items, and writes report payloads.
+- `tools/generate_verification_report.py` currently regenerates reports through
+  the same core evaluator path.
+- `src/aetherflow/core/developer_app_checks.py` manages pending developer
+  app-check alerts and startup snapshots.
 
-- purpose and scope of the verification system
-- what counts as implementation
-- what counts as verification
-- what does not count as proof:
-  - file existence
-  - line count
-  - non-placeholder heuristics
-  - import success
-  - broad smoke tests
-  - assertion-count thresholds
-  - “no exceptions thrown”
-  - LLM saying code “looks implemented”
-- proof strength hierarchy:
-  - focused integration and contract proofs
-  - deterministic scenario/e2e proofs
-  - unit proofs
-  - static checks
-  - structural heuristics
-- feature-class verification rules:
-  - pure logic utilities
-  - service/plugin wiring
-  - UI behavior
-  - external boundaries such as native/proto/security
-  - end-user workflows
-- required proof properties:
-  - one or more explicit acceptance criteria
-  - one or more executable proofs per criterion
-  - at least one behavioral proof
-  - at least one failure or edge proof where relevant
-  - intended entry point exercised
-  - proof would fail if the implementation were stubbed or disconnected
-- human sign-off requirement for `verified`
-- developer app-check alert rule for app-testable features
+### Current Weaknesses
 
-### 2. Replace the status model and redefine what “verified” means
+- Multiple tools can emit verification outputs, which makes authority unclear.
+- Heuristic or documentation-based artifacts can still look stronger than they
+  are.
+- Evidence packs can name tests without proving that acceptance criteria are
+  exercised through the real entry point.
+- Verification JSON can faithfully mirror a weak evidence pack and still not
+  prove real functionality.
+- Performance-sensitive claims are not safe to infer from the presence of tests
+  or generated reports.
+- Some verifier expectations still live as code defaults rather than explicit
+  plan metadata.
 
-Adopt these states repo-wide:
+## Verification Authority Model
 
-- `drafted`: planned but not implemented
-- `coded`: implementation exists but has no acceptable proof yet
-- `evidenced`: acceptance criteria and proof mapping exist, but review is not complete
-- `verified`: required proofs passed and the evidence pack was approved by a human reviewer
-- `complete`: optional post-verification terminal state if you still want a merged/accepted distinction
-- `retired`: obsolete item intentionally removed from readiness accounting
+### Canonical Sources Of Truth
 
-Rules:
+- Canonical implementation plan: `docs/PLAN.md`
+- Canonical repo regrade command:
+  `uv run python -m tools.verify_requirements`
+- Canonical evaluator:
+  `src/aetherflow/core/verification_report.py`
+- Canonical repo regrade driver: `tools/proof_verifier.py`
+- Canonical report outputs:
+  - `docs/requirements-report.md`
+  - `logs/verification/<item-id>.json`
 
-- a plan item may not move directly from “files changed” to `verified`
-- `verified` requires a human-approved evidence pack
-- `retired` items are excluded from shipping counts and “remaining work” views
-- placeholder/thin checks may block promotion but may never establish promotion
+### Non-Authoritative Tools
 
-### 3. Redesign plan-item metadata in `docs/PLAN.md`
+- `tools/generate_verification_report.py` is a compatibility wrapper around the
+  same evaluation model and must not be treated as a second authority.
+- `tools/audit_plan_completion.py` is advisory only. It may help inspect plan
+  structure or task drift, but it must never promote, verify, or prove
+  functionality.
+- `logs/verify-requirements-evidence.md` is a structural evidence index. It is
+  useful for gap discovery and heuristic inspection, but it is not proof of
+  completion.
 
-Update [docs/PLAN.md](c:\Users\Dada\Projects\aetherflow\docs\PLAN.md) so every non-retired `AF-*` item includes explicit verification metadata, not just target files and one validation command.
+## Proof Standard
 
-For each active item, add:
+### What Verified Means
 
-- title and current state
-- acceptance criteria:
-  - 1-3 concrete behavioral outcomes
-- feature class:
-  - `logic`
-  - `service`
-  - `ui`
-  - `boundary`
-  - `workflow`
-- entry point:
-  - the actual API, command, main-window path, panel action, plugin registration path, or startup flow used to exercise the feature
-- required proof types:
-  - unit, integration, contract, scenario/e2e, artifact
-- required failure modes:
-  - at least one meaningful bad-path or edge condition unless the item is truly trivial
-- evidence pack path
-- reviewer sign-off requirement
-- validation commands
-- app-testability metadata when relevant:
-  - `app_testable: true|false`
-  - `app_surface`: main window, panel, plugin list, button flow, startup flow, theme/design change, etc.
-  - `developer_alert_message`: short developer-facing message for the startup notice
+A work item may be considered `verified` only when all of the following are
+true:
 
-Retire obsolete items rather than preserving them as fake “verified” work.
+- the item has explicit acceptance criteria
+- each acceptance criterion has executable proof mapped to it
+- the intended entry point is exercised
+- relevant failure or edge paths are exercised
+- declared validations pass
+- the evidence pack is approved by a reviewer
+- no unresolved proof gaps remain
 
-### 4. Introduce evidence packs and machine-readable verification outputs
+### What Does Not Count As Proof
 
-Use a hybrid evidence model:
+The following are supporting signals only and must never stand in for real
+verification:
 
-- `docs/PLAN.md` stores acceptance criteria and required proof expectations
-- `docs/evidence/<item-id>.md` stores the human-readable evidence pack
-- `logs/verification/<item-id>.json` stores the machine-readable verification result
+- file existence
+- non-placeholder or non-thin heuristics
+- report generation
+- JSON generation
+- evidence-pack presence
+- import success
+- broad smoke tests
+- grep hits or path hits
+- “no exception thrown”
+- reviewer confidence without executable proof
 
-Each evidence pack must include:
+### Performance-Sensitive Claims
+
+For items that make claims about latency, FPS, throughput, responsiveness, or
+runtime ceilings, `verified` must not imply “performant” without explicit
+performance artifacts tied to thresholds.
+
+## Metadata And Artifact Contracts
+
+### Required Plan Metadata For Active AF Items
+
+Each active `AF-*` item in `docs/PLAN.md` must explicitly define:
+
+- `Lifecycle`
+- `Feature-Class`
+- `Entry-Point`
+- `Acceptance Criteria`
+- `Required-Proof-Types`
+- `Required-Failure-Modes`
+- `Evidence-Pack`
+- `Validation`
+- `App-Testable`
+- `App-Surface` when applicable
+- `Developer-Alert-Message` when applicable
+- `Performance-Claim` when the item asserts measurable runtime behavior
+
+### Evidence-Pack Requirements
+
+Each `docs/evidence/<item-id>.md` pack must include:
 
 - item ID and title
-- current state
 - acceptance criteria
-- exact tests, commands, and artifacts tied to each criterion
-- success-path proof
-- failure or edge-path proof
-- entry point exercised
-- touched implementation files
-- unresolved gaps if the item is only `coded` or `evidenced`
-- reviewer name/identity, decision, and timestamp
-- app-testability declaration when relevant
+- proof matrix with criterion, proof type, concrete evidence artifact, entry
+  point, and failure coverage
+- unresolved gaps
+- reviewer decision and identity
+- app-check metadata when applicable
+- performance artifact references and thresholds when performance is claimed
 
-Each machine-readable verification result should include:
+### Verification JSON Requirements
 
-- item ID
-- computed state
-- proof summary by criterion
-- required proof types
-- validation command results
-- missing proof categories
-- sign-off presence/absence
-- app-testable flag
-- pending developer-alert status
+Each `logs/verification/<item-id>.json` payload must record:
 
-### 5. Rewrite the verification workflow and promotion logic
+- computed status
+- reviewer state
+- gap list
+- evidence-pack path
+- validation commands
+- app-check state
+- acceptance-criteria coverage status
+- failure-coverage status
+- performance-proof status when relevant
 
-Replace the current proof model in [.cursor/workflows/verify-requirements.ps1](c:\Users\Dada\Projects\aetherflow\.cursor\workflows\verify-requirements.ps1) and the current thin completion behavior around [tools/validation_gate.py](c:\Users\Dada\Projects\aetherflow\tools\validation_gate.py) with a proof-first verifier.
+## Remaining Closure Work
 
-The new verifier should:
+### 1. Clarify Tool Authority
 
-- parse plan-item verification metadata from `docs/PLAN.md`
-- require acceptance criteria and an evidence-pack path
-- reject items with vague or missing criteria
-- confirm that declared tests and commands exist
-- execute item-specific validations
-- enforce feature-class proof requirements
-- require at least one behavioral proof
-- require at least one failure or edge proof where the item’s risk/surface warrants it
-- confirm the intended entry point is actually exercised
-- require human sign-off before promoting to `verified`
-- generate `logs/verification/<item-id>.json`
-- rebuild `docs/requirements-report.md` from evidence states rather than placeholder/thin heuristics
+- document one authoritative verification path
+- explicitly downgrade wrappers and heuristic auditors to non-authoritative
+  roles
+- remove stale references to no-longer-canonical workflow paths
 
-Keep structural checks as secondary hygiene only:
+### 2. Tighten Proof Semantics
 
-- missing target files can fail an item
-- placeholder/thin files can fail an item
-- weak tests can fail an item
-- none of those may independently promote an item to `verified`
+- prevent report generation and evidence-file presence from reading as proof
+- require AC-to-proof mapping through the actual entry point
+- require failure coverage where relevant
+- require explicit performance artifacts for performance claims
 
-### 6. Regrade the repo under the new standard
+### 3. Remove Hidden Defaults
 
-Perform a full regrade of all currently `verified` plan items.
+- identify verifier assumptions that still live in code defaults
+- move active-item expectations into `docs/PLAN.md`
+- document backward-compat behavior for legacy items during migration
 
-For each current item:
+### 4. Convert The Current Report Into A Closure Matrix
 
-- if it has meaningful acceptance criteria, executable proof, and reviewer-approved evidence, keep or restore `verified`
-- if implementation exists but proof is weak or unmapped, downgrade to `coded` or `evidenced`
-- if the item is obsolete plan debt, mark it `retired`
+Use `docs/requirements-report.md` as the current baseline and classify each
+active non-verified item into one or more concrete closure gaps:
 
-Update [docs/requirements-report.md](c:\Users\Dada\Projects\aetherflow\docs\requirements-report.md) so it reports the new states:
+- metadata gap
+- acceptance-criteria coverage gap
+- failure-coverage gap
+- validation gap
+- review/sign-off gap
+- performance-proof gap
 
-- `retired`
-- `drafted`
-- `coded`
-- `evidenced`
-- `verified`
-- `complete` if retained
+### 5. Resolve App-Check Semantics
 
-Per-item reporting should also include:
+- app-check alerts are prompts for human inspection only
+- app-check alerts must never count as proof
+- acknowledgement behavior must be explicitly defined and documented
+- startup notices and persistence must align with tests
 
-- missing proof types
-- missing failure coverage
-- missing sign-off
-- missing or stale evidence pack
-- stale validation output
-- whether the item is app-testable
-- whether a developer alert is pending, acknowledged, or not applicable
+## Current Closure Matrix Baseline
 
-### 7. Add developer startup alerts for newly verified app-testable features
+Based on the current `docs/requirements-report.md` output, the active baseline
+is:
 
-Use the existing shell notice mechanism in [src/aetherflow/ui/shell.py](c:\Users\Dada\Projects\aetherflow\src\aetherflow\ui\shell.py) as the in-app delivery point.
+### Reviewer Sign-Off Gaps
 
-Behavior:
+- `AF-02-01`
+- `AF-03-01`
+- `AF-03-02`
+- `AF-04-01`
+- `AF-05-01`
+- `AF-05-02`
 
-- when an item transitions to `verified` and its metadata says `app_testable: true`, create a pending developer app-check alert
-- store pending alerts in a persistent machine-readable file such as `logs/verification/pending_app_checks.json`
-- on app startup, load pending alerts and inject them into the shell notice list
-- each notice should include:
-  - item ID
-  - short message such as “New feature added, check for functionality”
-  - affected app surface
-  - optional evidence-pack reference
-- also record the alert in a persistent developer-facing log or diagnostics artifact
-- allow acknowledgement from inside the app so the alert stops reappearing once reviewed
+These items currently read as `evidenced` because reviewer approval is still
+pending.
 
-Trigger rule:
+### Acceptance-Criteria Coverage Gaps
 
-- trigger only when the evidence pack explicitly declares the feature app-testable
-- do not trigger merely because UI/plugin files changed
-- examples that should qualify:
-  - new input plugin visible in the app
-  - new output plugin route or panel
-  - new main-window flow or button
-  - theme/design changes the developer can inspect by launching the app
-  - new startup or plugin-registration behavior visible from the shell
+- `AF-00-02b`
+- `AF-00-03`
+- `AF-00-04`
+- `AF-00-05`
+- `AF-01-01`
+- `AF-01-02`
+- `AF-02-02`
+- `AF-04-02`
 
-Default migration behavior:
+These items currently read as `evidenced` because the proof matrix does not yet
+fully cover the declared acceptance criteria.
 
-- do not backfill alerts for all previously implemented items during regrade
-- only create alerts for features whose verification transition happens after the new system is in place, unless a backlog seeding step is explicitly added later
+### Already Resolved Statuses
 
-## Important Interfaces And Artifacts
+- `AF-00-01` is `retired`
+- `AF-00-02a` is `verified`
 
-New or changed public repo interfaces:
+This matrix must be treated as a starting point only. Before promoting any
+item, the closure work must also confirm that:
 
-- [docs/verification_standard.md](c:\Users\Dada\Projects\aetherflow\docs\verification_standard.md)
-- expanded plan-item verification metadata in [docs/PLAN.md](c:\Users\Dada\Projects\aetherflow\docs\PLAN.md)
-- human-readable evidence packs under `docs/evidence/<item-id>.md`
-- machine-readable verifier outputs under `logs/verification/<item-id>.json`
-- pending developer-alert queue under `logs/verification/pending_app_checks.json`
-- updated state/report semantics in [docs/requirements-report.md](c:\Users\Dada\Projects\aetherflow\docs\requirements-report.md)
-
-The verifier should treat these artifacts as canonical inputs/outputs rather than inferring completion from file structure alone.
+- the evidence is tied to the true entry point
+- the negative path is exercised where relevant
+- performance claims are backed by explicit artifacts when made
 
 ## Test Plan
 
-Add verification-system tests for:
+Add or update verification coverage for the following:
 
-- item without acceptance criteria is rejected
-- item without evidence pack is rejected
-- item with only structural checks and no behavioral proof is rejected
-- item missing required failure or edge proof is rejected when relevant
-- item missing reviewer sign-off cannot become `verified`
-- retired items are excluded from readiness counts
-- requirements report is generated from evidence states rather than placeholder heuristics
-- a previously “verified” item is downgraded during regrade when evidence is insufficient
-- feature-class rules are enforced:
-  - logic item
-  - service/plugin item
-  - UI item
-  - boundary item
-  - workflow item
-
-Add developer-alert tests for:
-
-- newly verified `app_testable=true` item creates a pending alert
-- non-app-testable item does not create an alert
-- startup loads pending alerts into shell notices
-- alert message includes item ID and app surface
-- alert is recorded in persistent log output
-- acknowledgement clears the pending alert
-- duplicate startups do not duplicate pending alerts
-- regraded legacy items do not automatically spam alerts unless explicitly configured
-
-Add one end-to-end fixture proving the full chain:
-
-- plan item metadata
-- evidence pack
-- validation execution
-- human sign-off
-- verified promotion
-- pending alert creation
-- app startup notice
-- acknowledgement
-- alert persistence/logging
+- non-authoritative tools cannot claim or promote `verified`
+- active plan metadata contains explicit required-failure and performance fields
+- stale evidence degrades status
+- missing failure coverage blocks `verified` when relevant
+- missing performance artifacts block performance-sensitive verification claims
+- evidence packs must prove AC coverage, not just name a test file
+- app-check alerts do not contribute to verification status
 
 ## Assumptions And Defaults
 
-- human sign-off approves the evidence pack, not just the diff
-- evidence storage is hybrid:
-  - policy in `docs/verification_standard.md`
-  - requirements in `docs/PLAN.md`
-  - evidence packs in `docs/evidence/`
-  - machine outputs in `logs/verification/`
-- placeholder/thin checks remain as secondary hygiene gates only
-- obsolete bootstrap items are marked `retired`
-- developer alerts are delivered in-app plus persistent log by default
-- no external notification channel is added in this rewrite
-- the first implementation slice after planning should be:
-  1. policy document and state model
-  2. plan metadata and evidence-pack schema
-  3. verifier rewrite
-  4. repo-wide regrade
-  5. developer startup-alert flow
+- `docs/PLAN.md` remains the canonical implementation plan
+- root `PLAN.md` is the current-state gap-closure and hardening plan
+- `tools/verify_requirements.py` remains the canonical repo regrade command
+- `tools/generate_verification_report.py` may stay as a wrapper if clearly
+  documented as non-authoritative
+- `tools/audit_plan_completion.py` remains advisory only
+- performance claims require explicit artifacts and thresholds
+- “functional and performant” is never inferred from a sweep of files or a
+  generated report
+
+## Recommended Execution Order
+
+1. document verification authority and non-authoritative tools
+2. strengthen proof and performance semantics
+3. eliminate hidden metadata defaults
+4. derive the closure matrix from the current report
+5. resolve app-check semantics and test alignment
