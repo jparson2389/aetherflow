@@ -194,6 +194,20 @@ def foo(x: int) -> bool:
 
 - **Pyright:** typeCheckingMode=basic, include=`src`, `tools`, exclude=`**/node_modules`, `**/__pycache__`, `.venv`, `src/aetherflow/proto`
 
+### Markdown tables
+
+This repo uses a **Markdown table prettifier** (e.g. the VS Code Markdown Table extension) to align table columns. Prettier must not reformat those tables — it collapses the padding and breaks the alignment.
+
+**Always wrap tables with prettier-ignore comments:**
+
+```markdown
+<!-- prettier-ignore-start -->
+| Column A | Column B |
+|----------|----------|
+| value    | value    |
+<!-- prettier-ignore-end -->
+```
+
 ### Generated Artifacts
 
 - Never lint, format, or edit `*_pb2.py` / `*_pb2_grpc.py` (generated files).
