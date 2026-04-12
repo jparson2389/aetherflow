@@ -1,4 +1,4 @@
-"""Shared memory layout contract for worker frame exchange."""
+"""Frozen shared-memory layout contract for worker frame exchange."""
 
 from __future__ import annotations
 
@@ -72,15 +72,18 @@ RING_LAYOUT_VERSION = 1
 RING_MAGIC = b'AETHFRM1'
 
 
-PixelFormat = Literal['BGR24', 'BGRA32', 'RGBA32', 'NV12', 'GRAY8']
+PixelFormat = Literal['BGR24', 'NV12', 'YUY2', 'MJPEG', 'RGB32']
 
 
-_BYTES_PER_PIXEL: dict[PixelFormat, int] = {
+_SLOT_SIZE_BYTES_PER_PIXEL_EQUIVALENT: dict[PixelFormat, int] = {
     'BGR24': 3,
-    'BGRA32': 4,
-    'RGBA32': 4,
     'NV12': 2,
-    'GRAY8': 1,
+    'YUY2': 2,
+    # MJPEG is variable-width on the wire. The frozen v1 ring reserves the
+    # equivalent of a raw 24-bit frame so producers have a deterministic slot
+    # budget even when the payload is compressed.
+    'MJPEG': 3,
+    'RGB32': 4,
 }
 
 
@@ -203,7 +206,7 @@ def expected_slot_size_bytes(
     if width <= 0 or height <= 0:
         raise ValueError('Dimensions must be positive.')
 
-    bytes_per_pixel = _BYTES_PER_PIXEL[pixel_format]
+    bytes_per_pixel = _SLOT_SIZE_BYTES_PER_PIXEL_EQUIVALENT[pixel_format]
     raw_size = width * height * bytes_per_pixel
     remainder = raw_size % SLOT_ALIGNMENT_BYTES
     if remainder == 0:
