@@ -6,6 +6,7 @@ import json
 from dataclasses import dataclass, field
 
 from aetherflow.core.diagnostics import PipelineDiagnostics
+from aetherflow.ui.panels.render_mode_panel import RenderModePanelModel
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,3 +45,20 @@ class CaptureDiagnosticsPanelModel:
             diagnostics_blob=json.dumps(metrics, indent=2),
             metrics=metrics,
         )
+
+    def apply_recommendation(
+        self, render_panel: RenderModePanelModel
+    ) -> RenderModePanelModel:
+        """Apply the recommended render mode to the given render panel.
+
+        Args:
+            render_panel: The current render mode panel model.
+
+        Returns:
+            A new render panel model with the recommended mode applied.
+
+        Raises:
+            ValueError: If the recommendation is not a valid render mode.
+
+        """
+        return render_panel.select(self.recommendation)

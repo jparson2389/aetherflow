@@ -17,13 +17,14 @@ class RenderMode:
 
 @dataclass(frozen=True, slots=True)
 class RenderModePanelModel:
-    """Render mode panel state."""
+    """Render mode panel state with active mode selection."""
 
     modes: list[RenderMode]
+    active_mode_id: str = 'render.cpu'
 
     @classmethod
     def default(cls) -> RenderModePanelModel:
-        """Return the default render mode set."""
+        """Return the default render mode set with CPU as active."""
         return cls(
             modes=[
                 RenderMode(
@@ -38,5 +39,30 @@ class RenderModePanelModel:
                     cpu_load='lower',
                     requires_restart=True,
                 ),
-            ]
+            ],
+            active_mode_id='render.cpu',
+        )
+
+    def select(self, mode_id: str) -> RenderModePanelModel:
+        """Return a new panel model with the given mode as active.
+
+        Args:
+            mode_id: The mode ID to activate.
+
+        Returns:
+            A new panel model with the updated active mode.
+
+        Raises:
+            ValueError: If the mode_id is not in the available modes.
+
+        """
+        valid_ids = {m.mode_id for m in self.modes}
+        if mode_id not in valid_ids:
+            raise ValueError(
+                f'Unknown render mode {mode_id!r}. '
+                f'Valid modes: {", ".join(sorted(valid_ids))}'
+            )
+        return RenderModePanelModel(
+            modes=self.modes,
+            active_mode_id=mode_id,
         )

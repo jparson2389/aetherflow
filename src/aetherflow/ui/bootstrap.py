@@ -46,6 +46,7 @@ def _build_default_router() -> RouterModel:
         RouteDefinition(name='home', title='Home', panel_id='panel.home'),
         RouteDefinition(name='catalog', title='Catalog', panel_id='panel.catalog'),
         RouteDefinition(name='capture', title='Capture', panel_id='panel.capture'),
+        RouteDefinition(name='output', title='Output', panel_id='panel.output'),
         RouteDefinition(name='workers', title='Workers', panel_id='panel.workers'),
         RouteDefinition(
             name='environment',

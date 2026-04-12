@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from aetherflow.core.developer_app_checks import PendingAppCheck
-from aetherflow.core.entitlements import RoleName
+from aetherflow.core.entitlements import EntitlementState, RoleName
 from aetherflow.core.runtime_state import RuntimeState
 from aetherflow.ui.router import RouterModel
 from aetherflow.ui.status_hud import StatusHUDModel
@@ -40,17 +40,64 @@ class ShellModel:
     status_hud: StatusHUDModel | None = None
     plugin_catalog: PluginCatalogPanelModel | None = None
 
+    def _sync_status_hud(
+        self,
+        *,
+        runtime_state: RuntimeState | None = None,
+        entitlement_state: EntitlementState | None = None,
+        show_expiry_modal: bool | None = None,
+    ) -> None:
+        """Update the attached HUD model if one is present."""
+        if self.status_hud is None:
+            return
+        self.status_hud = replace(
+            self.status_hud,
+            runtime_state=runtime_state or self.status_hud.runtime_state,
+            entitlement_state=entitlement_state or self.status_hud.entitlement_state,
+            show_expiry_modal=(
+                self.status_hud.show_expiry_modal
+                if show_expiry_modal is None
+                else show_expiry_modal
+            ),
+        )
+
     def mark_degraded(self, plugin_id: str) -> None:
         """Record a degraded plugin without terminating the shell."""
         if plugin_id not in self.degraded_plugins:
             self.degraded_plugins.append(plugin_id)
         if self.runtime_state is RuntimeState.RUNNING:
             self.runtime_state = RuntimeState.DEGRADED
+        self._sync_status_hud(runtime_state=self.runtime_state)
         self.add_notice(
             message=f'Plugin degraded: {plugin_id}',
             severity='warning',
         )
         logger.warning('Shell marked degraded by plugin: {}', plugin_id)
+
+    def mark_recovering(self, plugin_id: str) -> None:
+        """Record a recovering plugin while keeping the shell operational."""
+        if plugin_id not in self.degraded_plugins:
+            self.degraded_plugins.append(plugin_id)
+        if self.runtime_state is not RuntimeState.FAILED:
+            self.runtime_state = RuntimeState.RECOVERING
+        self._sync_status_hud(runtime_state=self.runtime_state)
+        self.add_notice(
+            message=f'Plugin recovering: {plugin_id}',
+            severity='info',
+        )
+        logger.info('Shell marked recovering by plugin: {}', plugin_id)
+
+    def mark_failed(self, plugin_id: str, *, reason: str) -> None:
+        """Record an unrecoverable plugin failure without terminating the shell."""
+        if plugin_id not in self.degraded_plugins:
+            self.degraded_plugins.append(plugin_id)
+        self.runtime_state = RuntimeState.FAILED
+        self._sync_status_hud(runtime_state=self.runtime_state)
+        self.add_notice(
+            message=f'Plugin failed: {plugin_id} ({reason})',
+            severity='error',
+        )
+        logger.error('Shell recorded plugin failure: {} ({})', plugin_id, reason)
 
     def record_route_failure(self, route_name: str, *, reason: str) -> None:
         """Record a route failure while keeping the shell alive.
@@ -63,11 +110,41 @@ class ShellModel:
         self.router.mark_failed(route_name, reason=reason)
         if self.runtime_state is RuntimeState.RUNNING:
             self.runtime_state = RuntimeState.DEGRADED
+        self._sync_status_hud(runtime_state=self.runtime_state)
         self.add_notice(
             message=f'Route failed: {route_name}',
             severity='error',
         )
         logger.warning('Shell recorded route failure: {}', route_name)
+
+    def handle_grace_expiry(self, plugin_id: str, *, route_name: str) -> None:
+        """Unload only the affected premium route when grace expires.
+
+        Args:
+            plugin_id: Premium plugin identifier whose grace expired.
+            route_name: Route backed by the premium feature.
+
+        """
+        if plugin_id not in self.degraded_plugins:
+            self.degraded_plugins.append(plugin_id)
+        self.runtime_state = RuntimeState.DEGRADED
+        self.router.set_route_lock(route_name, reason='grace-expired')
+        route = self.router.routes.get(route_name)
+        if route is not None:
+            if self.router.active_route == route_name:
+                self.router.active_route = None
+            if route.panel_id in self.active_panels:
+                self.active_panels.remove(route.panel_id)
+        self._sync_status_hud(
+            runtime_state=self.runtime_state,
+            entitlement_state=EntitlementState.LOCKED,
+            show_expiry_modal=True,
+        )
+        self.add_notice(
+            message=f'Grace expired: {plugin_id}',
+            severity='warning',
+        )
+        logger.warning('Grace expired for plugin: {}', plugin_id)
 
     def add_notice(self, *, message: str, severity: str) -> None:
         """Add a notification to the shell.
