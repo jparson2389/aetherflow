@@ -51,6 +51,7 @@ logs/bundle_install_report.json
 logs/diagnostics_export.json
 logs/verification/*.json
 logs/verify-requirements-evidence.md
+logs/audit/
 
 # Docs that are regenerated frequently
 docs/requirements-report.md
