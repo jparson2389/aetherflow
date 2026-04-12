@@ -75,7 +75,9 @@ def test_pynput_listener_start_stop() -> None:
 
     mock_kb, mock_mouse, mock_kb_listener, mock_mouse_listener = _make_pynput_mocks()
 
-    with patch.dict(sys.modules, {'pynput.keyboard': mock_kb, 'pynput.mouse': mock_mouse}):
+    with patch.dict(
+        sys.modules, {'pynput.keyboard': mock_kb, 'pynput.mouse': mock_mouse}
+    ):
         pynput_listener = PynputOSListener()
         pynput_listener.start(on_event=lambda _: None)
 

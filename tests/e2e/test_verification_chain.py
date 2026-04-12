@@ -21,32 +21,34 @@ def _write_evidence_pack(path: Path, *, reviewer_status: str) -> None:
     """Write a minimal evidence pack to path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        '\n'.join([
-            '# AF-TEST-01 Evidence Pack',
-            '',
-            f'- Reviewer Status: {reviewer_status}',
-            '- Reviewer: qa.lead',
-            '- Reviewed At: 2026-03-19T12:00:00Z',
-            '- App-Testable: yes',
-            '- App Surface: test-surface',
-            '- Developer Alert: Test item verified, check test-surface.',
-            '',
-            '## Acceptance Criteria',
-            '',
-            '- AC1: Synthetic test item is reachable from its intended entry point.',
-            '',
-            '## Proof Matrix',
-            '',
-            '| Criterion | Proof Type | Evidence | Entry Point | Failure Coverage |',
-            '| --- | --- | --- | --- | --- |',
-            '| AC1 | integration | tests/unit/test_example.py | test-entry-point | invalid input rejected |',
-            '',
-            '## Sign-Off',
-            '',
-            f'- Status: {reviewer_status}',
-            '- Notes: Test sign-off.',
-            '',
-        ]),
+        '\n'.join(
+            [
+                '# AF-TEST-01 Evidence Pack',
+                '',
+                f'- Reviewer Status: {reviewer_status}',
+                '- Reviewer: qa.lead',
+                '- Reviewed At: 2026-03-19T12:00:00Z',
+                '- App-Testable: yes',
+                '- App Surface: test-surface',
+                '- Developer Alert: Test item verified, check test-surface.',
+                '',
+                '## Acceptance Criteria',
+                '',
+                '- AC1: Synthetic test item is reachable from its intended entry point.',
+                '',
+                '## Proof Matrix',
+                '',
+                '| Criterion | Proof Type | Evidence | Entry Point | Failure Coverage |',
+                '| --- | --- | --- | --- | --- |',
+                '| AC1 | integration | tests/unit/test_example.py | test-entry-point | invalid input rejected |',
+                '',
+                '## Sign-Off',
+                '',
+                f'- Status: {reviewer_status}',
+                '- Notes: Test sign-off.',
+                '',
+            ]
+        ),
         encoding='utf-8',
     )
 
@@ -64,6 +66,7 @@ def test_full_verification_chain(tmp_path: Path) -> None:
         entry_point='test-entry-point',
         required_proofs=['integration'],
         failure_modes=['invalid input rejected'],
+        acceptance_criteria=['AC1'],
     )
 
     # ── Step 2: Evidence pack created ─────────────────────────────────────
@@ -80,7 +83,9 @@ def test_full_verification_chain(tmp_path: Path) -> None:
         item=item,
         validation_runner=lambda _repo_root, _command: True,
     )
-    assert result.status == 'verified', f'Expected verified, got {result.status}: {result.gaps}'
+    assert result.status == 'verified', (
+        f'Expected verified, got {result.status}: {result.gaps}'
+    )
     assert result.app_testable is True
     assert result.app_surface == 'test-surface'
     assert result.developer_alert is not None
@@ -107,20 +112,22 @@ def test_full_verification_chain(tmp_path: Path) -> None:
         snapshot_path=logs_dir / 'status_snapshot.json',
     )
     # First sync: baselines (no alert)
-    store.sync_results([
-        VerificationResult(
-            item_id='AF-TEST-01',
-            title='Synthetic test item',
-            status='coded',
-            gaps=[],
-            evidence_pack='evidence/AF-TEST-01.md',
-            validation_commands=[],
-            approved_by=None,
-            app_testable=True,
-            app_surface='test-surface',
-            developer_alert='Test item verified, check test-surface.',
-        )
-    ])
+    store.sync_results(
+        [
+            VerificationResult(
+                item_id='AF-TEST-01',
+                title='Synthetic test item',
+                status='coded',
+                gaps=[],
+                evidence_pack='evidence/AF-TEST-01.md',
+                validation_commands=[],
+                approved_by=None,
+                app_testable=True,
+                app_surface='test-surface',
+                developer_alert='Test item verified, check test-surface.',
+            )
+        ]
+    )
     # Second sync: item transitions to verified → alert created
     store.sync_results([result])
     pending = store.pending_alerts()

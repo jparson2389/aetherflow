@@ -1,6 +1,17 @@
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _assert_signoff_packet_content(packet_text: str) -> None:
+    assert 'Fallback' in packet_text
+    assert '24 hours' in packet_text or '24-hour' in packet_text
+    assert 'Decision deadline' in packet_text
+    assert 'Blocking phase' in packet_text
+    assert 'placeholder' not in packet_text.lower()
+    assert 'tbd' not in packet_text.lower()
 
 
 def test_prd_is_self_contained_and_citation_free() -> None:
@@ -54,5 +65,27 @@ def test_plan_signoff_packets_define_sla_and_fallbacks() -> None:
     )
 
     for text in (auth_text, bundle_text):
-        assert 'Fallback' in text
-        assert '24 hours' in text or '24-hour' in text
+        _assert_signoff_packet_content(text)
+
+    assert 'provider-agnostic OAuth interface' in auth_text
+    assert 'MockOAuthProvider' in auth_text
+    assert '`LOCKED`' in auth_text
+    assert '`DEGRADED`' in auth_text
+    assert 'host state' in auth_text.lower()
+
+    assert 'bundle.json' in bundle_text
+    assert 'SHA-256' in bundle_text
+    assert '`FAILED`' in bundle_text
+    assert '`DEGRADED`' in bundle_text
+    assert 'environment-management surface' in bundle_text.lower()
+
+
+def test_plan_signoff_packet_without_fallback_is_rejected() -> None:
+    packet_text = """
+    Decision deadline: 24 hours
+    Blocking phase: AF-00
+    Recovery posture is documented inline.
+    """
+
+    with pytest.raises(AssertionError):
+        _assert_signoff_packet_content(packet_text)

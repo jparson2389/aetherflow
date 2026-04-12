@@ -16,7 +16,9 @@ def test_generated_proto_files_are_never_placeholder() -> None:
     )
 
 
-def test_write_evidence_index_records_relative_placeholder_status(tmp_path: Path) -> None:
+def test_write_evidence_index_records_relative_placeholder_status(
+    tmp_path: Path,
+) -> None:
     src_path = tmp_path / 'src'
     src_path.mkdir()
     target = src_path / 'feature.py'

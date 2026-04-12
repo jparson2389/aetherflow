@@ -31,27 +31,29 @@ def _write_evidence_pack(
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        '\n'.join([
-            '# Evidence Pack',
-            '',
-            f'- Reviewer Status: {reviewer_status}',
-            '- Reviewer: qa.lead',
-            '- Reviewed At: 2026-03-16T12:00:00Z',
-            f'- App-Testable: {"yes" if app_testable else "no"}',
-            '',
-            '## Acceptance Criteria',
-            *[f'- AC{i + 1}: {ac}' for i, ac in enumerate(ac_lines)],
-            '',
-            '## Proof Matrix',
-            '| Criterion | Proof Type | Evidence | Entry Point | Failure Coverage |',
-            '| --- | --- | --- | --- | --- |',
-            matrix_rows,
-            '',
-            '## Sign-Off',
-            f'- Status: {reviewer_status}',
-            '- Notes: Reviewed.',
-            '',
-        ]),
+        '\n'.join(
+            [
+                '# Evidence Pack',
+                '',
+                f'- Reviewer Status: {reviewer_status}',
+                '- Reviewer: qa.lead',
+                '- Reviewed At: 2026-03-16T12:00:00Z',
+                f'- App-Testable: {"yes" if app_testable else "no"}',
+                '',
+                '## Acceptance Criteria',
+                *[f'- AC{i + 1}: {ac}' for i, ac in enumerate(ac_lines)],
+                '',
+                '## Proof Matrix',
+                '| Criterion | Proof Type | Evidence | Entry Point | Failure Coverage |',
+                '| --- | --- | --- | --- | --- |',
+                matrix_rows,
+                '',
+                '## Sign-Off',
+                f'- Status: {reviewer_status}',
+                '- Notes: Reviewed.',
+                '',
+            ]
+        ),
         encoding='utf-8',
     )
 
@@ -100,24 +102,26 @@ def test_item_without_acceptance_criteria_is_rejected(tmp_path: Path) -> None:
     pack_path.parent.mkdir(parents=True, exist_ok=True)
     # Write a pack without AC section
     pack_path.write_text(
-        '\n'.join([
-            '# Evidence Pack',
-            '',
-            '- Reviewer Status: approved',
-            '- Reviewer: qa.lead',
-            '- Reviewed At: 2026-03-16T12:00:00Z',
-            '- App-Testable: no',
-            '',
-            '## Proof Matrix',
-            '| Criterion | Proof Type | Evidence | Entry Point | Failure Coverage |',
-            '| --- | --- | --- | --- | --- |',
-            '| AC1 | integration | tests/test.py | main-window | error handled |',
-            '',
-            '## Sign-Off',
-            '- Status: approved',
-            '- Notes: Reviewed.',
-            '',
-        ]),
+        '\n'.join(
+            [
+                '# Evidence Pack',
+                '',
+                '- Reviewer Status: approved',
+                '- Reviewer: qa.lead',
+                '- Reviewed At: 2026-03-16T12:00:00Z',
+                '- App-Testable: no',
+                '',
+                '## Proof Matrix',
+                '| Criterion | Proof Type | Evidence | Entry Point | Failure Coverage |',
+                '| --- | --- | --- | --- | --- |',
+                '| AC1 | integration | tests/test.py | main-window | error handled |',
+                '',
+                '## Sign-Off',
+                '- Status: approved',
+                '- Notes: Reviewed.',
+                '',
+            ]
+        ),
         encoding='utf-8',
     )
 
@@ -384,10 +388,16 @@ def test_requirements_report_from_evidence_not_heuristics(tmp_path: Path) -> Non
     assert report_path.exists(), 'Report file was not created'
     report_text = report_path.read_text(encoding='utf-8')
 
-    assert '- Retired:' in report_text, f'Missing "- Retired:" in report:\n{report_text}'
+    assert '- Retired:' in report_text, (
+        f'Missing "- Retired:" in report:\n{report_text}'
+    )
     assert '- Coded:' in report_text, f'Missing "- Coded:" in report:\n{report_text}'
-    assert '- Evidenced:' in report_text, f'Missing "- Evidenced:" in report:\n{report_text}'
-    assert '- Verified:' in report_text, f'Missing "- Verified:" in report:\n{report_text}'
+    assert '- Evidenced:' in report_text, (
+        f'Missing "- Evidenced:" in report:\n{report_text}'
+    )
+    assert '- Verified:' in report_text, (
+        f'Missing "- Verified:" in report:\n{report_text}'
+    )
 
     # Verify counts are evidence-based (1 each)
     assert '- Retired: 1' in report_text

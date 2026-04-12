@@ -21,6 +21,31 @@ def _qt_app():
     yield app
 
 
+class FakeCaptureProbe:
+    def enumerate_devices(self):
+        from aetherflow.vision.opencv_capture import CaptureDevice
+
+        return [
+            CaptureDevice(
+                stable_id='capture-usb-vid-0fd9-pid-00af-mi-00',
+                name='Elgato 4K S',
+                device_id='USB\\VID_0FD9&PID_00AF&MI_00\\9&27FBDE15&0&0000',
+                backend_index=0,
+            )
+        ]
+
+    def supported_modes(self, device):
+        from aetherflow.vision.opencv_capture import CaptureMode
+
+        if device.stable_id != 'capture-usb-vid-0fd9-pid-00af-mi-00':
+            return []
+        return [
+            CaptureMode(1920, 1080, 60, 'NV12', 'BGR', False, True, 'USB-C 3.2'),
+            CaptureMode(1920, 1080, 120, 'NV12', 'BGR', False, False, 'USB-C 3.2'),
+            CaptureMode(3840, 2160, 60, 'MJPEG', 'BGR', False, False, 'USB-C 3.2'),
+        ]
+
+
 class TestHudWidget:
     """HudWidget renders StatusHUDModel data as Qt labels."""
 
@@ -173,6 +198,39 @@ class TestAppWindow:
         window = AppWindow(shell)
 
         assert window.panel_host.current_panel_id() == EMPTY_PANEL_ID
+
+    def test_app_window_syncs_active_shell_route(self, _qt_app) -> None:
+        from aetherflow.ui.app_window import AppWindow
+        from aetherflow.ui.bootstrap import configure_default_shell
+        from aetherflow.ui.shell import ShellModel
+
+        shell = configure_default_shell(ShellModel())
+        window = AppWindow(shell)
+
+        assert window.panel_host.current_panel_id() == 'panel.home'
+        assert window.route_list.count() == 5
+
+    def test_app_window_capture_panel_renders_live_probe_data(self, _qt_app) -> None:
+        from aetherflow.ui.app_window import AppWindow
+        from aetherflow.ui.bootstrap import configure_default_shell
+        from aetherflow.ui.shell import ShellModel
+        from aetherflow.vision.opencv_capture import OpenCVCapturePlugin
+
+        shell = configure_default_shell(ShellModel())
+        window = AppWindow(
+            shell, capture_plugin=OpenCVCapturePlugin(probe=FakeCaptureProbe())
+        )
+
+        window.navigate_to('capture')
+
+        assert window.panel_host.current_panel_id() == 'panel.capture'
+        assert window.capture_panel is not None
+        assert window.capture_panel.device_list.count() == 1
+        assert 'Elgato 4K S' in window.capture_panel.device_list.item(0).text()
+        assert 'VID_0FD9&PID_00AF' in window.capture_panel.device_details_label.text()
+        assert window.capture_panel.mode_list.count() == 3
+        assert '1920x1080 @ 120 FPS' in window.capture_panel.mode_list.item(1).text()
+        assert 'HDR' in window.capture_panel.mode_list.item(0).text()
 
     def test_app_window_shows_without_crashing(self, _qt_app) -> None:
         from aetherflow.ui.app_window import AppWindow

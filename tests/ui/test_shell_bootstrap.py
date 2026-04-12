@@ -19,6 +19,7 @@ def test_build_shell_registers_default_routes_and_hud() -> None:
         'home',
         'catalog',
         'capture',
+        'output',
         'workers',
     ]
 
@@ -35,6 +36,7 @@ def test_build_shell_uses_active_role_for_default_routes() -> None:
         'home',
         'catalog',
         'capture',
+        'output',
         'workers',
         'environment',
         'resources',

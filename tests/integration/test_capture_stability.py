@@ -1,4 +1,4 @@
-from aetherflow.core.capture_metrics import CaptureMetrics
+from aetherflow.core.capture_metrics import CaptureMetrics, CaptureMetricsTracker
 
 
 def test_capture_metrics_flag_instability_and_offer_fallback() -> None:
@@ -38,4 +38,30 @@ def test_capture_metrics_flags_sustained_drop_by_drop_rate() -> None:
         drop_window_s=5.0,
     )
 
+    assert metrics.is_sustained_drop is True
+
+
+def test_capture_metrics_tracker_measures_60fps_baseline() -> None:
+    tracker = CaptureMetricsTracker(window_seconds=5.0, now=lambda: 1.0)
+
+    for index in range(60):
+        tracker.record_frame(timestamp_s=index / 60.0)
+
+    metrics = tracker.snapshot(target_fps=60)
+
+    assert metrics.target_fps == 60
+    assert metrics.measured_fps >= 60.0
+    assert metrics.is_sustained_drop is False
+
+
+def test_capture_metrics_tracker_detects_sustained_drop_from_samples() -> None:
+    tracker = CaptureMetricsTracker(window_seconds=5.0, now=lambda: 3.5)
+
+    for index in range(175):
+        tracker.record_frame(timestamp_s=index * 0.02)
+
+    metrics = tracker.snapshot(target_fps=60)
+
+    assert metrics.measured_fps < 54.0
+    assert metrics.duration_s >= 3.0
     assert metrics.is_sustained_drop is True
