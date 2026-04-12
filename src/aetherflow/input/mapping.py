@@ -8,6 +8,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from aetherflow.core.diagnostics import PipelineDiagnostics, PipelineDiagnosticsTracker
 from aetherflow.core.profiles import ProfileStore
 from aetherflow.input.events import InputEvent, InputEventKind, MappedEvent
 from aetherflow.input.pipeline import DeviceIngestionPipeline
@@ -109,6 +110,7 @@ class MappingPipeline:
         """
         self._profile_store = profile_store
         self._telemetry = InputLatencyTelemetry()
+        self._diagnostics = PipelineDiagnosticsTracker()
         self._subscribers: list[Callable[[MappedEvent], None]] = []
         self._lock = threading.Lock()
         ingestion.subscribe(self._on_event)
@@ -117,6 +119,10 @@ class MappingPipeline:
     def telemetry(self) -> InputLatencyTelemetry:
         """Return the latency telemetry tracker."""
         return self._telemetry
+
+    def diagnostics_snapshot(self) -> PipelineDiagnostics:
+        """Return the current controller pipeline diagnostics snapshot."""
+        return self._diagnostics.snapshot()
 
     def subscribe(self, handler: Callable[[MappedEvent], None]) -> None:
         """Register a mapped-event handler.
@@ -159,12 +165,14 @@ class MappingPipeline:
         if not raw:
             return
 
+        self._diagnostics.record_event()
         start_ns = time.monotonic_ns()
         controls_dict = profile.translate(raw)
         end_ns = time.monotonic_ns()
 
         latency_ns = end_ns - start_ns
         self._telemetry.record(latency_ns)
+        self._diagnostics.record_latency(latency_ns / 1_000_000)
 
         mapped = MappedEvent(
             source=event,
@@ -176,3 +184,4 @@ class MappingPipeline:
             subscribers = list(self._subscribers)
         for handler in subscribers:
             handler(mapped)
+        self._diagnostics.record_output()
