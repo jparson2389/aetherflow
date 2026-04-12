@@ -1,3 +1,13 @@
+"""Canonical repo regrade entry point.
+
+This is the only tool authorised to write ``docs/requirements-report.md`` and
+``logs/verification/<item-id>.json``. Wrapper scripts that call this module
+must not be treated as equivalent authorities — authoritative status comes from
+running this tool directly:
+
+    uv run python -m tools.verify_requirements
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -167,7 +177,34 @@ def main() -> int:
     """CLI entrypoint for repo-owned verify-requirements."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument(
+        '--acknowledge',
+        metavar='ITEM_ID',
+        help='Acknowledge and remove a pending developer app-check alert by item ID.',
+    )
+    parser.add_argument(
+        '--pending-path',
+        metavar='PATH',
+        help='Override path to pending_app_checks.json (for testing).',
+    )
     args = parser.parse_args()
+
+    if args.acknowledge:
+        from aetherflow.core.developer_app_checks import PendingAppCheckStore
+
+        pending_path = (
+            Path(args.pending_path)
+            if args.pending_path
+            else LOGS_PATH / 'verification' / 'pending_app_checks.json'
+        )
+        snapshot_path = pending_path.parent / 'status_snapshot.json'
+        store = PendingAppCheckStore(
+            pending_path=pending_path,
+            snapshot_path=snapshot_path,
+        )
+        store.acknowledge(args.acknowledge)
+        logger.info('Acknowledged alert: {}', args.acknowledge)
+        return 0
 
     LOGS_PATH.mkdir(parents=True, exist_ok=True)
     roots = [ROOT / part for part in REPO_ROOTS]

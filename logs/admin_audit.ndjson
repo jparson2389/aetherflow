@@ -1,2 +1,0 @@
-{"action":"assign_entitlement","actor":"admin@example.com","target":"user-123","timestamp_utc":"2026-03-16T05:56:59.737510+00:00","metadata":{"ip":"127.0.0.1"}}
-{"action":"create_user","actor":"operator","target":"user-456","timestamp_utc":"2026-03-16T05:56:59.738536+00:00","metadata":{}}

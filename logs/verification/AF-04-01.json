@@ -1,0 +1,42 @@
+{
+  "item_id": "AF-04-01",
+  "title": "Implement worker supervision with restart ceilings and escalation UX.",
+  "status": "evidenced",
+  "gaps": [
+    "[ac-coverage-gap] Missing required proof type: unit",
+    "[ac-coverage-gap] Missing required proof type: ui",
+    "[review/sign-off-gap] Reviewer sign-off is not approved"
+  ],
+  "evidence_pack": "docs/evidence/AF-04-01.md",
+  "validation_commands": [
+    "uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py"
+  ],
+  "validation_results": [
+    {
+      "command": "uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1",
+        "AC2"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1",
+      "AC2"
+    ],
+    "required_failure_modes": [
+      "restart ceiling breach escalates to FAILED"
+    ]
+  },
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending"
+}

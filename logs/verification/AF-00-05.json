@@ -1,0 +1,38 @@
+{
+  "item_id": "AF-00-05",
+  "title": "Publish bounded sign-off packets and failure-UX state model.",
+  "status": "verified",
+  "gaps": [],
+  "evidence_pack": "docs/evidence/AF-00-05.md",
+  "validation_commands": [
+    "uv run pytest tests/contracts/test_prd_execution_readiness.py -k plan"
+  ],
+  "validation_results": [
+    {
+      "command": "uv run pytest tests/contracts/test_prd_execution_readiness.py -k plan",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1",
+        "AC2"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "uv run pytest tests/contracts/test_prd_execution_readiness.py -k plan": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1",
+      "AC2"
+    ],
+    "required_failure_modes": [
+      "missing fallback guidance rejected"
+    ]
+  },
+  "approved_by": "qa.lead",
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "approved"
+}

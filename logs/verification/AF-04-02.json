@@ -1,0 +1,40 @@
+{
+  "item_id": "AF-04-02",
+  "title": "Deliver environment manager and bounded bundle validation workflow.",
+  "status": "evidenced",
+  "gaps": [
+    "[ac-coverage-gap] Missing required proof type: integration"
+  ],
+  "evidence_pack": "docs/evidence/AF-04-02.md",
+  "validation_commands": [
+    "uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py"
+  ],
+  "validation_results": [
+    {
+      "command": "uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1",
+        "AC2"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1",
+      "AC2"
+    ],
+    "required_failure_modes": [
+      "invalid bundle rejected"
+    ]
+  },
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending"
+}

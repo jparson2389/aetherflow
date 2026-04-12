@@ -276,3 +276,43 @@ def test_no_active_item_promoted_by_metadata_defaults() -> None:
         'Active items have metadata gaps in docs/PLAN.md (must be fixed in plan, not in code):\n'
         + '\n'.join(failures)
     )
+
+
+def test_all_active_af_items_have_complete_required_metadata() -> None:
+    """Every active AF item must declare all required metadata fields in docs/PLAN.md."""
+    from aetherflow.core.verification_report import (
+        _apply_repo_defaults,
+        parse_plan_items,
+    )
+
+    plan_text = (PROJECT_ROOT / 'docs' / 'PLAN.md').read_text(encoding='utf-8')
+    items = _apply_repo_defaults(parse_plan_items(plan_text))
+    active = [item for item in items if item.lifecycle_state != 'retired']
+
+    failures: list[str] = []
+    for item in active:
+        missing: list[str] = []
+        if not item.feature_class:
+            missing.append('feature_class')
+        if not item.entry_point:
+            missing.append('entry_point')
+        if not item.required_proofs:
+            missing.append('required_proofs')
+        if not item.failure_modes:
+            missing.append('failure_modes')
+        if not item.acceptance_criteria:
+            missing.append('acceptance_criteria')
+        if item.performance_claim:
+            if not item.performance_threshold:
+                missing.append('performance_threshold')
+            if not item.performance_evidence_type:
+                missing.append('performance_evidence_type')
+            if not item.performance_evidence_location:
+                missing.append('performance_evidence_location')
+        if missing:
+            failures.append(f'{item.item_id}: missing {missing}')
+
+    assert not failures, (
+        'Active AF items missing required metadata in docs/PLAN.md:\n'
+        + '\n'.join(failures)
+    )

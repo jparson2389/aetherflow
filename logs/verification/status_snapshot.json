@@ -1,0 +1,20 @@
+{
+  "items": {
+    "AF-00-01": "retired",
+    "AF-00-02a": "verified",
+    "AF-00-02b": "evidenced",
+    "AF-00-03": "verified",
+    "AF-00-04": "verified",
+    "AF-00-05": "verified",
+    "AF-01-01": "verified",
+    "AF-01-02": "evidenced",
+    "AF-02-01": "verified",
+    "AF-02-02": "verified",
+    "AF-03-01": "evidenced",
+    "AF-03-02": "evidenced",
+    "AF-04-01": "evidenced",
+    "AF-04-02": "evidenced",
+    "AF-05-01": "evidenced",
+    "AF-05-02": "evidenced"
+  }
+}

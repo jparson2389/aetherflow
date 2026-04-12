@@ -1,3 +1,13 @@
+"""Advisory-only heuristic auditor for plan completion.
+
+This tool is heuristic and advisory. Its output must never be used to claim or
+promote a ``verified`` status for any plan item. It does not write
+``docs/requirements-report.md`` or any file under ``logs/verification/``.
+
+The canonical regrade command is:
+
+    uv run python -m tools.verify_requirements
+"""
 # ruff: noqa: D101,D102,D103
 
 from __future__ import annotations

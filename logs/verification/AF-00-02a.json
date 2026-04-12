@@ -1,0 +1,36 @@
+{
+  "item_id": "AF-00-02a",
+  "title": "Verify Windows toolchain and `uv` environment.",
+  "status": "verified",
+  "gaps": [],
+  "evidence_pack": "docs/evidence/AF-00-02a.md",
+  "validation_commands": [
+    "uv run pytest tests/contracts/test_env_readiness.py"
+  ],
+  "validation_results": [
+    {
+      "command": "uv run pytest tests/contracts/test_env_readiness.py",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "uv run pytest tests/contracts/test_env_readiness.py": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1"
+    ],
+    "required_failure_modes": [
+      "missing toolchain detected"
+    ]
+  },
+  "approved_by": "qa.lead",
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "approved"
+}

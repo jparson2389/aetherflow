@@ -358,7 +358,7 @@ def test_requirements_report_from_evidence_not_heuristics(tmp_path: Path) -> Non
             item_id='AF-EVI-01',
             title='Evidenced item',
             status='evidenced',
-            gaps=['Reviewer sign-off is not approved'],
+            gaps=['[review/sign-off-gap] Reviewer sign-off is not approved'],
             evidence_pack='docs/evidence/AF-EVI-01.md',
             validation_commands=[],
             approved_by=None,

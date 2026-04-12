@@ -649,7 +649,7 @@ def evaluate_plan_item(
 
     gaps = _collect_evidence_gaps(item=item, evidence_pack=evidence_pack)
     if evidence_pack.reviewer_status != 'approved':
-        gaps.append('Reviewer sign-off is not approved')
+        gaps.append('[review/sign-off-gap] Reviewer sign-off is not approved')
 
     validation_ok = True
     validation_results: list[ValidationExecution] = []
@@ -664,7 +664,7 @@ def evaluate_plan_item(
         validation_results.append(execution)
         if not execution.passed:
             validation_ok = False
-            gaps.append(f'Validation failed: {command}')
+            gaps.append(f'[validation-gap] Validation failed: {command}')
 
     exit_codes = {entry.command: entry.exit_code for entry in validation_results}
     status = 'verified' if not gaps and validation_ok else 'evidenced'
@@ -700,22 +700,34 @@ def _collect_metadata_gaps(item: PlanItem) -> list[str]:
     """
     gaps: list[str] = []
     if not item.feature_class:
-        gaps.append('Missing required plan metadata: Feature-Class')
+        gaps.append('[metadata-gap] Missing required plan metadata: Feature-Class')
     if not item.entry_point:
-        gaps.append('Missing required plan metadata: Entry-Point')
+        gaps.append('[metadata-gap] Missing required plan metadata: Entry-Point')
     if not item.required_proofs:
-        gaps.append('Missing required plan metadata: Required-Proof-Types')
+        gaps.append(
+            '[metadata-gap] Missing required plan metadata: Required-Proof-Types'
+        )
     if not item.failure_modes:
-        gaps.append('Missing required plan metadata: Required-Failure-Modes')
+        gaps.append(
+            '[metadata-gap] Missing required plan metadata: Required-Failure-Modes'
+        )
     if not item.acceptance_criteria:
-        gaps.append('Missing required plan metadata: Acceptance Criteria')
+        gaps.append(
+            '[metadata-gap] Missing required plan metadata: Acceptance Criteria'
+        )
     if item.performance_claim:
         if not item.performance_threshold:
-            gaps.append('Missing required plan metadata: Performance-Threshold')
+            gaps.append(
+                '[metadata-gap] Missing required plan metadata: Performance-Threshold'
+            )
         if not item.performance_evidence_type:
-            gaps.append('Missing required plan metadata: Performance-Evidence-Type')
+            gaps.append(
+                '[metadata-gap] Missing required plan metadata: Performance-Evidence-Type'
+            )
         if not item.performance_evidence_location:
-            gaps.append('Missing required plan metadata: Performance-Evidence-Location')
+            gaps.append(
+                '[metadata-gap] Missing required plan metadata: Performance-Evidence-Location'
+            )
     return gaps
 
 
@@ -734,35 +746,39 @@ def _collect_evidence_gaps(*, item: PlanItem, evidence_pack: EvidencePack) -> li
     normalized_proofs = {proof.casefold() for proof in evidence_pack.proof_types}
     for required in item.required_proofs:
         if required.casefold() not in normalized_proofs:
-            gaps.append(f'Missing required proof type: {required}')
+            gaps.append(f'[ac-coverage-gap] Missing required proof type: {required}')
 
     normalized_failures = ' '.join(evidence_pack.failure_coverages).casefold()
     for failure_mode in item.failure_modes:
         if failure_mode.casefold() not in normalized_failures:
-            gaps.append(f'Missing failure coverage: {failure_mode}')
+            gaps.append(
+                f'[failure-coverage-gap] Missing failure coverage: {failure_mode}'
+            )
 
     if item.entry_point:
         normalized_entries = {entry.casefold() for entry in evidence_pack.entry_points}
         if item.entry_point.casefold() not in normalized_entries:
-            gaps.append(f'Entry point not exercised: {item.entry_point}')
+            gaps.append(
+                f'[ac-coverage-gap] Entry point not exercised: {item.entry_point}'
+            )
 
     if item.acceptance_criteria:
         covered = {c.casefold() for c in evidence_pack.criteria_covered}
         for ac_label in item.acceptance_criteria:
             if ac_label.casefold() not in covered:
                 gaps.append(
-                    f'Acceptance criterion not covered in proof matrix: {ac_label}'
+                    f'[ac-coverage-gap] Acceptance criterion not covered in proof matrix: {ac_label}'
                 )
 
     if item.performance_claim:
         pass_fail = evidence_pack.performance_artifact_pass_fail
         if not pass_fail:
             gaps.append(
-                'Missing performance proof: no performance artifacts in evidence pack'
+                '[performance-proof-gap] Missing performance proof: no performance artifacts in evidence pack'
             )
         elif any(v != 'pass' for v in pass_fail):
             gaps.append(
-                'Performance threshold not met: one or more performance artifacts failed'
+                '[performance-proof-gap] Performance threshold not met: one or more performance artifacts failed'
             )
 
     return gaps
