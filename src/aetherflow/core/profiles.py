@@ -26,6 +26,44 @@ def _coerce_float(value: object, *, field_name: str) -> float:
     raise TypeError(f'{field_name} must be float-compatible.')
 
 
+def _validate_profile_name(name: str) -> str:
+    """Validate and normalize a profile display name.
+
+    Args:
+        name: Proposed profile name.
+
+    Returns:
+        Trimmed profile name.
+
+    Raises:
+        ValueError: If the profile name is blank.
+
+    """
+    normalized = name.strip()
+    if not normalized:
+        raise ValueError('Profile name must not be blank.')
+    return normalized
+
+
+def _validate_unit_interval(value: float, *, field_name: str) -> float:
+    """Validate a floating-point value constrained to the unit interval.
+
+    Args:
+        value: Value to validate.
+        field_name: Field name for error reporting.
+
+    Returns:
+        The validated value.
+
+    Raises:
+        ValueError: If the value is outside ``0.0`` to ``1.0`` inclusive.
+
+    """
+    if not 0.0 <= value <= 1.0:
+        raise ValueError(f'{field_name} must be between 0.0 and 1.0.')
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class SensitivityLayer:
     """Sensitivity multiplier layer for mapping profiles."""
@@ -68,6 +106,19 @@ class InputProfile:
     sensitivity_layers: list[SensitivityLayer] = field(default_factory=list)
     _last_values: dict[str, float] = field(default_factory=dict, repr=False)
 
+    def __post_init__(self) -> None:
+        """Validate profile invariants."""
+        self.name = _validate_profile_name(self.name)
+        self.deadzone = _validate_unit_interval(self.deadzone, field_name='deadzone')
+        self.smoothing_alpha = _validate_unit_interval(
+            self.smoothing_alpha,
+            field_name='smoothing_alpha',
+        )
+        if self.curve_exponent <= 0.0:
+            raise ValueError('curve_exponent must be positive.')
+        if not self.profile_id.strip():
+            raise ValueError('profile_id must not be blank.')
+
     @classmethod
     def default(cls, name: str) -> InputProfile:
         """Create the default profile.
@@ -79,7 +130,7 @@ class InputProfile:
             A default profile.
 
         """
-        return cls(profile_id=str(uuid4()), name=name)
+        return cls(profile_id=str(uuid4()), name=_validate_profile_name(name))
 
     def clone(self, name: str) -> InputProfile:
         """Clone the profile under a new identity.
@@ -93,7 +144,7 @@ class InputProfile:
         """
         clone = deepcopy(self)
         clone.profile_id = str(uuid4())
-        clone.name = name
+        clone.name = _validate_profile_name(name)
         clone._last_values = {}
         return clone
 
@@ -169,18 +220,24 @@ class InputProfile:
         button_map_dict = raw_button_map if isinstance(raw_button_map, dict) else {}
         profile = cls(
             profile_id=str(payload['profile_id']),
-            name=str(payload['name']),
+            name=_validate_profile_name(str(payload['name'])),
             button_map={str(k): str(v) for k, v in button_map_dict.items()},
-            deadzone=_coerce_float(
-                payload.get('deadzone', 0.05),
+            deadzone=_validate_unit_interval(
+                _coerce_float(
+                    payload.get('deadzone', 0.05),
+                    field_name='deadzone',
+                ),
                 field_name='deadzone',
             ),
             curve_exponent=_coerce_float(
                 payload.get('curve_exponent', 1.0),
                 field_name='curve_exponent',
             ),
-            smoothing_alpha=_coerce_float(
-                payload.get('smoothing_alpha', 1.0),
+            smoothing_alpha=_validate_unit_interval(
+                _coerce_float(
+                    payload.get('smoothing_alpha', 1.0),
+                    field_name='smoothing_alpha',
+                ),
                 field_name='smoothing_alpha',
             ),
             sensitivity_layers=layers,
@@ -205,6 +262,8 @@ class ProfileStore:
 
     def clone(self, profile_id: str, name: str) -> InputProfile:
         """Clone an existing profile."""
+        if profile_id not in self.profiles:
+            raise KeyError(f'Unknown profile: {profile_id}')
         profile = self.profiles[profile_id].clone(name)
         self.profiles[profile.profile_id] = profile
         return profile

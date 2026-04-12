@@ -59,9 +59,7 @@ class ProfileRepository:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             'active_profile_id': store.active_profile_id,
-            'profiles': [
-                store.export_profile(pid) for pid in store.profiles
-            ],
+            'profiles': [store.export_profile(pid) for pid in store.profiles],
         }
         tmp = self._path.with_suffix('.tmp')
         tmp.write_text(

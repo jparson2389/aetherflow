@@ -30,6 +30,14 @@ class PlanItem:
         failure_modes: Required failure or edge conditions.
         lifecycle_state: Optional lifecycle override such as `retired`.
         acceptance_criteria: Acceptance-criterion labels declared in the plan (e.g. ``["AC1", "AC2"]``).
+        app_surface: GUI or startup surface exposed by the feature (plan-declared).
+        developer_alert: Developer-facing alert message (plan-declared).
+        performance_claim: Whether the item makes a latency, FPS, or throughput assertion.
+        performance_threshold: Human-readable performance threshold (e.g. ``"60 FPS sustained"``).
+        performance_evidence_type: Evidence type classifying the measurement (e.g. ``"sustained-drop-detection"``).
+        performance_evidence_location: Repository-relative path to the performance evidence artifact.
+        enforce_metadata: Whether evaluate_plan_item() should require the full
+            canonical docs/PLAN.md metadata set before considering evidence.
 
     """
 
@@ -44,6 +52,13 @@ class PlanItem:
     failure_modes: list[str] = field(default_factory=list)
     lifecycle_state: str | None = None
     acceptance_criteria: list[str] = field(default_factory=list)
+    app_surface: str | None = None
+    developer_alert: str | None = None
+    performance_claim: bool = False
+    performance_threshold: str | None = None
+    performance_evidence_type: str | None = None
+    performance_evidence_location: str | None = None
+    enforce_metadata: bool = False
 
 
 @dataclass(slots=True)
@@ -62,6 +77,7 @@ class EvidencePack:
         app_testable: Whether the item should generate app-check alerts.
         app_surface: GUI or startup surface exposed by the feature.
         developer_alert: Developer-facing alert message.
+        performance_artifact_pass_fail: Pass/fail conclusions for each performance artifact entry.
 
     """
 
@@ -76,6 +92,25 @@ class EvidencePack:
     app_testable: bool
     app_surface: str | None
     developer_alert: str | None
+    performance_artifact_pass_fail: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class ValidationExecution:
+    """Capture one executed validation command outcome.
+
+    Attributes:
+        command: Exact validation command string.
+        exit_code: Process exit code (`None` when command is rejected pre-run).
+        passed: Whether validation succeeded.
+        requirement_links: Requirement labels linked to this validation.
+
+    """
+
+    command: str
+    exit_code: int | None
+    passed: bool
+    requirement_links: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -89,6 +124,9 @@ class VerificationResult:
         gaps: Gaps that prevented stronger promotion.
         evidence_pack: Evidence-pack path, if any.
         validation_commands: Validation commands attached to the item.
+        validation_results: Per-command execution outcomes including exit codes.
+        exit_codes: Command-to-exit-code mapping.
+        requirement_links: Requirement labels tied to validation evidence.
         approved_by: Reviewer identity if approved.
         app_testable: Whether the item should surface startup app checks.
         app_surface: Surface name for app-testable features.
@@ -102,10 +140,13 @@ class VerificationResult:
     gaps: list[str]
     evidence_pack: str | None
     validation_commands: list[str]
-    approved_by: str | None
-    app_testable: bool
-    app_surface: str | None
-    developer_alert: str | None
+    validation_results: list[ValidationExecution] = field(default_factory=list)
+    exit_codes: dict[str, int | None] = field(default_factory=dict)
+    requirement_links: dict[str, list[str]] = field(default_factory=dict)
+    approved_by: str | None = None
+    app_testable: bool = False
+    app_surface: str | None = None
+    developer_alert: str | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable payload."""
@@ -116,8 +157,8 @@ class VerificationResult:
 
 
 _ITEM_HEADER_RE = re.compile(r'^- \[.\] `(?P<id>AF-[^`]+)`\s+(?P<title>.+)$')
-_TARGET_RE = re.compile(r'^\s*> \*\*Target File:\*\* `(?P<path>[^`]+)`')
-_VALIDATION_RE = re.compile(r'^\s*> \*\*Validation:\*\* `(?P<command>[^`]+)`')
+_TARGET_RE = re.compile(r'^\s*>\s+\*\*Target File:\*\*\s+`(?P<path>[^`]+)`')
+_VALIDATION_RE = re.compile(r'^\s*>\s+\*\*Validation:\*\*\s+`(?P<command>[^`]+)`')
 _REVIEWER_STATUS_RE = re.compile(r'^- Reviewer Status:\s*(?P<value>.+)$')
 _REVIEWER_RE = re.compile(r'^- Reviewer:\s*(?P<value>.+)$')
 _REVIEWED_AT_RE = re.compile(r'^- Reviewed At:\s*(?P<value>.+)$')
@@ -127,14 +168,38 @@ _DEVELOPER_ALERT_RE = re.compile(r'^- Developer Alert:\s*(?P<value>.+)$')
 _ACCEPTANCE_RE = re.compile(r'^- AC\d+:\s*(?P<value>.+)$')
 
 # PLAN.md metadata fields
-_FEATURE_CLASS_RE = re.compile(r'^\s*> \*\*Feature-Class:\*\* `(?P<value>[^`]+)`')
-_ENTRY_POINT_RE = re.compile(r'^\s*> \*\*Entry-Point:\*\* `(?P<value>[^`]+)`')
+_FEATURE_CLASS_RE = re.compile(r'^\s*>\s+\*\*Feature-Class:\*\*\s+`(?P<value>[^`]+)`')
+_ENTRY_POINT_RE = re.compile(r'^\s*>\s+\*\*Entry-Point:\*\*\s+`(?P<value>[^`]+)`')
 _REQUIRED_PROOF_RE = re.compile(
-    r'^\s*> \*\*Required-Proof-Types:\*\* `(?P<value>[^`]+)`'
+    r'^\s*>\s+\*\*Required-Proof-Types:\*\*\s+`(?P<value>[^`]+)`'
 )
-_APP_TESTABLE_RE_PLAN = re.compile(r'^\s*> \*\*App-Testable:\*\* `(?P<value>[^`]+)`')
-_LIFECYCLE_RE = re.compile(r'^\s*> \*\*Lifecycle:\*\* `(?P<value>[^`]+)`')
+_APP_TESTABLE_RE_PLAN = re.compile(
+    r'^\s*>\s+\*\*App-Testable:\*\*\s+`(?P<value>[^`]+)`'
+)
+_LIFECYCLE_RE = re.compile(r'^\s*>\s+\*\*Lifecycle:\*\*\s+`(?P<value>[^`]+)`')
 _PLAN_AC_LABEL_RE = re.compile(r'^\s*> - (AC\d+):')
+_REQUIRED_FAILURE_MODES_RE = re.compile(
+    r'^\s*>\s+\*\*Required-Failure-Modes:\*\*\s+`(?P<value>[^`]+)`'
+)
+_PLAN_APP_SURFACE_RE = re.compile(r'^\s*>\s+\*\*App-Surface:\*\*\s+`(?P<value>[^`]+)`')
+_PLAN_DEVELOPER_ALERT_RE = re.compile(
+    r'^\s*>\s+\*\*Developer-Alert-Message:\*\*\s+`(?P<value>[^`]+)`'
+)
+_PERFORMANCE_CLAIM_RE = re.compile(
+    r'^\s*>\s+\*\*Performance-Claim:\*\*\s+`(?P<value>[^`]+)`'
+)
+_PERFORMANCE_THRESHOLD_RE = re.compile(
+    r'^\s*>\s+\*\*Performance-Threshold:\*\*\s+`(?P<value>[^`]+)`'
+)
+_PERFORMANCE_EVIDENCE_TYPE_RE = re.compile(
+    r'^\s*>\s+\*\*Performance-Evidence-Type:\*\*\s+`(?P<value>[^`]+)`'
+)
+_PERFORMANCE_EVIDENCE_LOCATION_RE = re.compile(
+    r'^\s*>\s+\*\*Performance-Evidence-Location:\*\*\s+`(?P<value>[^`]+)`'
+)
+
+# Evidence pack performance artifact fields
+_PERF_PASS_FAIL_RE = re.compile(r'^- Pass-Fail:\s*(?P<value>.+)$')
 
 
 def default_evidence_pack_path(item_id: str) -> Path:
@@ -172,6 +237,7 @@ def parse_plan_items(plan_text: str) -> list[PlanItem]:
                 targets=[],
                 validations=[],
                 evidence_pack=default_evidence_pack_path(match.group('id')),
+                enforce_metadata=True,
             )
             items.append(current)
             continue
@@ -217,6 +283,54 @@ def parse_plan_items(plan_text: str) -> list[PlanItem]:
             current.acceptance_criteria.append(ac_label_match.group(1))
             continue
 
+        failure_modes_match = _REQUIRED_FAILURE_MODES_RE.match(raw_line)
+        if failure_modes_match:
+            raw_modes = failure_modes_match.group('value').strip()
+            current.failure_modes = [
+                m.strip() for m in raw_modes.split(',') if m.strip()
+            ]
+            continue
+
+        app_surface_match = _PLAN_APP_SURFACE_RE.match(raw_line)
+        if app_surface_match:
+            current.app_surface = app_surface_match.group('value').strip()
+            continue
+
+        developer_alert_match = _PLAN_DEVELOPER_ALERT_RE.match(raw_line)
+        if developer_alert_match:
+            current.developer_alert = developer_alert_match.group('value').strip()
+            continue
+
+        performance_claim_match = _PERFORMANCE_CLAIM_RE.match(raw_line)
+        if performance_claim_match:
+            current.performance_claim = (
+                performance_claim_match.group('value').strip().casefold() == 'true'
+            )
+            continue
+
+        performance_threshold_match = _PERFORMANCE_THRESHOLD_RE.match(raw_line)
+        if performance_threshold_match:
+            current.performance_threshold = performance_threshold_match.group(
+                'value'
+            ).strip()
+            continue
+
+        performance_evidence_type_match = _PERFORMANCE_EVIDENCE_TYPE_RE.match(raw_line)
+        if performance_evidence_type_match:
+            current.performance_evidence_type = performance_evidence_type_match.group(
+                'value'
+            ).strip()
+            continue
+
+        performance_evidence_location_match = _PERFORMANCE_EVIDENCE_LOCATION_RE.match(
+            raw_line
+        )
+        if performance_evidence_location_match:
+            current.performance_evidence_location = (
+                performance_evidence_location_match.group('value').strip()
+            )
+            continue
+
     return items
 
 
@@ -247,9 +361,10 @@ def parse_evidence_pack(path: Path) -> EvidencePack:
     if not acceptance_criteria:
         raise ValueError(f'Missing acceptance criteria in {path.as_posix()}')
 
-    criteria_covered, proof_types, entry_points, failure_coverages = _extract_proof_matrix(
-        lines, path
+    criteria_covered, proof_types, entry_points, failure_coverages = (
+        _extract_proof_matrix(lines, path)
     )
+    performance_artifact_pass_fail = _extract_performance_artifact_pass_fail(lines)
     return EvidencePack(
         reviewer_status=reviewer_status.casefold(),
         reviewer=reviewer,
@@ -262,6 +377,7 @@ def parse_evidence_pack(path: Path) -> EvidencePack:
         app_testable=app_testable_raw.strip().casefold() in {'yes', 'true'},
         app_surface=app_surface,
         developer_alert=developer_alert,
+        performance_artifact_pass_fail=performance_artifact_pass_fail,
     )
 
 
@@ -373,11 +489,36 @@ def _extract_proof_matrix(
     return criteria_covered, proof_types, entry_points, failure_coverages
 
 
+def _extract_performance_artifact_pass_fail(lines: list[str]) -> list[str]:
+    """Extract pass/fail conclusions from the Performance Artifacts section.
+
+    Args:
+        lines: Markdown lines.
+
+    Returns:
+        List of pass/fail values from ``- Pass-Fail:`` entries in the section.
+
+    """
+    values: list[str] = []
+    in_section = False
+    for line in lines:
+        if line == '## Performance Artifacts':
+            in_section = True
+            continue
+        if in_section and line.startswith('## '):
+            break
+        if in_section:
+            match = _PERF_PASS_FAIL_RE.match(line)
+            if match:
+                values.append(match.group('value').strip().casefold())
+    return values
+
+
 def evaluate_plan_item(
     *,
     repo_root: Path,
     item: PlanItem,
-    validation_runner: Callable[[Path, str], bool] | None = None,
+    validation_runner: Callable[[Path, str], bool | ValidationExecution] | None = None,
 ) -> VerificationResult:
     """Evaluate one plan item against the evidence standard.
 
@@ -390,6 +531,11 @@ def evaluate_plan_item(
         Verification result for the item.
 
     """
+    requirement_links = {
+        'acceptance_criteria': list(item.acceptance_criteria),
+        'required_failure_modes': list(item.failure_modes),
+    }
+
     if item.lifecycle_state == 'retired':
         return VerificationResult(
             item_id=item.item_id,
@@ -398,6 +544,9 @@ def evaluate_plan_item(
             gaps=[],
             evidence_pack=item.evidence_pack.as_posix() if item.evidence_pack else None,
             validation_commands=item.validations,
+            validation_results=[],
+            exit_codes={},
+            requirement_links=requirement_links,
             approved_by=None,
             app_testable=False,
             app_surface=None,
@@ -417,6 +566,27 @@ def evaluate_plan_item(
             gaps=[f'Missing target files: {", ".join(missing_targets)}'],
             evidence_pack=item.evidence_pack.as_posix() if item.evidence_pack else None,
             validation_commands=item.validations,
+            validation_results=[],
+            exit_codes={},
+            requirement_links=requirement_links,
+            approved_by=None,
+            app_testable=False,
+            app_surface=None,
+            developer_alert=None,
+        )
+
+    metadata_gaps = _collect_metadata_gaps(item) if item.enforce_metadata else []
+    if metadata_gaps:
+        return VerificationResult(
+            item_id=item.item_id,
+            title=item.title,
+            status='coded',
+            gaps=metadata_gaps,
+            evidence_pack=item.evidence_pack.as_posix() if item.evidence_pack else None,
+            validation_commands=item.validations,
+            validation_results=[],
+            exit_codes={},
+            requirement_links=requirement_links,
             approved_by=None,
             app_testable=False,
             app_surface=None,
@@ -431,6 +601,9 @@ def evaluate_plan_item(
             gaps=['Missing evidence pack'],
             evidence_pack=item.evidence_pack.as_posix() if item.evidence_pack else None,
             validation_commands=item.validations,
+            validation_results=[],
+            exit_codes={},
+            requirement_links=requirement_links,
             approved_by=None,
             app_testable=False,
             app_surface=None,
@@ -448,6 +621,9 @@ def evaluate_plan_item(
             gaps=[str(error)],
             evidence_pack=item.evidence_pack.as_posix(),
             validation_commands=item.validations,
+            validation_results=[],
+            exit_codes={},
+            requirement_links=requirement_links,
             approved_by=None,
             app_testable=False,
             app_surface=None,
@@ -462,6 +638,9 @@ def evaluate_plan_item(
             gaps=[],
             evidence_pack=item.evidence_pack.as_posix(),
             validation_commands=item.validations,
+            validation_results=[],
+            exit_codes={},
+            requirement_links=requirement_links,
             approved_by=evidence_pack.reviewer,
             app_testable=False,
             app_surface=None,
@@ -473,12 +652,21 @@ def evaluate_plan_item(
         gaps.append('Reviewer sign-off is not approved')
 
     validation_ok = True
+    validation_results: list[ValidationExecution] = []
     runner = validation_runner or _default_validation_runner
     for command in item.validations:
-        if not runner(repo_root, command):
+        execution = _run_validation(
+            runner=runner,
+            repo_root=repo_root,
+            command=command,
+            requirement_links=item.acceptance_criteria,
+        )
+        validation_results.append(execution)
+        if not execution.passed:
             validation_ok = False
             gaps.append(f'Validation failed: {command}')
 
+    exit_codes = {entry.command: entry.exit_code for entry in validation_results}
     status = 'verified' if not gaps and validation_ok else 'evidenced'
     return VerificationResult(
         item_id=item.item_id,
@@ -487,11 +675,48 @@ def evaluate_plan_item(
         gaps=gaps,
         evidence_pack=item.evidence_pack.as_posix(),
         validation_commands=item.validations,
+        validation_results=validation_results,
+        exit_codes=exit_codes,
+        requirement_links=requirement_links,
         approved_by=evidence_pack.reviewer if status == 'verified' else None,
         app_testable=evidence_pack.app_testable if status == 'verified' else False,
         app_surface=evidence_pack.app_surface if status == 'verified' else None,
         developer_alert=evidence_pack.developer_alert if status == 'verified' else None,
     )
+
+
+def _collect_metadata_gaps(item: PlanItem) -> list[str]:
+    """Collect required metadata fields missing from the plan item declaration.
+
+    Active items must declare all required fields explicitly in docs/PLAN.md.
+    Missing fields are surfaced as verification gaps rather than silently tolerated.
+
+    Args:
+        item: Plan item to check.
+
+    Returns:
+        List of missing-metadata gap messages, empty if all required fields present.
+
+    """
+    gaps: list[str] = []
+    if not item.feature_class:
+        gaps.append('Missing required plan metadata: Feature-Class')
+    if not item.entry_point:
+        gaps.append('Missing required plan metadata: Entry-Point')
+    if not item.required_proofs:
+        gaps.append('Missing required plan metadata: Required-Proof-Types')
+    if not item.failure_modes:
+        gaps.append('Missing required plan metadata: Required-Failure-Modes')
+    if not item.acceptance_criteria:
+        gaps.append('Missing required plan metadata: Acceptance Criteria')
+    if item.performance_claim:
+        if not item.performance_threshold:
+            gaps.append('Missing required plan metadata: Performance-Threshold')
+        if not item.performance_evidence_type:
+            gaps.append('Missing required plan metadata: Performance-Evidence-Type')
+        if not item.performance_evidence_location:
+            gaps.append('Missing required plan metadata: Performance-Evidence-Location')
+    return gaps
 
 
 def _collect_evidence_gaps(*, item: PlanItem, evidence_pack: EvidencePack) -> list[str]:
@@ -525,12 +750,62 @@ def _collect_evidence_gaps(*, item: PlanItem, evidence_pack: EvidencePack) -> li
         covered = {c.casefold() for c in evidence_pack.criteria_covered}
         for ac_label in item.acceptance_criteria:
             if ac_label.casefold() not in covered:
-                gaps.append(f'Acceptance criterion not covered in proof matrix: {ac_label}')
+                gaps.append(
+                    f'Acceptance criterion not covered in proof matrix: {ac_label}'
+                )
+
+    if item.performance_claim:
+        pass_fail = evidence_pack.performance_artifact_pass_fail
+        if not pass_fail:
+            gaps.append(
+                'Missing performance proof: no performance artifacts in evidence pack'
+            )
+        elif any(v != 'pass' for v in pass_fail):
+            gaps.append(
+                'Performance threshold not met: one or more performance artifacts failed'
+            )
 
     return gaps
 
 
-def _default_validation_runner(repo_root: Path, command: str) -> bool:
+def _run_validation(
+    *,
+    runner: Callable[[Path, str], bool | ValidationExecution],
+    repo_root: Path,
+    command: str,
+    requirement_links: list[str],
+) -> ValidationExecution:
+    """Normalize runner outputs into a `ValidationExecution` result.
+
+    Args:
+        runner: Validation runner callback.
+        repo_root: Repository root path.
+        command: Validation command string.
+        requirement_links: Requirement labels tied to this command.
+
+    Returns:
+        Normalized validation execution data.
+
+    """
+    raw = runner(repo_root, command)
+    if isinstance(raw, ValidationExecution):
+        links = list(raw.requirement_links) or list(requirement_links)
+        return ValidationExecution(
+            command=raw.command,
+            exit_code=raw.exit_code,
+            passed=raw.passed,
+            requirement_links=links,
+        )
+
+    return ValidationExecution(
+        command=command,
+        exit_code=0 if raw else 1,
+        passed=bool(raw),
+        requirement_links=list(requirement_links),
+    )
+
+
+def _default_validation_runner(repo_root: Path, command: str) -> ValidationExecution:
     """Run a validation command using the repo validation gate.
 
     Args:
@@ -538,13 +813,18 @@ def _default_validation_runner(repo_root: Path, command: str) -> bool:
         command: Validation command string.
 
     Returns:
-        True when the command succeeds.
+        Validation execution details for the command.
 
     """
     argv = _parse_validation_command(command, repo_root=repo_root)
     if argv is None:
         logger.warning('Validation command is not allowed: {}', command)
-        return False
+        return ValidationExecution(
+            command=command,
+            exit_code=None,
+            passed=False,
+            requirement_links=[],
+        )
     result = subprocess.run(
         argv,
         cwd=repo_root,
@@ -558,7 +838,12 @@ def _default_validation_runner(repo_root: Path, command: str) -> bool:
             command,
             ((result.stdout or '') + (result.stderr or '')).strip(),
         )
-    return result.returncode == 0
+    return ValidationExecution(
+        command=command,
+        exit_code=result.returncode,
+        passed=result.returncode == 0,
+        requirement_links=[],
+    )
 
 
 def _parse_validation_command(command: str, *, repo_root: Path) -> list[str] | None:
@@ -632,91 +917,24 @@ def generate_results(repo_root: Path, plan_path: Path) -> list[VerificationResul
 
 
 def _apply_repo_defaults(items: list[PlanItem]) -> list[PlanItem]:
-    """Apply repo-specific defaults for current plan items.
+    """Apply backward-compatibility lifecycle defaults for legacy items.
+
+    All active AF-* item metadata (feature_class, entry_point, required_proofs,
+    failure_modes, app_surface, developer_alert, performance_claim) is now
+    canonical in docs/PLAN.md and parsed directly by parse_plan_items().
+    This function only supplies the lifecycle fallback for AF-00-01 in case an
+    older copy of the plan omits the Lifecycle field.
 
     Args:
         items: Parsed plan items.
 
     Returns:
-        Plan items with default lifecycle and proof expectations.
+        Plan items with lifecycle fallback applied where needed.
 
     """
-    defaults: dict[str, dict[str, object]] = {
-        'AF-00-01': {'lifecycle_state': 'retired'},
-        'AF-00-02a': {
-            'feature_class': 'boundary',
-            'entry_point': 'verify-env.ps1',
-            'required_proofs': ['contract'],
-            'failure_modes': ['missing toolchain detected'],
-        },
-        'AF-00-02b': {
-            'feature_class': 'boundary',
-            'entry_point': 'build-native.ps1',
-            'required_proofs': ['contract'],
-            'failure_modes': ['native boundary violation rejected'],
-        },
-        'AF-00-03': {
-            'feature_class': 'boundary',
-            'entry_point': 'capture control contract',
-            'required_proofs': ['contract'],
-            'failure_modes': ['missing control-plane message rejected'],
-        },
-        'AF-00-04': {
-            'feature_class': 'boundary',
-            'entry_point': 'plugin abi mirror',
-            'required_proofs': ['contract'],
-            'failure_modes': ['missing runtime state rejected'],
-        },
-        'AF-00-05': {
-            'feature_class': 'workflow',
-            'entry_point': 'sign-off packets',
-            'required_proofs': ['contract'],
-            'failure_modes': ['missing fallback guidance rejected'],
-        },
-        'AF-01-01': {
-            'feature_class': 'service',
-            'entry_point': 'signed plugin loading',
-            'required_proofs': ['integration'],
-            'failure_modes': ['unsigned plugin blocked'],
-        },
-        'AF-01-02': {
-            'feature_class': 'ui',
-            'entry_point': 'status hud',
-            'required_proofs': ['integration'],
-            'failure_modes': ['unauthorized navigation blocked'],
-        },
-        'AF-02-02': {
-            'feature_class': 'ui',
-            'entry_point': 'driver status panel',
-            'required_proofs': ['integration'],
-            'failure_modes': ['driver masking failure surfaced'],
-        },
-        'AF-04-02': {
-            'feature_class': 'service',
-            'entry_point': 'environment panel',
-            'required_proofs': ['integration'],
-            'failure_modes': ['invalid bundle rejected'],
-        },
-    }
-
     for item in items:
-        item_defaults = defaults.get(item.item_id, {})
-        # Lifecycle state from PLAN.md takes precedence; fall back to hardcoded default.
-        if item.lifecycle_state is None and 'lifecycle_state' in item_defaults:
-            item.lifecycle_state = str(item_defaults['lifecycle_state'])
-        # Feature metadata: prefer values already parsed from PLAN.md; fall back to defaults.
-        if item.feature_class is None:
-            item.feature_class = str(item_defaults.get('feature_class', '')) or None
-        if item.entry_point is None:
-            item.entry_point = str(item_defaults.get('entry_point', '')) or None
-        if not item.required_proofs:
-            item.required_proofs = list(  # type: ignore
-                item_defaults.get('required_proofs', [])  # type: ignore
-            )
-        if not item.failure_modes:
-            item.failure_modes = list(  # type: ignore
-                item_defaults.get('failure_modes', [])  # type: ignore
-            )
+        if item.item_id == 'AF-00-01' and item.lifecycle_state is None:
+            item.lifecycle_state = 'retired'
     return items
 
 

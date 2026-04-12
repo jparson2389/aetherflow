@@ -10,7 +10,7 @@ class EntitlementState(StrEnum):
     """Supported entitlement states for plugin gating."""
 
     LOADED = 'LOADED'
-    ELIGIBLE = 'ELIGIBLE'   # reserved — not yet produced by evaluate(); for future partial-grant support
+    ELIGIBLE = 'ELIGIBLE'  # reserved — not yet produced by evaluate(); for future partial-grant support
     LOCKED = 'LOCKED'
     GRACE = 'GRACE'
 
@@ -119,6 +119,15 @@ class EntitlementStore:
 
         """
         self._grace_entitlements[plugin_id] = set(required_entitlements)
+
+    def expire_grace(self, plugin_id: str) -> None:
+        """Expire grace-period access for a premium plugin.
+
+        Args:
+            plugin_id: Plugin or resource identifier.
+
+        """
+        self._grace_entitlements.pop(plugin_id, None)
 
     def evaluate(
         self,
