@@ -53,8 +53,9 @@ flowchart LR
 
 <!-- markdownlint-disable MD060 -->
 
+<!-- prettier-ignore-start -->
 | File                                        | Size   | Markers                   | Why Misclassified                                    |
-| ------------------------------------------- | ------ | ------------------------- | ---------------------------------------------------- |
+|---------------------------------------------|--------|---------------------------|------------------------------------------------------|
 | tools/plan_exec.py                          | 72,176 | placeholder;minimal;model | "model" in Pydantic, "minimal" in docstrings         |
 | tools/validation_gate.py                    | 16,937 | model                     | "model" in `BaseModel`, `model_validator`            |
 | tools/agent_call.py                         | 5,543  | model                     | "model" in API/LLM context                           |
@@ -66,6 +67,7 @@ flowchart LR
 | src/aetherflow/proto/capture_pb2.py         | 3,699  | descriptor                | Generated proto; "descriptor" is structural          |
 | docs/PLAN.md                                | 31,883 | placeholder;minimal;model | "model" in completion policy ("model-only wrappers") |
 | docs/PRD.md                                 | 16,046 | model                     | "model" in requirements terminology                  |
+<!-- prettier-ignore-end -->
 
 <!-- markdownlint-enable MD060 -->
 

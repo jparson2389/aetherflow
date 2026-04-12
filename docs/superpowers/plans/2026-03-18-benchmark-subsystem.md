@@ -14,10 +14,12 @@
 
 Two files govern all model resolution — never hardcode paths or URLs:
 
+<!-- prettier-ignore-start -->
 | File                  | What it provides                                           |
-| --------------------- | ---------------------------------------------------------- |
+|-----------------------|------------------------------------------------------------|
 | `agent_manifest.json` | `base_url`, `api_key`, `grammar_capable`, `stage_to_alias` |
 | `tools/models.ini`    | GGUF model path, ctx-size, draft config per alias          |
+<!-- prettier-ignore-end -->
 
 Stage→alias mapping (from `agent_manifest.json`):
 
@@ -158,7 +160,7 @@ git commit -m "chore: add architect to stage_to_alias in agent_manifest.json"
 ## Schemas benchmarked
 
 | Suite    | Stage     | Alias     | Schema        |
-| -------- | --------- | --------- | ------------- |
+|----------|-----------|-----------|---------------|
 | verifier | pm_verify | pm        | PMVerdict     |
 | coder    | architect | architect | WritesPayload |
 | planner  | pm_next   | pm        | PMResponse    |
@@ -167,7 +169,7 @@ git commit -m "chore: add architect to stage_to_alias in agent_manifest.json"
 ## Pass/fail thresholds by suite
 
 | Suite    | Pydantic-valid (hard) | Instruction pass (soft) |
-| -------- | --------------------- | ----------------------- |
+|----------|-----------------------|-------------------------|
 | verifier | ≥ 95%                 | ≥ 90%                   |
 | coder    | ≥ 90%                 | ≥ 80%                   |
 | planner  | ≥ 90%                 | ≥ 75%                   |

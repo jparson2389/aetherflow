@@ -76,3 +76,4 @@ src/aetherflow/proto/*_pb2_grpc.py
 .codex/*.sqlite*
 .codex/logs_*.sqlite*
 .codex/state_*.sqlite*
+tools/wrap_markdown_tables.py

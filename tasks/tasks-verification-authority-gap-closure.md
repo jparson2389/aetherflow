@@ -194,8 +194,9 @@ AF-00-02a remains `verified` (unchanged).
 Items whose only remaining gap(s) are evidence-pack content issues (not missing
 implementation) are candidates for section 6.0 repair.
 
+<!-- prettier-ignore-start -->
 | Item      | Gap type(s)                                                        | Detail                                                                                                                                                                            |
-| --------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|-----------|--------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | AF-00-02b | AC coverage gap                                                    | Pack only covers AC1; plan declares AC2 ("Native/Python boundary is enforced") — no proof matrix row for AC2                                                                      |
 | AF-00-03  | AC coverage gap                                                    | Pack only covers AC1; plan declares AC2 ("Ring buffer semantics are published") — no proof matrix row for AC2                                                                     |
 | AF-00-04  | AC coverage gap                                                    | Pack only covers AC1; plan declares AC2 ("Breaking-change docs are present") — no proof matrix row for AC2                                                                        |
@@ -210,6 +211,7 @@ implementation) are candidates for section 6.0 repair.
 | AF-04-02  | AC coverage gap                                                    | Pack only covers AC1; plan declares AC2 ("Bundle naming ambiguity does not block function") — no proof matrix row for AC2                                                         |
 | AF-05-01  | failure-coverage gap + review/sign-off gap                         | Pack has no failure coverage for "unsigned manifest rejected"; reviewer_status pending                                                                                            |
 | AF-05-02  | failure-coverage gap + review/sign-off gap                         | Pack has no failure coverage for "missing evidence artifact blocks release"; reviewer_status pending                                                                              |
+<!-- prettier-ignore-end -->
 
 ### Decision for 5.4
 
