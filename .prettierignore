@@ -6,3 +6,4 @@ dist/
 build/
 out/
 docs/requirements-report.md
+.claude/agents/plan-work-item-auditor.md

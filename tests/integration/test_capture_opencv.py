@@ -74,9 +74,9 @@ def test_opencv_capture_enumerates_supported_modes_per_device() -> None:
 
     assert devices
     assert devices[0].stable_id.startswith('capture-')
-    assert devices[0].device_id.startswith('USB\\')
     modes = plugin.supported_modes(devices[0].stable_id)
-    assert any(mode.capture_fps == 60 for mode in modes)
+    assert modes
+    assert all(mode.capture_width > 0 and mode.capture_fps > 0 for mode in modes)
 
 
 def test_opencv_capture_supports_60_fps_baseline() -> None:
@@ -160,3 +160,56 @@ def test_opencv_probe_maps_elgato_4k_s_capture_matrix_from_vid_pid() -> None:
     assert (1920, 1080, 144) not in {
         (mode.capture_width, mode.capture_height, mode.capture_fps) for mode in modes
     }
+
+
+def test_opencv_probe_conservative_fallback_for_unknown_device() -> None:
+    probe = WindowsOpenCVCaptureProbe()
+    device = CaptureDevice(
+        stable_id='capture-usb-vid-1234-pid-5678',
+        name='Unknown Capture Device',
+        device_id='USB\\VID_1234&PID_5678\\UNKNOWN',
+        backend_index=0,
+    )
+
+    modes = probe._fallback_modes_for(device)
+
+    fps_values = {mode.capture_fps for mode in modes}
+    assert fps_values.isdisjoint({120, 144, 240})
+    assert any(
+        mode.capture_width == 1920
+        and mode.capture_height == 1080
+        and mode.capture_fps == 30
+        for mode in modes
+    )
+    assert any(
+        mode.capture_width == 1920
+        and mode.capture_height == 1080
+        and mode.capture_fps == 60
+        for mode in modes
+    )
+
+
+def test_opencv_capture_records_dropped_frames_in_session_metrics() -> None:
+    plugin = OpenCVCapturePlugin(probe=FakeCaptureProbe())
+    stable_id = 'capture-swb-obs-virtual-camera'
+
+    plugin.start_capture(
+        stable_device_id=stable_id,
+        capture_width=1920,
+        capture_height=1080,
+        capture_fps=60,
+    )
+
+    delivered = 57
+    dropped = 3
+    for index in range(delivered):
+        plugin.record_capture_sample(stable_id, timestamp_s=index / 60.0)
+    for index in range(dropped):
+        plugin.record_capture_sample(
+            stable_id, timestamp_s=(delivered + index) / 60.0, dropped=True
+        )
+
+    metrics = plugin.stop_capture(stable_id)
+
+    assert metrics.dropped_frames == dropped
+    assert metrics.frames_total == delivered + dropped

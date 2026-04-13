@@ -1,0 +1,7 @@
+{
+  // Ignores apply to markdownlint-cli2 and vscode-markdownlint when using CLI2 config.
+  // markdownlint-cli2 does NOT read .markdownlintignore (see CLI2 README Compatibility).
+  "ignores": [
+    "logs/audit/**"
+  ]
+}
