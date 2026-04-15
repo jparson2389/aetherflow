@@ -2,6 +2,5 @@
 
 This task list is deprecated.
 
-Use `tasks/tasks-verification-authority-gap-closure.md` as the authoritative
-execution checklist for the current verification authority and gap-closure
-effort.
+Use the current verification authority and gap-closure checklist as the
+authoritative execution source instead of this file.

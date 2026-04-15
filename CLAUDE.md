@@ -30,16 +30,16 @@ uv run pytest tests/unit/                 # Unit tests only
 uv run pytest tests/unit/test_foo.py -k "test_bar"  # Single test
 
 # Build generated assets
-uv run python -m tools.build_assets       # Cross-platform (preferred in WSL)
-pwsh -ExecutionPolicy Bypass -File scripts/build-assets.ps1  # Requires pwsh in WSL
+uv run python -m tools.build_assets       # Cross-platform preferred entry point
+pwsh -ExecutionPolicy Bypass -File scripts/build-assets.ps1  # Native PowerShell entry point on Windows
 
 # Security
 uv run bandit -r src/                     # Security audit
 uv run detect-secrets scan                # Secret scanning
 
 # Quality gate (combined lint + test + security)
-uv run python -m tools.check_quality      # Cross-platform (preferred in WSL)
-pwsh -ExecutionPolicy Bypass -File scripts/check-quality.ps1  # Requires pwsh in WSL
+uv run python -m tools.check_quality      # Cross-platform preferred entry point
+pwsh -ExecutionPolicy Bypass -File scripts/check-quality.ps1  # Native PowerShell entry point on Windows
 
 # Native C++ build (Windows only — run on Windows build agent, not in WSL)
 pwsh -ExecutionPolicy Bypass -File scripts/build-native.ps1
@@ -51,7 +51,7 @@ Aetherflow is a **Windows-first controller adapter host** with a microkernel plu
 
 ### Boundary layers
 
-```mermaid
+```text
 PySide6 UI  ─────┐
                   │  Python (src/aetherflow/)
 Python workers ──┘

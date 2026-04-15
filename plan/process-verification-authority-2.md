@@ -147,13 +147,14 @@ thresholds.
 ### Implementation Phase 6
 
 - **GOAL-006**: Publish the execution checklist in `tasks/` using the repo’s
-  generate-tasks model.
+  generate-tasks model, with `tasks/tasks-rework-plan.md` as the execution
+  handoff for this plan.
 
 <!-- prettier-ignore-start -->
 | Task     | Description                                                                                                                               | Completed | Date |
 |----------|-------------------------------------------------------------------------------------------------------------------------------------------|-----------|------|
-| TASK-026 | Create `tasks/tasks-verification-authority-gap-closure.md` as the new execution handoff.                                                  |           |      |
-| TASK-027 | Replace the current literal sentence-decomposition style in `tasks/tasks-rework-plan.md` with a deprecation pointer to the new task file. |           |      |
+| TASK-026 | Update `tasks/tasks-rework-plan.md` so it serves as the execution handoff for this plan’s verification-authority gap-closure work.       |           |      |
+| TASK-027 | Replace the current literal sentence-decomposition style in `tasks/tasks-rework-plan.md` with the final execution checklist for this plan. |           |      |
 | TASK-028 | Include `0.0 Create feature branch` unless the user later suppresses it.                                                                  |           |      |
 <!-- prettier-ignore-end -->
 

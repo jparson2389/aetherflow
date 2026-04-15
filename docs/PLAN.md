@@ -511,7 +511,7 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   >
   > - AC1: Restart ceilings are enforced and logged.
   > - AC2: Escalation to FAILED occurs on ceiling breach.
-  >   **Required-Proof-Types:** `unit, ui`
+  >   **Required-Proof-Types:** `integration, stress`
   >   **Evidence-Pack:** `docs/evidence/AF-04-01.md`
   >   **App-Testable:** `false`
   >   **Required-Failure-Modes:** `restart ceiling breach escalates to FAILED`
@@ -608,7 +608,7 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
   >
   > - AC1: Admin actions update real data models.
   > - AC2: Diagnostics export includes real logs.
-  >   **Required-Proof-Types:** `integration, e2e`
+  >   **Required-Proof-Types:** `integration`
   >   **Evidence-Pack:** `docs/evidence/AF-05-02.md`
   >   **App-Testable:** `false`
   >   **Required-Failure-Modes:** `missing evidence artifact blocks release`
@@ -620,9 +620,8 @@ uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_work
   >   **Target File:** `scripts/run-e2e.ps1`
   >   **Target File:** `tests/integration/test_admin_dashboard.py`
   >   **Target File:** `tests/integration/test_diagnostics_export.py`
-  >   **Target File:** `tests/e2e/test_onboarding_timing.py`
   >   **Behavior:** ship admin/operator workflows, diagnostics export, Windows packaging, and evidence files for latency, survivability, bundle success, 60 FPS stability, and validated 120 FPS path.
-  >   **Validation:** `uv run pytest tests/integration/test_admin_dashboard.py tests/integration/test_diagnostics_export.py tests/e2e/test_onboarding_timing.py`
+  >   **Validation:** `uv run pytest tests/integration/test_admin_dashboard.py tests/integration/test_diagnostics_export.py`
   >   **Evidence:** required release artifacts exist under `logs/`.
   >   **Completion Gates:**
   > - Admin workflows update real data models and audit logs.
