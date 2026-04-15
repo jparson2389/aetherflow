@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Environment
 
-- **Dev platform**: WSL2 (Ubuntu) on Windows — shell is `bash`, Python tooling runs natively under Linux
+- **Dev platform**: Windows — shell is `PowerShell 7`
 - **Deployment target**: Windows-first (the compiled C++ host and plugins target Windows)
-- **PowerShell scripts** (`scripts/*.ps1`) require PowerShell Core (`pwsh`) installed in WSL. Prefer the `uv run python -m tools.*` equivalents for daily dev — they are the canonical cross-platform entry points.
-- **Native C++ build** (`scripts/build-native.ps1`) requires MSVC and must be run on Windows or via a Windows build agent; it cannot compile inside WSL.
+- **PowerShell scripts** (`scripts/*.ps1`) require PowerShell Core (`pwsh`). Prefer the `uv run python -m tools.*` equivalents for daily dev — they are the canonical cross-platform entry points.
+- **Native C++ build** (`scripts/build-native.ps1`) requires MSVC and must be run on Windows or via a Windows build agent.
 
 ## Commands
 
@@ -30,16 +30,16 @@ uv run pytest tests/unit/                 # Unit tests only
 uv run pytest tests/unit/test_foo.py -k "test_bar"  # Single test
 
 # Build generated assets
-uv run python -m tools.build_assets       # Cross-platform (preferred in WSL)
-pwsh -ExecutionPolicy Bypass -File scripts/build-assets.ps1  # Requires pwsh in WSL
+uv run python -m tools.build_assets       # Cross-platform preferred entry point
+pwsh -ExecutionPolicy Bypass -File scripts/build-assets.ps1  # Native PowerShell entry point on Windows
 
 # Security
 uv run bandit -r src/                     # Security audit
 uv run detect-secrets scan                # Secret scanning
 
 # Quality gate (combined lint + test + security)
-uv run python -m tools.check_quality      # Cross-platform (preferred in WSL)
-pwsh -ExecutionPolicy Bypass -File scripts/check-quality.ps1  # Requires pwsh in WSL
+uv run python -m tools.check_quality      # Cross-platform preferred entry point
+pwsh -ExecutionPolicy Bypass -File scripts/check-quality.ps1  # Native PowerShell entry point on Windows
 
 # Native C++ build (Windows only — run on Windows build agent, not in WSL)
 pwsh -ExecutionPolicy Bypass -File scripts/build-native.ps1
@@ -51,7 +51,7 @@ Aetherflow is a **Windows-first controller adapter host** with a microkernel plu
 
 ### Boundary layers
 
-```
+```text
 PySide6 UI  ─────┐
                   │  Python (src/aetherflow/)
 Python workers ──┘
@@ -59,10 +59,25 @@ Python workers ──┘
 C++ host (host/) + plugins (include/plugin_system.hpp)
 ```
 
+### Markdown tables
+
+This repo uses a **Markdown table prettifier** (e.g. the VS Code Markdown Table extension) to align table columns. Prettier must not reformat those tables — it collapses the padding and breaks the alignment.
+
+**Always wrap tables with prettier-ignore comments:**
+
+```markdown
+<!-- prettier-ignore-start -->
+| Column A | Column B |
+|----------|----------|
+| value    | value    |
+<!-- prettier-ignore-end -->
+```
+
 ### Key modules
 
+<!-- prettier-ignore-start -->
 | Path                                          | Role                                                                            |
-| --------------------------------------------- | ------------------------------------------------------------------------------- |
+|-----------------------------------------------|---------------------------------------------------------------------------------|
 | `src/aetherflow/core/entitlements.py`         | Canonical entitlement state machine — ONLY call `EntitlementStore.evaluate()`   |
 | `src/aetherflow/core/runtime_state.py`        | User-visible states: RUNNING, DEGRADED, RECOVERING, FAILED, LOCKED, GRACE       |
 | `src/aetherflow/core/services.py`             | `AppServices` — shared runtime container (entitlements, trust verifier, roles)  |
@@ -72,6 +87,7 @@ C++ host (host/) + plugins (include/plugin_system.hpp)
 | `src/aetherflow/ui/`                          | PySide6 shell, router, and status HUD models                                    |
 | `proto/capture.proto`                         | **Frozen** gRPC control-plane contract — never modify without explicit approval |
 | `src/aetherflow/proto/`                       | Generated gRPC stubs (`*_pb2.py`, `*_pb2_grpc.py`) — never hand-edit            |
+<!-- prettier-ignore-end -->
 
 ### Automated plan execution (tools/)
 
@@ -92,5 +108,6 @@ Plan state persists to `state/plan_state.json`. Per-run logs go to `logs/plan_ex
 - **Entitlements** — never inline entitlement logic; always `EntitlementStore.evaluate(...)`
 - **Dependencies** — never add/remove without human approval (3 groups: runtime, dev, automation)
 - **proto/ is frozen** — `proto/capture.proto` is the authority; rebuild stubs with `uv run python -m tools.build_assets`, never hand-edit
+- **Never hand-edit** — `src/aetherflow/proto/capture_pb2.py`, `src/aetherflow/proto/capture_pb2_grpc.py`
 
 See `AGENTS.md` for complete coding standards.

@@ -5,9 +5,4 @@ node_modules/
 dist/
 build/
 out/
-logs/
-.agents/
-.codex/
-.cursor/
-.claude/
 docs/requirements-report.md

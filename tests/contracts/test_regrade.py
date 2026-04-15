@@ -5,30 +5,52 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
+from aetherflow.core.verification_report import generate_results, write_results
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_requirements_report_has_all_six_states():
+@pytest.fixture
+def generated_report(tmp_path: Path) -> str:
+    """Generate a fresh requirements report through the canonical code path."""
+    results = generate_results(
+        repo_root=PROJECT_ROOT,
+        plan_path=PROJECT_ROOT / 'docs' / 'PLAN.md',
+    )
+    report_path = tmp_path / 'requirements-report.md'
+    write_results(
+        report_path=report_path,
+        results_dir=tmp_path / 'verification-results',
+        results=results,
+    )
+    return report_path.read_text(encoding='utf-8')
+
+
+def test_requirements_report_has_all_six_states(generated_report: str):
     """docs/requirements-report.md must report all six state labels."""
-    report = (PROJECT_ROOT / 'docs' / 'requirements-report.md').read_text(encoding='utf-8')
     for state_label in ('- Retired:', '- Drafted:', '- Coded:', '- Evidenced:', '- Verified:', '- Complete:'):
-        assert state_label in report, f'Report missing state label: {state_label}'
+        assert state_label in generated_report, f'Report missing state label: {state_label}'
 
 
-def test_each_item_entry_includes_required_fields():
+def test_each_item_entry_includes_required_fields(generated_report: str):
     """Each non-retired item section in the report must include key info."""
-    report = (PROJECT_ROOT / 'docs' / 'requirements-report.md').read_text(encoding='utf-8')
     # Each item section should have: ### AF-XX-XX header, Status:, Evidence Pack:
-    item_sections = [line for line in report.splitlines() if line.startswith('### AF-')]
+    item_sections = [
+        f'### AF-{chunk}' for chunk in generated_report.split('\n### AF-')[1:]
+    ]
     assert len(item_sections) >= 15, f'Expected at least 15 item sections, found {len(item_sections)}'
     for section in item_sections:
-        assert 'AF-' in section
+        if '- Status: retired' in section:
+            continue
+        assert '- Status:' in section, 'Missing status field in item section'
+        assert '- Evidence Pack:' in section, 'Missing evidence-pack field in item section'
 
 
-def test_coded_items_not_shown_as_verified():
+def test_coded_items_not_shown_as_verified(generated_report: str):
     """Items that are coded or evidenced must not appear as verified in the report."""
-    report = (PROJECT_ROOT / 'docs' / 'requirements-report.md').read_text(encoding='utf-8')
-    lines = report.splitlines()
+    lines = generated_report.splitlines()
     # Find items that are 'coded' or 'evidenced' and verify they don't say 'verified'
     current_item = None
     for line in lines:
@@ -41,13 +63,12 @@ def test_coded_items_not_shown_as_verified():
                 assert status != 'verified', f'{current_item} should not be verified but was: {status}'
 
 
-def test_retired_item_excluded_from_shipping_count():
+def test_retired_item_excluded_from_shipping_count(generated_report: str):
     """AF-00-01 is retired and must show status: retired, not be in verified count."""
-    report = (PROJECT_ROOT / 'docs' / 'requirements-report.md').read_text(encoding='utf-8')
-    assert '- Retired: 1' in report, 'Expected exactly 1 retired item (AF-00-01)'
+    assert '- Retired: 1' in generated_report, 'Expected exactly 1 retired item (AF-00-01)'
     # AF-00-01 section shows retired
-    assert 'AF-00-01' in report
-    lines = report.splitlines()
+    assert 'AF-00-01' in generated_report
+    lines = generated_report.splitlines()
     in_af00_01 = False
     for line in lines:
         if '### AF-00-01' in line:
@@ -57,11 +78,10 @@ def test_retired_item_excluded_from_shipping_count():
             break
 
 
-def test_report_generated_from_evidence_states_not_heuristics():
+def test_report_generated_from_evidence_states_not_heuristics(generated_report: str):
     """The report summary counts must be non-negative integers."""
-    report = (PROJECT_ROOT / 'docs' / 'requirements-report.md').read_text(encoding='utf-8')
     for label in ('Retired', 'Drafted', 'Coded', 'Evidenced', 'Verified', 'Complete'):
-        match = re.search(rf'- {label}: (\d+)', report)
+        match = re.search(rf'- {label}: (\d+)', generated_report)
         assert match is not None, f'Missing count for {label} in report'
         count = int(match.group(1))
         assert count >= 0
