@@ -38,11 +38,14 @@ def test_each_item_entry_includes_required_fields(generated_report: str):
     """Each non-retired item section in the report must include key info."""
     # Each item section should have: ### AF-XX-XX header, Status:, Evidence Pack:
     item_sections = [
-        line for line in generated_report.splitlines() if line.startswith('### AF-')
+        f'### AF-{chunk}' for chunk in generated_report.split('\n### AF-')[1:]
     ]
     assert len(item_sections) >= 15, f'Expected at least 15 item sections, found {len(item_sections)}'
     for section in item_sections:
-        assert 'AF-' in section
+        if '- Status: retired' in section:
+            continue
+        assert '- Status:' in section, 'Missing status field in item section'
+        assert '- Evidence Pack:' in section, 'Missing evidence-pack field in item section'
 
 
 def test_coded_items_not_shown_as_verified(generated_report: str):
