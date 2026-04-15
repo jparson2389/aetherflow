@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Environment
 
-- **Dev platform**: Windows — shell is `Powershell 7`
+- **Dev platform**: Windows — shell is `PowerShell 7`
 - **Deployment target**: Windows-first (the compiled C++ host and plugins target Windows)
 - **PowerShell scripts** (`scripts/*.ps1`) require PowerShell Core (`pwsh`). Prefer the `uv run python -m tools.*` equivalents for daily dev — they are the canonical cross-platform entry points.
 - **Native C++ build** (`scripts/build-native.ps1`) requires MSVC and must be run on Windows or via a Windows build agent.
@@ -108,6 +108,6 @@ Plan state persists to `state/plan_state.json`. Per-run logs go to `logs/plan_ex
 - **Entitlements** — never inline entitlement logic; always `EntitlementStore.evaluate(...)`
 - **Dependencies** — never add/remove without human approval (3 groups: runtime, dev, automation)
 - **proto/ is frozen** — `proto/capture.proto` is the authority; rebuild stubs with `uv run python -m tools.build_assets`, never hand-edit
-- **never hand edit** - `src\aetherflow\proto\capture_pb2.py`, `src\aetherflow\proto\capture_pb2_grpc.py`
+- **Never hand-edit** — `src/aetherflow/proto/capture_pb2.py`, `src/aetherflow/proto/capture_pb2_grpc.py`
 
 See `AGENTS.md` for complete coding standards.
