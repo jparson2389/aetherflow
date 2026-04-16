@@ -2,9 +2,7 @@ syntax = "proto3";
 
 package aetherflow.capture.v1;
 
-// Frozen Phase 0 control-plane capture contract.
 message CaptureMode {
-  // Logical frame geometry and pixel label expected by the shared-memory ring.
   uint32 width = 1;
   uint32 height = 2;
   uint32 target_fps = 3;
@@ -12,7 +10,6 @@ message CaptureMode {
   uint32 stride_bytes = 5;
 }
 
-// Start capture for a specific plugin/device pairing.
 message CaptureStartRequest {
   string capture_plugin_id = 1;
   string device_id = 2;
@@ -20,14 +17,12 @@ message CaptureStartRequest {
   uint32 timeout_ms = 4;
 }
 
-// Stop capture and preserve the caller-supplied stop reason for diagnostics.
 message CaptureStopRequest {
   string capture_plugin_id = 1;
   string device_id = 2;
   string reason = 3;
 }
 
-// Unary status returned by runtime-control operations.
 message OperationStatus {
   bool ok = 1;
   string runtime_state = 2;
@@ -35,7 +30,6 @@ message OperationStatus {
   uint32 retry_budget_remaining = 4;
 }
 
-// Worker liveness report emitted on the heartbeat cadence.
 message WorkerHeartbeat {
   string worker_id = 1;
   string health = 2;
@@ -43,7 +37,6 @@ message WorkerHeartbeat {
   uint64 timestamp_ns = 4;
 }
 
-// Worker log line forwarded to the host for UI and diagnostics surfaces.
 message WorkerLog {
   string worker_id = 1;
   string level = 2;
@@ -51,7 +44,6 @@ message WorkerLog {
   uint64 timestamp_ns = 4;
 }
 
-// Plugin load result including the resulting runtime state and load failure text.
 message PluginLoadResult {
   string plugin_id = 1;
   bool loaded = 2;
@@ -70,8 +62,6 @@ message DiagnosticsExportResponse {
   string summary = 2;
 }
 
-// Capture control-plane RPC surface. Timeout and retry posture is normative in
-// docs/proto/capture.md and enforced by contract tests.
 service CaptureControl {
   rpc StartCapture(CaptureStartRequest) returns (OperationStatus);
   rpc StopCapture(CaptureStopRequest) returns (OperationStatus);

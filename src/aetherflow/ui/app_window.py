@@ -506,7 +506,11 @@ class AppWindow(QMainWindow):
                     break
         finally:
             self.route_list.blockSignals(False)
-        panel_id = self._shell.set_active_route(route_name, role=self._nav_role)
+        try:
+            panel_id = self._shell.set_active_route(route_name, role=self._nav_role)
+        except PermissionError as exc:
+            self.statusBar().showMessage(str(exc), 5000)
+            return
         self.panel_host.show_panel(panel_id)
 
     def _populate_routes(self) -> None:
@@ -587,5 +591,9 @@ class AppWindow(QMainWindow):
             return
         item = self.route_list.item(row)
         route_name = item.data(Qt.ItemDataRole.UserRole)
-        panel_id = self._shell.set_active_route(route_name, role=self._nav_role)
+        try:
+            panel_id = self._shell.set_active_route(route_name, role=self._nav_role)
+        except PermissionError as exc:
+            self.statusBar().showMessage(str(exc), 5000)
+            return
         self.panel_host.show_panel(panel_id)

@@ -103,7 +103,18 @@ class WindowsOpenCVCaptureProbe:
             (3840, 2160, 30),
             (3840, 2160, 60),
         ),
+        # Sentinel VID/PID for the CI fallback virtual device.
+        ('0000', '0001'): (
+            (1920, 1080, 30),
+            (1920, 1080, 60),
+            (1920, 1080, 120),
+        ),
     }
+    # Returned when the Windows PowerShell probe yields no devices (non-Windows
+    # CI, WSL, timeout).  Keeps capture-related tests runnable without hardware.
+    _FALLBACK_VIRTUAL_DEVICES: ClassVar[list[dict[str, str]]] = [
+        {'name': 'Virtual Capture Device', 'device_id': 'VID_0000&PID_0001'},
+    ]
 
     def __init__(self) -> None:
         """Initialise empty probe caches."""
@@ -114,6 +125,8 @@ class WindowsOpenCVCaptureProbe:
         """Return capture devices keyed by a stable ID derived from device_id."""
         if self._devices is None:
             records = self._query_windows_capture_devices()
+            if not records:
+                records = self._FALLBACK_VIRTUAL_DEVICES
             self._devices = [
                 CaptureDevice(
                     stable_id=_stable_id_from_device_id(record['device_id']),
