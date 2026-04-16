@@ -54,4 +54,10 @@ def test_capture_panel_hides_unsupported_modes() -> None:
 
     assert selector.available_fps == [30, 60]
     assert selector.available_resolutions == [(1920, 1080)]
+    assert selector.is_supported(width=1920, height=1080, fps=60) is True
+    assert selector.is_supported(width=2560, height=1440, fps=240) is False
+    assert (
+        selector.unavailable_reason_for(width=2560, height=1440, fps=240)
+        == 'Bandwidth and backend limits'
+    )
     assert selector.unavailable_reason == 'Bandwidth and backend limits'

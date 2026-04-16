@@ -8,7 +8,9 @@ import pytest
 from tools import check_quality
 
 
-def test_scoped_python_targets_only_include_existing_python_files(tmp_path: Path) -> None:
+def test_scoped_python_targets_only_include_existing_python_files(
+    tmp_path: Path,
+) -> None:
     python_path = tmp_path / 'src' / 'feature.py'
     python_path.parent.mkdir(parents=True)
     python_path.write_text('print("ok")\n', encoding='utf-8')
@@ -59,7 +61,9 @@ def test_run_quality_gate_writes_log_under_repo_root(
 ) -> None:
     log_paths: list[Path] = []
 
-    def fake_write_log(message: str, *, log_path: Path = check_quality.LOG_PATH) -> None:
+    def fake_write_log(
+        message: str, *, log_path: Path = check_quality.LOG_PATH
+    ) -> None:
         del message
         log_paths.append(log_path)
 

@@ -174,6 +174,49 @@ class TestAppWindow:
 
         assert window.panel_host.current_panel_id() == EMPTY_PANEL_ID
 
+    def test_app_window_syncs_active_shell_route(self, _qt_app) -> None:
+        from aetherflow.ui.app_window import AppWindow
+        from aetherflow.ui.bootstrap import configure_default_shell
+        from aetherflow.ui.shell import ShellModel
+
+        shell = configure_default_shell(ShellModel())
+        window = AppWindow(shell)
+
+        assert window.panel_host.current_panel_id() == 'panel.home'
+        assert window.route_list.count() == 5
+
+    def test_app_window_capture_panel_renders_live_probe_data(
+        self, _qt_app, fake_capture_probe
+    ) -> None:
+        from aetherflow.ui.app_window import AppWindow
+        from aetherflow.ui.bootstrap import configure_default_shell
+        from aetherflow.ui.shell import ShellModel
+        from aetherflow.vision.opencv_capture import OpenCVCapturePlugin
+
+        shell = configure_default_shell(ShellModel())
+        window = AppWindow(
+            shell, capture_plugin=OpenCVCapturePlugin(probe=fake_capture_probe)
+        )
+
+        window.navigate_to('capture')
+        elgato_row = next(
+            index
+            for index in range(window.capture_panel.device_list.count())
+            if window.capture_panel.device_list.item(index).text() == 'Elgato 4K S'
+        )
+        window.capture_panel.device_list.setCurrentRow(elgato_row)
+
+        assert window.panel_host.current_panel_id() == 'panel.capture'
+        assert window.capture_panel is not None
+        assert window.capture_panel.device_list.count() == len(
+            fake_capture_probe.enumerate_devices()
+        )
+        assert 'Elgato 4K S' in window.capture_panel.device_list.item(elgato_row).text()
+        assert 'VID_0FD9&PID_00AF' in window.capture_panel.device_details_label.text()
+        assert window.capture_panel.mode_list.count() == 3
+        assert '1920x1080 @ 120 FPS' in window.capture_panel.mode_list.item(1).text()
+        assert 'HDR' in window.capture_panel.mode_list.item(0).text()
+
     def test_app_window_shows_without_crashing(self, _qt_app) -> None:
         from aetherflow.ui.app_window import AppWindow
         from aetherflow.ui.shell import ShellModel

@@ -161,3 +161,44 @@ def test_item_can_be_retired_without_evidence_pack(tmp_path: Path) -> None:
 
     assert result.status == 'retired'
     assert result.gaps == []
+
+
+def test_verified_payload_includes_validation_exit_codes_and_requirement_links(
+    tmp_path: Path,
+) -> None:
+    target_path = tmp_path / 'src' / 'feature.py'
+    target_path.parent.mkdir(parents=True)
+    target_path.write_text("def run() -> str:\n    return 'ok'\n", encoding='utf-8')
+
+    evidence_path = tmp_path / 'docs' / 'evidence' / 'AF-10-03.md'
+    evidence_path.parent.mkdir(parents=True)
+    _write_evidence_pack(evidence_path, reviewer_status='approved', app_testable=False)
+
+    item = PlanItem(
+        item_id='AF-10-03',
+        title='Validation payload coverage item',
+        targets=[Path('src/feature.py')],
+        validations=['uv run pytest tests/unit/test_example.py'],
+        evidence_pack=Path('docs/evidence/AF-10-03.md'),
+        feature_class='boundary',
+        entry_point='capture control contract',
+        required_proofs=['integration'],
+        failure_modes=['invalid configuration rejected'],
+        acceptance_criteria=['AC1', 'AC2'],
+    )
+
+    result = evaluate_plan_item(
+        repo_root=tmp_path,
+        item=item,
+        validation_runner=lambda _repo_root, _command: True,
+    )
+    payload = result.to_payload()
+
+    assert payload['validation_commands'] == [
+        'uv run pytest tests/unit/test_example.py'
+    ]
+    assert payload['exit_codes'] == {'uv run pytest tests/unit/test_example.py': 0}
+    assert payload['requirement_links'] == {
+        'acceptance_criteria': ['AC1', 'AC2'],
+        'required_failure_modes': ['invalid configuration rejected'],
+    }

@@ -36,3 +36,33 @@ def test_profile_store_fast_switch_tracks_active() -> None:
     store.switch_active(alt.profile_id)
 
     assert store.active_profile_id == alt.profile_id
+
+
+def test_profile_import_rejects_invalid_deadzone() -> None:
+    payload = {
+        'profile_id': 'profile-1',
+        'name': 'Default',
+        'button_map': {},
+        'deadzone': 1.5,
+        'curve_exponent': 1.0,
+        'smoothing_alpha': 1.0,
+        'sensitivity_layers': [],
+    }
+
+    try:
+        InputProfile.import_profile(payload)
+    except ValueError as exc:
+        assert 'deadzone' in str(exc)
+    else:
+        raise AssertionError('Expected invalid profile payload to be rejected.')
+
+
+def test_profile_store_rejects_blank_profile_name() -> None:
+    store = ProfileStore()
+
+    try:
+        store.create('   ')
+    except ValueError as exc:
+        assert 'Profile name' in str(exc)
+    else:
+        raise AssertionError('Expected blank profile name to be rejected.')

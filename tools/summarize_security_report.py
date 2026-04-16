@@ -314,6 +314,21 @@ def render_summary(summary: ReportSummary, max_findings: int = 5) -> str:
     return '\n'.join(lines).strip() + '\n'
 
 
+def summarize_report(report_path: Path, *, max_findings: int = 5) -> str:
+    """Parse and summarize one Bandit HTML report.
+
+    Args:
+        report_path: Path to the HTML report.
+        max_findings: Maximum number of in-repo findings to list explicitly.
+
+    Returns:
+        Human-readable report summary text.
+
+    """
+    summary = parse_bandit_html(report_path)
+    return render_summary(summary=summary, max_findings=max_findings)
+
+
 def build_argument_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser.
 
@@ -346,12 +361,14 @@ def main() -> int:
     args = build_argument_parser().parse_args()
 
     try:
-        summary = parse_bandit_html(args.report_path)
+        report_summary = summarize_report(
+            args.report_path, max_findings=args.max_findings
+        )
     except Exception as error:  # pragma: no cover - defensive CLI path
         logger.error('Failed to summarize report {}: {}', args.report_path, error)
         return 1
 
-    sys.stdout.write(render_summary(summary=summary, max_findings=args.max_findings))
+    sys.stdout.write(report_summary)
     return 0
 
 

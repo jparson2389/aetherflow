@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import subprocess
-import sys
 import textwrap
 from pathlib import Path
+
+from tools.summarize_security_report import summarize_report
 
 
 def _write_bandit_report(tmp_path: Path, html_body: str) -> Path:
@@ -12,14 +12,8 @@ def _write_bandit_report(tmp_path: Path, html_body: str) -> Path:
     return report_path
 
 
-def _run_summary_script(report_path: Path) -> subprocess.CompletedProcess[str]:
-    script_path = Path(__file__).resolve().parents[2] / 'tools' / 'summarize_security_report.py'
-    return subprocess.run(
-        [sys.executable, str(script_path), str(report_path)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+def _run_summary_script(report_path: Path) -> str:
+    return summarize_report(report_path)
 
 
 def test_summary_script_highlights_in_repo_findings(tmp_path: Path) -> None:
@@ -75,8 +69,7 @@ def test_summary_script_highlights_in_repo_findings(tmp_path: Path) -> None:
         """,
     )
 
-    result = _run_summary_script(report_path)
-    summary = result.stdout
+    summary = _run_summary_script(report_path)
 
     assert 'Bandit report summary' in summary
     assert 'Lines of code: 120' in summary
@@ -158,6 +151,5 @@ def test_summary_script_calls_out_third_party_heavy_reports(
         """,
     )
 
-    result = _run_summary_script(report_path)
-
-    assert 'Most findings come from third-party or virtualenv paths.' in result.stdout
+    summary = _run_summary_script(report_path)
+    assert 'Most findings come from third-party or virtualenv paths.' in summary
