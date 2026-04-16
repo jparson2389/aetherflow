@@ -5,17 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.shell_utils import resolve_powershell_executable
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
 
 def test_verify_env_generates_report(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(sys, 'platform', 'win32')
-    monkeypatch.setattr(
-        'tests.contracts.test_env_readiness.resolve_powershell_executable',
-        lambda: r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe',
-    )
 
     project_root = tmp_path
     report_path = project_root / 'logs' / 'env_report.json'
@@ -32,6 +24,8 @@ def test_verify_env_generates_report(tmp_path: Path, monkeypatch) -> None:
         'cl': {'available': True},
     }
 
+    fake_powershell = '/usr/bin/fake-powershell'
+
     def _fake_subprocess_run(
         command: list[str],
         *,
@@ -41,7 +35,7 @@ def test_verify_env_generates_report(tmp_path: Path, monkeypatch) -> None:
         text: bool,
     ) -> subprocess.CompletedProcess[str]:
         assert command == [
-            resolve_powershell_executable(),
+            fake_powershell,
             '-ExecutionPolicy',
             'Bypass',
             '-File',
@@ -59,7 +53,7 @@ def test_verify_env_generates_report(tmp_path: Path, monkeypatch) -> None:
 
     result = subprocess.run(
         [
-            resolve_powershell_executable(),
+            fake_powershell,
             '-ExecutionPolicy',
             'Bypass',
             '-File',
