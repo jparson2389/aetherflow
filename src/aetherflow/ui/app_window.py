@@ -23,7 +23,11 @@ from aetherflow.ui.panel_host import PanelHost
 from aetherflow.ui.panels.driver_status_panel import DriverStatusPanelModel
 from aetherflow.ui.shell import ShellModel
 from aetherflow.ui.status_hud import StatusHUDModel
-from aetherflow.vision.opencv_capture import CaptureMode, OpenCVCapturePlugin
+from aetherflow.vision.opencv_capture import (
+    CaptureDevice,
+    CaptureMode,
+    OpenCVCapturePlugin,
+)
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 _BG_DEEP = '#0a0c0f'
@@ -198,6 +202,7 @@ class CapturePanelWidget(QWidget):
         """
         super().__init__(parent)
         self._plugin = plugin
+        self._cached_devices: list[CaptureDevice] = []
         self.summary_label = QLabel()
         self.device_details_label = QLabel()
         self.device_details_label.setWordWrap(True)
@@ -224,6 +229,7 @@ class CapturePanelWidget(QWidget):
     def refresh(self) -> None:
         """Refresh the device and mode lists from the plugin."""
         devices = self._plugin.enumerate_devices()
+        self._cached_devices = list(devices)
         self.device_list.clear()
         self.mode_list.clear()
         if not devices:
@@ -251,7 +257,7 @@ class CapturePanelWidget(QWidget):
         device = next(
             (
                 candidate
-                for candidate in self._plugin.enumerate_devices()
+                for candidate in self._cached_devices
                 if candidate.stable_id == stable_id
             ),
             None,

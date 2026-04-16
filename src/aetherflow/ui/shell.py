@@ -52,8 +52,16 @@ class ShellModel:
             return
         self.status_hud = replace(
             self.status_hud,
-            runtime_state=runtime_state or self.status_hud.runtime_state,
-            entitlement_state=entitlement_state or self.status_hud.entitlement_state,
+            runtime_state=(
+                runtime_state
+                if runtime_state is not None
+                else self.status_hud.runtime_state
+            ),
+            entitlement_state=(
+                entitlement_state
+                if entitlement_state is not None
+                else self.status_hud.entitlement_state
+            ),
             show_expiry_modal=(
                 self.status_hud.show_expiry_modal
                 if show_expiry_modal is None

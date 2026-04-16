@@ -163,7 +163,9 @@ class MediaFoundationCapturePlugin:
 
         """
         self._require_entitlement()
-        self._resolve_device(stable_device_id)  # validate device exists
+        # Validate stable_device_id only; modes are fixed at class _BUILTIN_MODES
+        # and do not vary by resolved device.
+        self._resolve_device(stable_device_id)
         return [
             CaptureMode(
                 capture_width=width,

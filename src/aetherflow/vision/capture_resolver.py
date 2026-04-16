@@ -32,7 +32,19 @@ class CaptureResolver:
         source: CaptureResolutionSource,
         stable_device_id: str,
     ) -> CaptureDevice:
-        """Return a known device or raise ``KeyError`` for an unknown identifier."""
+        """Resolve a capture device by stable identifier.
+
+        Args:
+            source: Backend that enumerates ``CaptureDevice`` instances.
+            stable_device_id: Stable device key to match against ``device.stable_id``.
+
+        Returns:
+            The ``CaptureDevice`` whose ``stable_id`` equals ``stable_device_id``.
+
+        Raises:
+            KeyError: If no enumerated device matches ``stable_device_id``.
+
+        """
         for device in source.enumerate_devices():
             if device.stable_id == stable_device_id:
                 return device
@@ -47,7 +59,28 @@ class CaptureResolver:
         capture_height: int,
         capture_fps: int,
     ) -> CaptureMode:
-        """Return a supported mode or raise ``ValueError`` when unsupported."""
+        """Pick the first matching capture mode for a device.
+
+        Iterates ``source.supported_modes(stable_device_id)`` and returns the first
+        ``CaptureMode`` whose ``capture_width``, ``capture_height``, and
+        ``capture_fps`` exactly match the requested triple (equality match, not
+        tolerance).
+
+        Args:
+            source: Backend that lists modes per stable device id.
+            stable_device_id: Device key passed to ``supported_modes``.
+            capture_width: Requested frame width in pixels.
+            capture_height: Requested frame height in pixels.
+            capture_fps: Requested capture rate in frames per second.
+
+        Returns:
+            The first ``CaptureMode`` that matches all three dimensions.
+
+        Raises:
+            ValueError: If no listed mode matches the requested width, height,
+                and FPS.
+
+        """
         for mode in source.supported_modes(stable_device_id):
             if (
                 mode.capture_width == capture_width
@@ -62,7 +95,21 @@ class CaptureResolver:
         sessions: dict[str, CaptureSession],
         stable_device_id: str,
     ) -> CaptureSession:
-        """Return the running session or raise ``RuntimeError``."""
+        """Return the active capture session for a device.
+
+        Args:
+            sessions: Map from ``stable_device_id`` to ``CaptureSession``.
+            stable_device_id: Stable device key to look up.
+
+        Returns:
+            The ``CaptureSession`` for ``stable_device_id`` when it exists and
+            ``session.running`` is true.
+
+        Raises:
+            RuntimeError: If there is no session for ``stable_device_id``, or the
+                session exists but ``running`` is false.
+
+        """
         session = sessions.get(stable_device_id)
         if session is None or not session.running:
             raise RuntimeError(f'Capture not running for {stable_device_id}')

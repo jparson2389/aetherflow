@@ -21,6 +21,8 @@ def _coerce_float(value: object, *, field_name: str) -> float:
         TypeError: If the payload value is not float-compatible.
 
     """
+    if isinstance(value, bool):
+        raise TypeError(f'{field_name} must be float-compatible (bool is not allowed).')
     if isinstance(value, (int, float, str)):
         return float(value)
     raise TypeError(f'{field_name} must be float-compatible.')
@@ -147,6 +149,9 @@ class InputProfile:
         Returns:
             A default profile.
 
+        Raises:
+            ValueError: If ``name`` is blank after stripping.
+
         """
         return cls(profile_id=str(uuid4()), name=_validate_profile_name(name))
 
@@ -158,6 +163,9 @@ class InputProfile:
 
         Returns:
             A cloned profile instance.
+
+        Raises:
+            ValueError: If ``name`` is blank after stripping.
 
         """
         clone = deepcopy(self)
@@ -226,7 +234,23 @@ class InputProfile:
 
     @classmethod
     def import_profile(cls, payload: dict[str, object]) -> InputProfile:
-        """Import a profile from a JSON-compatible payload."""
+        """Import a profile from a JSON-compatible payload.
+
+        Args:
+            payload: Serialized profile dictionary.
+
+        Returns:
+            A constructed ``InputProfile``.
+
+        Raises:
+            KeyError: If required keys such as ``profile_id`` or ``name`` are
+                missing.
+            TypeError: If a numeric field cannot be coerced (including booleans
+                where a float is expected).
+            ValueError: If ``__post_init__`` validation fails for the constructed
+                profile.
+
+        """
         raw_layers = payload.get('sensitivity_layers')
         layer_list = raw_layers if isinstance(raw_layers, list) else []
         layers = [
@@ -279,7 +303,21 @@ class ProfileStore:
         return profile
 
     def clone(self, profile_id: str, name: str) -> InputProfile:
-        """Clone an existing profile."""
+        """Clone an existing profile.
+
+        Args:
+            profile_id: Identifier of the profile to clone.
+            name: Display name for the new profile.
+
+        Returns:
+            The newly registered cloned profile.
+
+        Raises:
+            KeyError: If ``profile_id`` is not in the store.
+            ValueError: If ``name`` is invalid for the cloned profile (see
+                ``InputProfile.clone``).
+
+        """
         if profile_id not in self.profiles:
             raise KeyError(f'Unknown profile: {profile_id}')
         profile = self.profiles[profile_id].clone(name)

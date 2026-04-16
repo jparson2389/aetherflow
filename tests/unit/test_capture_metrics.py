@@ -18,7 +18,9 @@ def test_measured_fps_uses_n_minus_one_intervals() -> None:
     tracker = CaptureMetricsTracker(now=clock.now)
 
     for i in range(5):
-        tracker.record_frame(timestamp_s=float(i) * 0.25)
+        tracker.record_frame(timestamp_s=clock.now())
+        if i < 4:
+            clock.advance(0.25)
 
     snapshot = tracker.snapshot(target_fps=60)
 
@@ -31,7 +33,7 @@ def test_measured_fps_zero_for_single_frame() -> None:
     clock = FakeClock()
     tracker = CaptureMetricsTracker(now=clock.now)
 
-    tracker.record_frame(timestamp_s=0.0)
+    tracker.record_frame(timestamp_s=clock.now())
 
     snapshot = tracker.snapshot(target_fps=60)
 
