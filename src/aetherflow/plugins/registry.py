@@ -11,6 +11,7 @@ from aetherflow.plugins.catalog import (
     CatalogLockState,
     build_catalog_entry,
     lock_state_for_entitlement,
+    purchase_cta_for_trust_reason,
 )
 from aetherflow.plugins.manifest import PluginManifest
 
@@ -50,7 +51,7 @@ class PluginRegistry:
                 manifest,
                 lock_state=CatalogLockState.LOCKED,
                 selectable=False,
-                purchase_cta='Signed publisher certificate required',
+                purchase_cta=purchase_cta_for_trust_reason(reason),
                 entitlement_state=EntitlementState.LOCKED,
                 lock_reason=reason,
             )

@@ -65,7 +65,9 @@ class PluginAuthenticodeVerifier:
         if not artifact_path.exists():
             return PluginAuthenticodeResult(trusted=False, reason='missing-artifact')
         if "'" in str(artifact_path):
-            return PluginAuthenticodeResult(trusted=False, reason='invalid-artifact-path')
+            return PluginAuthenticodeResult(
+                trusted=False, reason='invalid-artifact-path'
+            )
         command = [
             'powershell',
             '-NoProfile',
@@ -152,5 +154,10 @@ class PluginTrustVerifier:
                 trusted=False,
                 reason='missing-artifact-path',
             )
+        if not manifest.signed:
+            result = self._artifact_verifier.verify(manifest.artifact_path)
+            if result.trusted or result.reason == 'revoked':
+                return PluginTrustResult(trusted=result.trusted, reason=result.reason)
+            return PluginTrustResult(trusted=False, reason='unsigned')
         result = self._artifact_verifier.verify(manifest.artifact_path)
         return PluginTrustResult(trusted=result.trusted, reason=result.reason)

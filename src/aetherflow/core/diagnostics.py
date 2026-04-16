@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import threading
 import time
 from collections import deque
 from collections.abc import Callable
@@ -43,9 +44,14 @@ class PipelineDiagnosticsTracker:
             window_seconds: Rolling window length in seconds.
             now: Optional clock function returning monotonic seconds.
 
+        Threading: record_* methods are called from the OS listener thread via
+        MappingPipeline._on_event; snapshot() may be called from the UI thread.
+        All mutable state is protected by self._lock.
+
         """
         self._window_seconds = window_seconds
         self._now = now or time.monotonic
+        self._lock = threading.Lock()
         self._event_times: deque[float] = deque()
         self._output_times: deque[float] = deque()
         self._latency_samples: deque[tuple[float, float]] = deque()
@@ -53,14 +59,16 @@ class PipelineDiagnosticsTracker:
     def record_event(self) -> None:
         """Record a pipeline input event."""
         now = self._now()
-        self._event_times.append(now)
-        self._prune(now)
+        with self._lock:
+            self._event_times.append(now)
+            self._prune(now)
 
     def record_output(self) -> None:
         """Record a pipeline output emission."""
         now = self._now()
-        self._output_times.append(now)
-        self._prune(now)
+        with self._lock:
+            self._output_times.append(now)
+            self._prune(now)
 
     def record_latency(self, latency_ms: float) -> None:
         """Record a latency sample in milliseconds.
@@ -70,8 +78,9 @@ class PipelineDiagnosticsTracker:
 
         """
         now = self._now()
-        self._latency_samples.append((now, latency_ms))
-        self._prune(now)
+        with self._lock:
+            self._latency_samples.append((now, latency_ms))
+            self._prune(now)
 
     def snapshot(self) -> PipelineDiagnostics:
         """Return the current diagnostics snapshot.
@@ -81,10 +90,11 @@ class PipelineDiagnosticsTracker:
 
         """
         now = self._now()
-        self._prune(now)
-        event_rate = self._rate(len(self._event_times))
-        output_rate = self._rate(len(self._output_times))
-        latency_ms, jitter_ms = self._latency_and_jitter()
+        with self._lock:
+            self._prune(now)
+            event_rate = self._rate(len(self._event_times))
+            output_rate = self._rate(len(self._output_times))
+            latency_ms, jitter_ms = self._latency_and_jitter()
         return PipelineDiagnostics(
             event_rate_hz=event_rate,
             output_rate_hz=output_rate,

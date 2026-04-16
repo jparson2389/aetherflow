@@ -20,6 +20,7 @@ class RouteDefinition:
     title: str
     panel_id: str
     allowed_roles: tuple[RoleName, ...] = ()
+    lock_reason: str | None = None
 
     def is_visible(self, role: RoleName | None) -> bool:
         """Return whether the route is visible to a role.
@@ -36,6 +37,10 @@ class RouteDefinition:
         if role is None:
             return False
         return role in self.allowed_roles
+
+    def is_locked(self) -> bool:
+        """Return whether the route is currently locked."""
+        return self.lock_reason is not None
 
 
 class RouteEventType(StrEnum):
@@ -124,6 +129,8 @@ class RouterModel:
         if route_name not in self.routes:
             raise KeyError(f'Unknown route: {route_name}')
         route = self.routes[route_name]
+        if route.is_locked():
+            raise PermissionError(f'Route locked: {route_name} ({route.lock_reason})')
         if not route.is_visible(role):
             raise PermissionError(f'Route access denied: {route_name}')
         self.active_route = route_name
@@ -177,6 +184,25 @@ class RouterModel:
 
         """
         self.failed_routes.pop(route_name, None)
+
+    def set_route_lock(self, route_name: str, *, reason: str | None) -> None:
+        """Lock or unlock a route without removing it from the router.
+
+        Args:
+            route_name: Name of the route to update.
+            reason: Lock reason. Pass None to unlock the route.
+
+        Raises:
+            KeyError: If the route is unknown.
+
+        """
+        if route_name not in self.routes:
+            raise KeyError(f'Unknown route: {route_name}')
+        self.routes[route_name].lock_reason = reason
+        if reason is None:
+            logger.info('Unlocked route: {}', route_name)
+        else:
+            logger.warning('Locked route: {} ({})', route_name, reason)
 
     def event_payload(self) -> list[dict[str, object]]:
         """Return the route event payloads."""
