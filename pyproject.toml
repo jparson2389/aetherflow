@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "cryptography>=46.0.5",
+    "cryptography>=46.0.7",
     "grpcio>=1.78.0",
     "grpcio-tools>=1.78.0",
     "loguru>=0.7.3",
