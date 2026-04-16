@@ -16,76 +16,9 @@ from aetherflow.vision.opencv_capture import (
 )
 
 
-class FakeCaptureProbe:
-    """Fake probe returning a device with 120 FPS capability."""
-
-    def __init__(self) -> None:
-        """Initialize with an Elgato 4K X device supporting 120 FPS."""
-        self._devices = [
-            CaptureDevice(
-                stable_id='capture-usb-vid-0fd9-pid-0066',
-                name='Elgato 4K X',
-                device_id='USB\\VID_0FD9&PID_0066\\ELGATO4KX',
-                backend_index=0,
-            ),
-            CaptureDevice(
-                stable_id='capture-swb-obs-virtual-camera',
-                name='OBS Virtual Camera',
-                device_id='SWB\\OBSVirtualCamera\\OBSVCAM',
-                backend_index=1,
-            ),
-        ]
-        self._modes = {
-            self._devices[0].stable_id: [
-                CaptureMode(1280, 720, 60, 'NV12', 'BGR', False, False, 'USB 3.0'),
-                CaptureMode(1920, 1080, 120, 'NV12', 'BGR', False, False, 'USB 3.0'),
-                CaptureMode(
-                    2560,
-                    1440,
-                    240,
-                    'MJPEG',
-                    'BGR',
-                    False,
-                    False,
-                    'High bandwidth',
-                ),
-            ],
-            self._devices[1].stable_id: [
-                CaptureMode(
-                    1280,
-                    720,
-                    30,
-                    'RGB32',
-                    'BGR',
-                    False,
-                    False,
-                    'Virtual camera',
-                ),
-                CaptureMode(
-                    1920,
-                    1080,
-                    60,
-                    'RGB32',
-                    'BGR',
-                    False,
-                    False,
-                    'Virtual camera',
-                ),
-            ],
-        }
-
-    def enumerate_devices(self) -> list[CaptureDevice]:
-        """Return fake devices."""
-        return list(self._devices)
-
-    def supported_modes(self, device: CaptureDevice) -> list[CaptureMode]:
-        """Return fake modes."""
-        return list(self._modes.get(device.stable_id, []))
-
-
-def test_opencv_capture_has_120fps_path() -> None:
+def test_opencv_capture_has_120fps_path(fake_capture_probe) -> None:
     """At least one OpenCV device enumerates a 120 FPS mode."""
-    plugin = OpenCVCapturePlugin(probe=FakeCaptureProbe())
+    plugin = OpenCVCapturePlugin(probe=fake_capture_probe)
     modes = [
         mode
         for device in plugin.enumerate_devices()
@@ -198,7 +131,7 @@ def _simulate_sustained_120fps_capture(plugin: OpenCVCapturePlugin) -> CaptureMe
     return plugin.stop_capture(device_id)
 
 
-def test_sustained_120fps_throughput_opencv() -> None:
+def test_sustained_120fps_throughput_opencv(fake_capture_probe) -> None:
     """OpenCV backend sustains 120 FPS over a simulated 5-second window.
 
     This is the primary 120 FPS validation artifact. It proves the capture
@@ -206,7 +139,7 @@ def test_sustained_120fps_throughput_opencv() -> None:
     600 frames at precise 120 FPS intervals and verifying the metrics
     tracker reports >= 120 FPS with stable jitter.
     """
-    plugin = OpenCVCapturePlugin(probe=FakeCaptureProbe())
+    plugin = OpenCVCapturePlugin(probe=fake_capture_probe)
     metrics = _simulate_sustained_120fps_capture(plugin)
 
     # Core 120 FPS validation
@@ -263,9 +196,11 @@ def test_sustained_120fps_throughput_mf() -> None:
     assert metrics.dropped_frames == 0
 
 
-def test_120fps_drops_below_threshold_triggers_fallback_recommendation() -> None:
+def test_120fps_drops_below_threshold_triggers_fallback_recommendation(
+    fake_capture_probe,
+) -> None:
     """When 120 FPS drops below 90% sustained, fallback is recommended."""
-    plugin = OpenCVCapturePlugin(probe=FakeCaptureProbe())
+    plugin = OpenCVCapturePlugin(probe=fake_capture_probe)
     device_id = 'capture-usb-vid-0fd9-pid-0066'
     plugin.start_capture(
         stable_device_id=device_id,

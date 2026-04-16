@@ -168,6 +168,7 @@ def test_plugin_trust_rejects_tampered_plugin(tmp_path: Path) -> None:
         required_entitlements=manifest.required_entitlements,
         requires_worker=manifest.requires_worker,
         requires_drivers=manifest.requires_drivers,
+        signed=manifest.signed,
         tampered=True,
     )
 

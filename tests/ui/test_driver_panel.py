@@ -82,15 +82,20 @@ class TestDriverStatusPanelWiring:
 
         shell = configure_default_shell(ShellModel())
         window = AppWindow(shell)
+        try:
+            # Panel must be mounted and navigable through the production route
+            assert isinstance(window.driver_status_panel, DriverStatusPanelWidget)
+            window.navigate_to('output')
+            assert window.panel_host.current_panel_id() == 'panel.output'
 
-        # Panel must be mounted and navigable through the production route
-        assert isinstance(window.driver_status_panel, DriverStatusPanelWidget)
-        window.navigate_to('output')
-        assert window.panel_host.current_panel_id() == 'panel.output'
-
-        # DriverStatusPanelModel must be obtainable via the production service
-        model = DriverStatusPanelModel.from_service(window.driver_status_panel._service)
-        assert model is not None
+            # DriverStatusPanelModel must be obtainable via the production service
+            model = DriverStatusPanelModel.from_service(
+                window.driver_status_panel._service
+            )
+            assert model is not None
+        finally:
+            window.close()
+            window.deleteLater()
 
     def test_virtual_controller_service_registered_in_app_window(self, _qt_app) -> None:
         """3.2 — VirtualControllerService is live in AppWindow; panel actions reach it."""
@@ -99,12 +104,15 @@ class TestDriverStatusPanelWiring:
 
         svc = VirtualControllerService(masking_service=DeviceMaskingService())
         window = AppWindow(ShellModel(), virtual_controller_service=svc)
+        try:
+            # Service must be the injected instance, not a detached default
+            assert isinstance(window.driver_status_panel, DriverStatusPanelWidget)
+            assert window.driver_status_panel._service is svc
 
-        # Service must be the injected instance, not a detached default
-        assert isinstance(window.driver_status_panel, DriverStatusPanelWidget)
-        assert window.driver_status_panel._service is svc
-
-        # Panel install button routes through to the service
-        assert svc.status()['driver_installed'] is False
-        window.driver_status_panel.install_btn.click()
-        assert svc.status()['driver_installed'] is True
+            # Panel install button routes through to the service
+            assert svc.status()['driver_installed'] is False
+            window.driver_status_panel.install_btn.click()
+            assert svc.status()['driver_installed'] is True
+        finally:
+            window.close()
+            window.deleteLater()

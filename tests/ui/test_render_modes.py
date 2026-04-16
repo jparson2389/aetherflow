@@ -1,5 +1,7 @@
 """Render mode panel UI model tests."""
 
+import pytest
+
 from aetherflow.ui.panels.render_mode_panel import RenderModePanelModel
 
 
@@ -39,12 +41,8 @@ def test_render_mode_selection_invalid_mode_raises() -> None:
     """Selecting a nonexistent mode raises ValueError."""
     panel = RenderModePanelModel.default()
 
-    try:
+    with pytest.raises(ValueError, match='render.nonexistent'):
         panel.select('render.nonexistent')
-    except ValueError as exc:
-        assert 'render.nonexistent' in str(exc)
-    else:
-        raise AssertionError('Expected ValueError for invalid mode')
 
 
 def test_render_mode_panel_gpu_requires_restart() -> None:

@@ -1,5 +1,7 @@
 """Premium capture backend entitlement gating tests."""
 
+import pytest
+
 from aetherflow.core.entitlements import EntitlementState
 from aetherflow.core.services import create_default_services
 from aetherflow.plugins.catalog import CatalogLockState
@@ -61,12 +63,8 @@ def test_media_foundation_enumerate_devices_blocked_when_locked() -> None:
     services = create_default_services()
     plugin = MediaFoundationCapturePlugin(services=services)
 
-    try:
+    with pytest.raises(PermissionError, match='locked'):
         plugin.enumerate_devices()
-    except PermissionError as exc:
-        assert 'locked' in str(exc).lower()
-    else:
-        raise AssertionError('Expected PermissionError when locked')
 
 
 def test_media_foundation_enumerate_devices_works_when_entitled() -> None:

@@ -5,23 +5,57 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 from tools.shell_utils import resolve_powershell_executable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.skipif(
-    sys.platform != 'win32', reason='Windows-only: requires MSVC toolchain'
-)
-def test_verify_env_generates_report() -> None:
-    report_path = PROJECT_ROOT / 'logs' / 'env_report.json'
-    if report_path.exists():
-        report_path.unlink()
+def test_verify_env_generates_report(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(sys, 'platform', 'win32')
+    monkeypatch.setattr(
+        'tests.contracts.test_env_readiness.resolve_powershell_executable',
+        lambda: r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe',
+    )
 
-    script_path = PROJECT_ROOT / 'scripts' / 'verify-env.ps1'
+    project_root = tmp_path
+    report_path = project_root / 'logs' / 'env_report.json'
+    script_path = project_root / 'scripts' / 'verify-env.ps1'
+    script_path.parent.mkdir(parents=True, exist_ok=True)
+    script_path.write_text('# mocked verify-env script', encoding='utf-8')
+
     assert script_path.exists()
+
+    expected_report = {
+        'uv': {'available': True},
+        'python': {'available': True},
+        'powershell': {'available': True},
+        'cl': {'available': True},
+    }
+
+    def _fake_subprocess_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        assert command == [
+            resolve_powershell_executable(),
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
+            str(script_path),
+        ]
+        assert cwd == project_root
+        assert check is False
+        assert capture_output is True
+        assert text is True
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(expected_report), encoding='utf-8')
+        return subprocess.CompletedProcess(command, 0, stdout='ok', stderr='')
+
+    monkeypatch.setattr(subprocess, 'run', _fake_subprocess_run)
 
     result = subprocess.run(
         [
@@ -31,7 +65,7 @@ def test_verify_env_generates_report() -> None:
             '-File',
             str(script_path),
         ],
-        cwd=PROJECT_ROOT,
+        cwd=project_root,
         check=False,
         capture_output=True,
         text=True,
