@@ -206,7 +206,11 @@ class ShellModel:
             Panel id for the active route.
 
         """
-        panel_id = self.router.navigate(route_name, role=role)
+        try:
+            panel_id = self.router.navigate(route_name, role=role)
+        except PermissionError:
+            logger.debug('Shell blocked navigation to locked route: {}', route_name)
+            return self.router.active_panel_id() or ''
         if panel_id not in self.active_panels:
             self.active_panels.append(panel_id)
         logger.debug('Shell activated panel: {}', panel_id)
