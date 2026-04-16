@@ -26,18 +26,13 @@ dev = [
     "bandit>=1.9.4",
     "detect-secrets>=1.5.0",
     "pip-audit>=2.10.0",
-    "pytest>=9.0.2",
+    "pytest>=9.0.3",
     "ruff>=0.15.6",
 ]
-automation = [
-    "openai>=2.28.0",
-    "anyio>=4.0.0",
-]
+automation = ["openai>=2.28.0", "anyio>=4.0.0"]
 
 [tool.pytest.ini_options]
-testpaths = [
-    "tests",
-]
+testpaths = ["tests"]
 python_files = "test_*.py"
 pythonpath = ["src", "."]
 addopts = "-ra -q"
@@ -88,11 +83,11 @@ confidence = "high"
 
 [tool.ruff.lint]
 select = [
-    "F", # Pyflakes
-    "E", # pycodestyle errors
-    "I", # isort
-    "UP", # pyupgrade
-    "B", # flake8-bugbear
+    "F",   # Pyflakes
+    "E",   # pycodestyle errors
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
     "RUF",
     "D",
     "ARG", # flake8-unused-arguments
@@ -106,7 +101,7 @@ ignore = [
     "D300", # ruff formatter uses """ for docstrings; D300 would conflict
     "Q002", # ruff formatter enforces """ for docstrings; Q002 would conflict
     "E501",
-    "D100"
+    "D100",
 ]
 
 [tool.ruff.format]
@@ -120,7 +115,11 @@ known-first-party = ["aetherflow", "tools"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"tools/**/*.py" = ["D100", "D104", "T201"]  # skip module/package docstrings; enforce class/function/method
+"tools/**/*.py" = [
+    "D100",
+    "D104",
+    "T201",
+] # skip module/package docstrings; enforce class/function/method
 "tests/**/*.py" = ["D"]
 "src/**/__init__.py" = ["D104"]
 
