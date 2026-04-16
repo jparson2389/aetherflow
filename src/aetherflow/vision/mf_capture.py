@@ -19,6 +19,7 @@ from aetherflow.plugins.manifest import (
     PluginType,
     PluginVersion,
 )
+from aetherflow.vision.capture_resolver import CaptureResolver
 from aetherflow.vision.opencv_capture import CaptureDevice, CaptureMode, CaptureSession
 
 
@@ -162,7 +163,9 @@ class MediaFoundationCapturePlugin:
 
         """
         self._require_entitlement()
-        self._resolve_device(stable_device_id)  # validate device exists
+        # Validate stable_device_id only; modes are fixed at class _BUILTIN_MODES
+        # and do not vary by resolved device.
+        self._resolve_device(stable_device_id)
         return [
             CaptureMode(
                 capture_width=width,
@@ -266,10 +269,7 @@ class MediaFoundationCapturePlugin:
 
     def _resolve_device(self, stable_device_id: str) -> CaptureDevice:
         """Return a known device or raise for an unknown identifier."""
-        for device in self.enumerate_devices():
-            if device.stable_id == stable_device_id:
-                return device
-        raise KeyError(f'Unknown capture device: {stable_device_id}')
+        return CaptureResolver.resolve_device(self, stable_device_id)
 
     def _resolve_mode(
         self,
@@ -280,18 +280,14 @@ class MediaFoundationCapturePlugin:
         capture_fps: int,
     ) -> CaptureMode:
         """Return a supported mode or raise for an unsupported combination."""
-        for mode in self.supported_modes(stable_device_id):
-            if (
-                mode.capture_width == capture_width
-                and mode.capture_height == capture_height
-                and mode.capture_fps == capture_fps
-            ):
-                return mode
-        raise ValueError('unsupported capture mode rejected')
+        return CaptureResolver.resolve_mode(
+            self,
+            stable_device_id=stable_device_id,
+            capture_width=capture_width,
+            capture_height=capture_height,
+            capture_fps=capture_fps,
+        )
 
     def _active_session(self, stable_device_id: str) -> CaptureSession:
         """Return the active session for a device."""
-        session = self._active_sessions.get(stable_device_id)
-        if session is None or not session.running:
-            raise RuntimeError(f'Capture not running for {stable_device_id}')
-        return session
+        return CaptureResolver.active_session(self._active_sessions, stable_device_id)

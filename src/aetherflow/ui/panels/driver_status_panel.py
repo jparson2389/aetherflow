@@ -35,7 +35,7 @@ class DriverStatusPanelModel:
             return cls(
                 installed=installed,
                 masking_enabled=masking_enabled,
-                actions=['install_driver', 'repair', 'copy_diagnostics'],
+                actions=['install_driver', 'repair', 'retry', 'copy_diagnostics'],
                 message='Driver failed; output disabled until recovery.',
                 runtime_state=runtime_state,
                 failure_reason=failure_reason,
@@ -91,7 +91,7 @@ class DriverStatusPanelModel:
         return cls(
             installed=False,
             masking_enabled=False,
-            actions=['install_driver', 'repair', 'copy_diagnostics'],
+            actions=['install_driver', 'repair', 'retry', 'copy_diagnostics'],
             message='Driver failed; output disabled until recovery.',
             runtime_state=RuntimeState.FAILED,
             diagnostics_available=True,

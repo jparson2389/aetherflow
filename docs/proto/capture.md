@@ -11,8 +11,10 @@
 
 ## Frozen Surface
 
-The Phase 0 wire surface is normative and rejected by contract tests if any
-message or RPC disappears.
+The Phase 0 wire surface is normative for implementations. Automated checks in
+`tests/contracts/test_execution_contracts.py` assert a curated subset of
+`proto/capture.proto` text (see `test_capture_proto_defines_required_control_plane_messages`);
+they do not exhaustively fail on every missing message type or RPC name.
 
 - `CaptureMode`: `width`, `height`, `target_fps`, `pixel_format`,
   `stride_bytes`
@@ -44,14 +46,16 @@ Rebuild them with `uv run python -m tools.build_assets`.
 All control-plane RPCs default to a 750 ms unary timeout unless explicitly
 overridden by the caller.
 
+<!-- prettier-ignore-start -->
 | RPC                      | Timeout | Retry Posture                             |
-| ------------------------ | ------- | ----------------------------------------- |
+|--------------------------|---------|-------------------------------------------|
 | `StartCapture`           | 750 ms  | Retry once on transient transport errors. |
 | `StopCapture`            | 750 ms  | Retry once on transient transport errors. |
 | `ReportHeartbeat`        | 750 ms  | No automatic retries.                     |
 | `ForwardWorkerLog`       | 750 ms  | No automatic retries.                     |
 | `ReportPluginLoadResult` | 750 ms  | Retry once on transient transport errors. |
 | `ExportDiagnostics`      | 750 ms  | No automatic retries.                     |
+<!-- prettier-ignore-end -->
 
 Contract notes:
 
@@ -59,6 +63,10 @@ Contract notes:
   the default contract remains 750 ms unless explicitly overridden.
 - `retry_budget_remaining` in `OperationStatus` is the authoritative field for
   communicating remaining transient retry allowance after a unary RPC returns.
-- Missing RPCs, message types, or the required status/load-error fields are
-  treated as a frozen-contract violation and rejected by
-  `tests/contracts/test_execution_contracts.py`.
+- `tests/contracts/test_execution_contracts.py` currently asserts string presence
+  for selected capture control-plane `message` and `rpc` entries in
+  `proto/capture.proto` (for example `PluginLoadResult` and unary RPCs such as
+  `StartCapture` / `StopCapture` that return `OperationStatus` in the proto). It
+  does not assert every frozen type (for example `DiagnosticsExportResponse` is
+  not part of that substring list), and it does not independently verify each
+  field name—those remain documentation and codegen responsibilities.

@@ -52,8 +52,16 @@ class ShellModel:
             return
         self.status_hud = replace(
             self.status_hud,
-            runtime_state=runtime_state or self.status_hud.runtime_state,
-            entitlement_state=entitlement_state or self.status_hud.entitlement_state,
+            runtime_state=(
+                runtime_state
+                if runtime_state is not None
+                else self.status_hud.runtime_state
+            ),
+            entitlement_state=(
+                entitlement_state
+                if entitlement_state is not None
+                else self.status_hud.entitlement_state
+            ),
             show_expiry_modal=(
                 self.status_hud.show_expiry_modal
                 if show_expiry_modal is None
@@ -206,7 +214,11 @@ class ShellModel:
             Panel id for the active route.
 
         """
-        panel_id = self.router.navigate(route_name, role=role)
+        try:
+            panel_id = self.router.navigate(route_name, role=role)
+        except PermissionError:
+            logger.debug('Shell blocked navigation to locked route: {}', route_name)
+            return self.router.active_panel_id() or ''
         if panel_id not in self.active_panels:
             self.active_panels.append(panel_id)
         logger.debug('Shell activated panel: {}', panel_id)
