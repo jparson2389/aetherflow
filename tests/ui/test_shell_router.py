@@ -140,6 +140,7 @@ def test_build_shell_accepts_admin_role_for_default_routes() -> None:
         'home',
         'catalog',
         'capture',
+        'output',
         'workers',
         'environment',
         'resources',

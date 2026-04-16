@@ -56,7 +56,7 @@ def test_main_window_renders_shell_state_and_notices(monkeypatch, tmp_path) -> N
 
     assert isinstance(window, AetherflowMainWindow)
     assert window.windowTitle() == 'Aetherflow'
-    assert window.route_list.count() == 4
+    assert window.route_list.count() == 5
     assert window.panel_title_label.text() == 'Home'
     assert window.panel_body_label.text()
     assert window.runtime_state_value.text() == 'RUNNING'
@@ -80,6 +80,7 @@ def test_main_window_filters_visible_routes_by_role() -> None:
         'home',
         'catalog',
         'capture',
+        'output',
         'workers',
         'environment',
         'resources',
