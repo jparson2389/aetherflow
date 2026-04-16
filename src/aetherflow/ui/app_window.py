@@ -386,16 +386,22 @@ class DriverStatusPanelWidget(QWidget):
         self.refresh()
 
     def _on_retry_masking(self) -> None:
-        self._service.enable_masking()
+        ok = self._service.enable_masking()
         self.refresh()
+        if not ok:
+            self.failure_label.setText('Masking could not be enabled')
 
     def _on_enable_masking(self) -> None:
-        self._service.enable_masking()
+        ok = self._service.enable_masking()
         self.refresh()
+        if not ok:
+            self.failure_label.setText('Masking could not be enabled')
 
     def _on_disable_masking(self) -> None:
-        self._service.disable_masking()
+        ok = self._service.disable_masking()
         self.refresh()
+        if not ok:
+            self.failure_label.setText('Masking could not be disabled')
 
     def _on_copy_diagnostics(self) -> None:
         from PySide6.QtWidgets import QApplication
