@@ -107,7 +107,25 @@ class InputProfile:
     _last_values: dict[str, float] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
-        """Validate profile invariants."""
+        """Normalize and validate fields after construction.
+
+        Applies ``_validate_profile_name`` to ``name`` (rejects blank names after
+        strip). Applies ``_validate_unit_interval`` to ``deadzone`` and
+        ``smoothing_alpha`` (each must lie in ``0.0`` to ``1.0`` inclusive).
+        Rejects non-positive ``curve_exponent`` and blank ``profile_id`` (after
+        strip).
+
+        Raises:
+            ValueError: If ``name`` is blank after stripping
+                (``_validate_profile_name``).
+            ValueError: If ``deadzone`` is outside ``0.0`` to ``1.0`` inclusive
+                (``_validate_unit_interval``).
+            ValueError: If ``smoothing_alpha`` is outside ``0.0`` to ``1.0``
+                inclusive (``_validate_unit_interval``).
+            ValueError: If ``curve_exponent`` is less than or equal to ``0.0``.
+            ValueError: If ``profile_id`` is blank after stripping.
+
+        """
         self.name = _validate_profile_name(self.name)
         self.deadzone = _validate_unit_interval(self.deadzone, field_name='deadzone')
         self.smoothing_alpha = _validate_unit_interval(
