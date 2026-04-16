@@ -41,7 +41,7 @@ def test_render_mode_selection_invalid_mode_raises() -> None:
     """Selecting a nonexistent mode raises ValueError."""
     panel = RenderModePanelModel.default()
 
-    with pytest.raises(ValueError, match='render.nonexistent'):
+    with pytest.raises(ValueError, match=r'render\.nonexistent'):
         panel.select('render.nonexistent')
 
 
