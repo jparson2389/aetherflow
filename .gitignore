@@ -2,12 +2,17 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-tmp/
+.uv-cache/
 .ruff_cache/
 *.egg-info/
 wheels/
 
 # Local environment and secrets
+.venv/
 .env
+.envrc
+.direnv/
 .env.local
 .env.shared
 .env.test
@@ -30,9 +35,11 @@ dist/
 
 # Local editor and workspace folders
 .vscode/settings.json
+.cursor/settings.json
 .tmp/
 .worktrees/
 .firecrawl/
+.playwright/
 
 # Machine-local state and reports
 state/plan_state.json
@@ -40,6 +47,10 @@ security_report.html
 DEV-COMMANDS.md
 reset_env.ps1
 start-loop2.ps1
+scripts/with-env.sh
+scripts/with-env.ps1
+scripts/dev-shell.sh
+scripts/dev-shell.ps1
 
 # Generated logs, reports, prompts
 logs/*.txt
@@ -54,27 +65,20 @@ logs/bundle_install_report.json
 logs/diagnostics_export.json
 logs/verify-requirements-evidence.md
 logs/audit/
+logs/verification/pending_app_checks.json
 
-# Docs that are regenerated frequently
+# Tool-generated report (see tools/verify_requirements.py, tools/proof_verifier.py)
 docs/requirements-report.md
-docs/verification_standard.md
-docs/verify-requirements-pipeline.md
-docs/evidence/*.md
-docs/requirements-report.md
-
-# Generated proto stubs
-src/aetherflow/proto/*_pb2.py
-src/aetherflow/proto/*_pb2_grpc.py
 
 # Keep intentional artifacts
 !logs/quality-gate.log
 !logs/verification/
 !logs/lazy-agent-report-rework-plan.log
 
-# Codex local runtime junk only
-.codex/sessions/
-.codex/tmp/
-.codex/*.sqlite*
-.codex/logs_*.sqlite*
-.codex/state_*.sqlite*
+# Tools
 tools/wrap_markdown_tables.py
+
+# Local noise
+.cursor/agents/
+.gemini/gemini-config-schema.json
+codebase-map.html
