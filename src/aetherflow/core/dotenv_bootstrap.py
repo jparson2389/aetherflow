@@ -8,6 +8,8 @@ from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 
 DEFAULT_DOTENV_FILENAME = '.env'
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_ENV_FILE = REPO_ROOT / DEFAULT_DOTENV_FILENAME
 
 
 def configure_environment(
@@ -51,6 +53,9 @@ def resolve_dotenv_path(env_file: Path | None = None) -> Path | None:
     if env_file is not None:
         candidate = env_file.expanduser().resolve()
         return candidate if candidate.is_file() else None
+
+    if DEFAULT_ENV_FILE.is_file():
+        return DEFAULT_ENV_FILE
 
     discovered = find_dotenv(filename=DEFAULT_DOTENV_FILENAME, usecwd=True)
     if not discovered:

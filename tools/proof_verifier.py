@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 from loguru import logger
@@ -67,7 +68,11 @@ def verify_item(
 
 
 def build_verification_json(
-    item_id: str, result: VerificationResult, logs_dir: Path
+    item_id: str,
+    result: VerificationResult,
+    logs_dir: Path,
+    *,
+    ran_at: str | None = None,
 ) -> None:
     """Write logs/verification/<item-id>.json from a verification result.
 
@@ -75,12 +80,16 @@ def build_verification_json(
         item_id: Stable work-item identifier.
         result: Verification result to serialise.
         logs_dir: Directory where the JSON file will be written.
+        ran_at: ISO-8601 UTC timestamp for this run; defaults to the current time.
 
     """
+    stamp = ran_at if ran_at is not None else datetime.now(UTC).isoformat()
     logs_dir.mkdir(parents=True, exist_ok=True)
     output_path = logs_dir / f'{item_id}.json'
+    payload = result.to_payload()
+    payload['ran_at'] = stamp
     output_path.write_text(
-        json.dumps(result.to_payload(), indent=2) + '\n',
+        json.dumps(payload, indent=2) + '\n',
         encoding='utf-8',
     )
     logger.debug('Wrote verification JSON: {}', output_path)
@@ -129,14 +138,23 @@ def run_regrade(
     repo_root = plan_path.parent.parent
     logger.debug('Running full regrade; evidence directory: {}.', evidence_dir)
     results = generate_results(repo_root=repo_root, plan_path=plan_path)
+    batch_ran_at = datetime.now(UTC).isoformat()
 
     logs_dir.mkdir(parents=True, exist_ok=True)
     for result in results:
         build_verification_json(
-            item_id=result.item_id, result=result, logs_dir=logs_dir
+            item_id=result.item_id,
+            result=result,
+            logs_dir=logs_dir,
+            ran_at=batch_ran_at,
         )
 
-    write_results(report_path=report_path, results_dir=logs_dir, results=results)
+    write_results(
+        report_path=report_path,
+        results_dir=logs_dir,
+        results=results,
+        ran_at=batch_ran_at,
+    )
 
     store = PendingAppCheckStore(
         pending_path=logs_dir / 'pending_app_checks.json',

@@ -9,6 +9,7 @@ import shutil
 import subprocess
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 from loguru import logger
@@ -381,6 +382,33 @@ def parse_evidence_pack(path: Path) -> EvidencePack:
     )
 
 
+_NON_AUTHORITATIVE_REVIEWER_IDENTITIES: frozenset[str] = frozenset({'developer'})
+
+
+def _reviewer_identity_for_approved_by(reviewer: str | None) -> str | None:
+    """Map evidence-pack ``Reviewer:`` to JSON ``approved_by`` only when authoritative.
+
+    Packs may use ``Reviewer: Developer`` as a workflow placeholder; that value must
+    not appear in ``approved_by``. Human sign-off uses a real identity (for example
+    ``qa.lead``) after manual review.
+
+    Args:
+        reviewer: Parsed ``- Reviewer:`` line from the evidence pack header.
+
+    Returns:
+        Stripped identity for ``approved_by``, or ``None`` if missing or placeholder.
+
+    """
+    if reviewer is None:
+        return None
+    stripped = reviewer.strip()
+    if not stripped:
+        return None
+    if stripped.casefold() in _NON_AUTHORITATIVE_REVIEWER_IDENTITIES:
+        return None
+    return stripped
+
+
 def _extract_required_scalar(
     lines: list[str], pattern: re.Pattern[str], path: Path
 ) -> str:
@@ -641,7 +669,7 @@ def evaluate_plan_item(
             validation_results=[],
             exit_codes={},
             requirement_links=requirement_links,
-            approved_by=evidence_pack.reviewer,
+            approved_by=_reviewer_identity_for_approved_by(evidence_pack.reviewer),
             app_testable=False,
             app_surface=None,
             developer_alert=None,
@@ -678,7 +706,9 @@ def evaluate_plan_item(
         validation_results=validation_results,
         exit_codes=exit_codes,
         requirement_links=requirement_links,
-        approved_by=evidence_pack.reviewer if status == 'verified' else None,
+        approved_by=_reviewer_identity_for_approved_by(evidence_pack.reviewer)
+        if status == 'verified'
+        else None,
         app_testable=evidence_pack.app_testable if status == 'verified' else False,
         app_surface=evidence_pack.app_surface if status == 'verified' else None,
         developer_alert=evidence_pack.developer_alert if status == 'verified' else None,
@@ -959,6 +989,7 @@ def write_results(
     report_path: Path,
     results_dir: Path,
     results: list[VerificationResult],
+    ran_at: str | None = None,
 ) -> None:
     """Write the requirements report and per-item result files.
 
@@ -966,13 +997,17 @@ def write_results(
         report_path: Requirements report output path.
         results_dir: Directory for per-item JSON payloads.
         results: Evaluated verification results.
+        ran_at: ISO-8601 UTC timestamp for this verification batch; defaults to "now".
 
     """
     results_dir.mkdir(parents=True, exist_ok=True)
     report_path.parent.mkdir(parents=True, exist_ok=True)
+    batch_ran_at = ran_at if ran_at is not None else datetime.now(UTC).isoformat()
     for result in results:
+        payload = result.to_payload()
+        payload['ran_at'] = batch_ran_at
         (results_dir / f'{result.item_id}.json').write_text(
-            json.dumps(result.to_payload(), indent=2) + '\n',
+            json.dumps(payload, indent=2) + '\n',
             encoding='utf-8',
         )
 

@@ -87,17 +87,19 @@ class PendingAppCheckStore:
             for item in payload.get('pending', [])
         ]
 
-    def acknowledge(self, item_id: str) -> None:
+    def acknowledge(self, item_id: str) -> bool:
         """Acknowledge and remove one pending alert.
 
         Args:
             item_id: Stable work-item identifier.
 
         """
-        remaining = [
-            alert for alert in self.pending_alerts() if alert.item_id != item_id
-        ]
+        pending = self.pending_alerts()
+        remaining = [alert for alert in pending if alert.item_id != item_id]
+        if len(remaining) == len(pending):
+            return False
         self._write_pending(remaining)
+        return True
 
     def _ensure_parent_dirs(self) -> None:
         """Create parent directories for store files."""
