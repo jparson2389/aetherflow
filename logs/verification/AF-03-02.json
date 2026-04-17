@@ -3,7 +3,6 @@
   "title": "Add premium capture backends, CPU/GPU render modes, and one validated 120 FPS path.",
   "status": "evidenced",
   "gaps": [
-    "[ac-coverage-gap] Entry point not exercised: premium capture backends",
     "[review/sign-off-gap] Reviewer sign-off is not approved"
   ],
   "evidence_pack": "docs/evidence/AF-03-02.md",
@@ -37,5 +36,6 @@
   "app_testable": false,
   "app_surface": null,
   "developer_alert": null,
-  "reviewer_status": "pending"
+  "reviewer_status": "pending",
+  "ran_at": "2026-04-16T17:02:03.063079+00:00"
 }

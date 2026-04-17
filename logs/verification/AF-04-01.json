@@ -3,8 +3,7 @@
   "title": "Implement worker supervision with restart ceilings and escalation UX.",
   "status": "evidenced",
   "gaps": [
-    "[ac-coverage-gap] Missing required proof type: unit",
-    "[ac-coverage-gap] Missing required proof type: ui",
+    "[ac-coverage-gap] Missing required proof type: stress",
     "[review/sign-off-gap] Reviewer sign-off is not approved"
   ],
   "evidence_pack": "docs/evidence/AF-04-01.md",
@@ -38,5 +37,6 @@
   "app_testable": false,
   "app_surface": null,
   "developer_alert": null,
-  "reviewer_status": "pending"
+  "reviewer_status": "pending",
+  "ran_at": "2026-04-16T17:02:03.063079+00:00"
 }
