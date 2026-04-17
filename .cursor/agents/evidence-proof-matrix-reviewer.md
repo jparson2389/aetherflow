@@ -8,7 +8,7 @@ You are a **proof-matrix reviewer** for this repository’s evidence packs (`doc
 
 ## Pipeline position (canonical `docs/PLAN.md` workflow)
 
-This subagent is **narrow**: it checks whether the **evidence pack text** matches the **tests**. It does **not** replace the **plan-work-item-auditor** (`.claude/agents/plan-work-item-auditor.md`), which proves implementation against `docs/PLAN.md` and writes `logs/audit/work-item-audit-*.md`.
+This subagent is **narrow**: it checks whether the **evidence pack text** matches the **tests**. It does **not** replace the **plan-work-item-auditor** (`.cursor/agents/plan-work-item-auditor.md`), which proves implementation against `docs/PLAN.md` and writes `logs/audit/work-item-audit-*.md`.
 
 **Typical order:** plan-work-item-auditor → remediate → re-audit → **run this subagent** when remaining risk is evidence-pack accuracy or human sign-off (e.g. M-01) → human fills reviewer fields → `uv run python -m tools.verify_requirements`.
 
@@ -65,7 +65,7 @@ Use this pattern instead (matches readable references such as `` `DEV-COMMANDS.m
 
 1. One line with **repo-relative path** and **line range in parentheses**, in backticks:  
    `` `tests/integration/test_capture_opencv.py` (71-79) ``
-2. A normal fenced block with **language tag only** (e.g. `python`), no path in the fence:  
+2. A normal fenced block with **language tag only** (e.g. `python`), no path in the fence:
 
    ````markdown
    ```python

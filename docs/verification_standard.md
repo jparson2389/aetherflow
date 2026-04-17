@@ -107,7 +107,7 @@ the alert to `logs/verification/pending_app_checks.json`.
 
 **List pending alerts:**
 
-```
+```text
 uv run python -m tools.verify_requirements
 ```
 
@@ -115,13 +115,13 @@ Pending alerts are printed as a startup notice when the tool runs.
 
 **Acknowledge an alert:**
 
-```
+```text
 uv run python -m tools.verify_requirements --acknowledge <item-id>
 ```
 
 For example:
 
-```
+```text
 uv run python -m tools.verify_requirements --acknowledge AF-01-02
 ```
 

@@ -551,9 +551,10 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   >   **Target File:** `src/aetherflow/ui/panels/environment_panel.py`
   >   **Target File:** `tests/unit/test_env_manager.py`
   >   **Target File:** `tests/test_bundle_installer.py`
+  >   **Target File:** `tests/integration/test_environment_bundle_workflow.py`
   >   **Target File:** `tests/ui/test_environment_panel.py`
   >   **Behavior:** implement env create/repair/recreate/delete, required-import validation, optional GPU probe result shape, and bundle install fallback semantics from the sign-off packet.
-  >   **Validation:** `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py`
+  >   **Validation:** `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/integration/test_environment_bundle_workflow.py tests/ui/test_environment_panel.py`
   >   **Evidence:** environment validation is consistent and bundle naming ambiguity does not block function.
   >   **Completion Gates:**
   > - Env create/repair/recreate operates on real environments.
@@ -565,7 +566,7 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
 
 ```text
 uv run ruff check .
-uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py
+uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/integration/test_environment_bundle_workflow.py tests/ui/test_environment_panel.py
 ```
 
 ---
