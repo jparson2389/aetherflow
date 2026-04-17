@@ -38,7 +38,7 @@ def test_audit_plan_completion_does_not_write_verification_outputs() -> None:
             '-m',
             'tools.audit_plan_completion',
             '--plan',
-            str(PROJECT_ROOT / 'PLAN.md'),
+            str(PROJECT_ROOT / 'docs' / 'PLAN.md'),
             '--repo-root',
             str(PROJECT_ROOT),
         ],
@@ -61,10 +61,25 @@ def test_audit_plan_completion_does_not_write_verification_outputs() -> None:
         )
 
 
-def test_generate_verification_report_is_a_pure_wrapper() -> None:
+def test_generate_verification_report_is_a_pure_wrapper(tmp_path: Path) -> None:
     """generate_verification_report must produce identical status to verify_requirements."""
+    wrapper_dir = tmp_path / 'wrapper'
+    canonical_dir = tmp_path / 'canonical'
+    wrapper_report = wrapper_dir / 'requirements-report.md'
+    canonical_report = canonical_dir / 'requirements-report.md'
+
     result_wrapper = subprocess.run(
-        ['uv', 'run', 'python', '-m', 'tools.generate_verification_report'],
+        [
+            'uv',
+            'run',
+            'python',
+            '-m',
+            'tools.generate_verification_report',
+            '--results-dir',
+            str(wrapper_dir),
+            '--report',
+            str(wrapper_report),
+        ],
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
@@ -73,7 +88,17 @@ def test_generate_verification_report_is_a_pure_wrapper() -> None:
     assert result_wrapper.returncode == 0, result_wrapper.stderr
 
     result_canonical = subprocess.run(
-        ['uv', 'run', 'python', '-m', 'tools.verify_requirements'],
+        [
+            'uv',
+            'run',
+            'python',
+            '-m',
+            'tools.verify_requirements',
+            '--results-dir',
+            str(canonical_dir),
+            '--report',
+            str(canonical_report),
+        ],
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
@@ -81,9 +106,20 @@ def test_generate_verification_report_is_a_pure_wrapper() -> None:
     )
     assert result_canonical.returncode == 0, result_canonical.stderr
 
-    for json_path in VERIFICATION_DIR.glob('AF-*.json'):
-        payload = json.loads(json_path.read_text(encoding='utf-8'))
-        assert 'status' in payload, f'{json_path.name} missing status field'
+    wrapper_jsons = sorted(wrapper_dir.glob('AF-*.json'))
+    canonical_jsons = sorted(canonical_dir.glob('AF-*.json'))
+    assert [p.name for p in wrapper_jsons] == [p.name for p in canonical_jsons], (
+        'wrapper and canonical runs must emit the same AF-*.json filenames'
+    )
+
+    for w_path, c_path in zip(wrapper_jsons, canonical_jsons, strict=True):
+        w_payload = json.loads(w_path.read_text(encoding='utf-8'))
+        c_payload = json.loads(c_path.read_text(encoding='utf-8'))
+        assert 'status' in w_payload, f'{w_path.name} missing status field'
+        assert w_payload['status'] == c_payload['status'], (
+            f'status mismatch for {w_path.name}: wrapper={w_payload["status"]!r} '
+            f'canonical={c_payload["status"]!r}'
+        )
 
 
 def test_audit_plan_completion_stdout_contains_no_verified_claim() -> None:
@@ -96,7 +132,7 @@ def test_audit_plan_completion_stdout_contains_no_verified_claim() -> None:
             '-m',
             'tools.audit_plan_completion',
             '--plan',
-            str(PROJECT_ROOT / 'PLAN.md'),
+            str(PROJECT_ROOT / 'docs' / 'PLAN.md'),
             '--repo-root',
             str(PROJECT_ROOT),
         ],
@@ -158,4 +194,48 @@ def test_acknowledge_flag_removes_alert_from_pending(tmp_path: Path) -> None:
     alert_ids = [a['item_id'] for a in remaining.get('pending', [])]
     assert 'AF-TEST-99' not in alert_ids, (
         f'AF-TEST-99 should have been removed from pending, got: {alert_ids}'
+    )
+
+
+def test_acknowledge_flag_missing_alert_returns_error(tmp_path: Path) -> None:
+    """verify_requirements --acknowledge must fail when no alert matches."""
+    pending_path = tmp_path / 'logs' / 'verification' / 'pending_app_checks.json'
+    pending_path.parent.mkdir(parents=True)
+
+    seed_alert = {
+        'item_id': 'AF-TEST-99',
+        'message': 'Test alert for acknowledge contract',
+        'app_surface': 'startup',
+    }
+    pending_path.write_text(
+        json.dumps({'pending': [seed_alert]}, indent=2),
+        encoding='utf-8',
+    )
+
+    result = subprocess.run(
+        [
+            'uv',
+            'run',
+            'python',
+            '-m',
+            'tools.verify_requirements',
+            '--acknowledge',
+            'AF-TEST-404',
+            '--pending-path',
+            str(pending_path),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0, 'Missing alert acknowledge should return non-zero.'
+    combined = (result.stdout or '') + (result.stderr or '')
+    assert 'No pending alert found to acknowledge' in combined
+
+    remaining = json.loads(pending_path.read_text(encoding='utf-8'))
+    alert_ids = [a['item_id'] for a in remaining.get('pending', [])]
+    assert 'AF-TEST-99' in alert_ids, (
+        f'AF-TEST-99 should remain pending, got: {alert_ids}'
     )

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime
 from pathlib import Path
 
 from src.aetherflow.core.verification_report import (
@@ -386,6 +388,13 @@ def test_requirements_report_from_evidence_not_heuristics(tmp_path: Path) -> Non
     write_results(report_path=report_path, results_dir=results_dir, results=results)
 
     assert report_path.exists(), 'Report file was not created'
+    sample_path = results_dir / 'AF-VER-01.json'
+    sample_payload = json.loads(sample_path.read_text(encoding='utf-8'))
+    assert 'ran_at' in sample_payload, (
+        'Per-item JSON must include ran_at (batch timestamp)'
+    )
+    datetime.fromisoformat(sample_payload['ran_at'].replace('Z', '+00:00'))
+
     report_text = report_path.read_text(encoding='utf-8')
 
     assert '- Retired:' in report_text, (

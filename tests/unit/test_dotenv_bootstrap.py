@@ -8,35 +8,33 @@ import pytest
 from aetherflow import main as main_module
 
 
-def test_configure_environment_loads_variables_from_discovered_dotenv(
+def test_configure_environment_loads_variables_from_explicit_dotenv(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     env_path = tmp_path / '.env'
     env_path.write_text('AETHERFLOW_TEST_FLAG=enabled\n', encoding='utf-8')
-    monkeypatch.chdir(tmp_path)
     monkeypatch.delenv('AETHERFLOW_TEST_FLAG', raising=False)
 
     from aetherflow.core.dotenv_bootstrap import configure_environment
 
-    loaded_path = configure_environment()
+    loaded_path = configure_environment(env_file=env_path)
 
     assert loaded_path == env_path.resolve()
     assert os.environ['AETHERFLOW_TEST_FLAG'] == 'enabled'
 
 
-def test_configure_environment_does_not_override_existing_values(
+def test_configure_environment_does_not_override_existing_values_from_explicit_dotenv(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     env_path = tmp_path / '.env'
     env_path.write_text('AETHERFLOW_TEST_FLAG=from-dotenv\n', encoding='utf-8')
-    monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('AETHERFLOW_TEST_FLAG', 'from-process')
 
     from aetherflow.core.dotenv_bootstrap import configure_environment
 
-    loaded_path = configure_environment()
+    loaded_path = configure_environment(env_file=env_path)
 
     assert loaded_path == env_path.resolve()
     assert os.environ['AETHERFLOW_TEST_FLAG'] == 'from-process'

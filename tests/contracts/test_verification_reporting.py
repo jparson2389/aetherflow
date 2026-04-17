@@ -7,9 +7,25 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_verify_requirements_generates_evidence_based_outputs() -> None:
+def test_verify_requirements_generates_evidence_based_outputs(tmp_path: Path) -> None:
+    """Full regrade outputs must be structurally valid; use tmp to avoid dirtying git."""
+    out_dir = tmp_path / 'verification'
+    report_path = tmp_path / 'requirements-report.md'
+    evidence_path = tmp_path / 'verify-requirements-evidence.md'
     result = subprocess.run(
-        ['uv', 'run', 'python', '-m', 'tools.verify_requirements'],
+        [
+            'uv',
+            'run',
+            'python',
+            '-m',
+            'tools.verify_requirements',
+            '--results-dir',
+            str(out_dir),
+            '--report',
+            str(report_path),
+            '--evidence-index',
+            str(evidence_path),
+        ],
         cwd=PROJECT_ROOT,
         check=False,
         capture_output=True,
@@ -18,11 +34,9 @@ def test_verify_requirements_generates_evidence_based_outputs() -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
 
-    report_text = (PROJECT_ROOT / 'docs' / 'requirements-report.md').read_text(
-        encoding='utf-8'
-    )
-    result_path = PROJECT_ROOT / 'logs' / 'verification' / 'AF-00-02b.json'
-    pending_path = PROJECT_ROOT / 'logs' / 'verification' / 'pending_app_checks.json'
+    report_text = report_path.read_text(encoding='utf-8')
+    result_path = out_dir / 'AF-00-02b.json'
+    pending_path = out_dir / 'pending_app_checks.json'
 
     assert '- Retired:' in report_text
     assert '- Coded:' in report_text

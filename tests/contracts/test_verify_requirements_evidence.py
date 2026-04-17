@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-EVIDENCE_PATH = PROJECT_ROOT / 'logs' / 'verify-requirements-evidence.md'
 
 # Golden expectations: path -> expected placeholder (True/False).
 # Mature files must be placeholder=False; known stubs must be placeholder=True.
@@ -30,40 +29,50 @@ GOLDEN_EXPECTATIONS = {
 }
 
 
-def _run_verify_requirements() -> None:
-    """Run the repo-owned verify-requirements entrypoint to refresh evidence."""
+def _run_verify_requirements(tmp_path: Path) -> Path:
+    """Run verify_requirements with outputs under tmp_path (no tracked logs/)."""
+    evidence_path = tmp_path / 'verify-requirements-evidence.md'
+    out_dir = tmp_path / 'verification'
+    report_path = tmp_path / 'requirements-report.md'
     subprocess.run(
-        ['uv', 'run', 'python', '-m', 'tools.verify_requirements'],
+        [
+            'uv',
+            'run',
+            'python',
+            '-m',
+            'tools.verify_requirements',
+            '--results-dir',
+            str(out_dir),
+            '--report',
+            str(report_path),
+            '--evidence-index',
+            str(evidence_path),
+        ],
         cwd=PROJECT_ROOT,
         check=True,
         capture_output=True,
     )
+    return evidence_path
 
 
-def _parse_evidence() -> dict[str, bool]:
+def _parse_evidence(evidence_path: Path) -> dict[str, bool]:
     """Parse evidence index and return path -> placeholder mapping."""
-    if not EVIDENCE_PATH.exists():
-        _run_verify_requirements()
-    text = EVIDENCE_PATH.read_text(encoding='utf-8')
-    result = {}
+    text = evidence_path.read_text(encoding='utf-8')
+    result: dict[str, bool] = {}
     pattern = re.compile(r'path="([^"]+)"[^"]*placeholder=(true|false)')
     for m in pattern.finditer(text):
         result[m.group(1).replace('\\', '/')] = m.group(2).lower() == 'true'
     return result
 
 
-def test_verify_requirements_evidence_golden_expectations() -> None:
+def test_verify_requirements_evidence_golden_expectations(tmp_path: Path) -> None:
     """Assert golden files have expected placeholder status."""
-    evidence = _parse_evidence()
+    evidence_path = _run_verify_requirements(tmp_path)
+    evidence = _parse_evidence(evidence_path)
     for path, expected in GOLDEN_EXPECTATIONS.items():
-        if path not in evidence:
-            # File may not exist or may be under a different root
-            full = PROJECT_ROOT / path
-            if not full.exists():
-                continue
-            # Run workflow to ensure evidence is fresh
-            _run_verify_requirements()
-            evidence = _parse_evidence()
+        full = PROJECT_ROOT / path
+        if not full.exists():
+            continue
         assert path in evidence, f'Path {path} not in evidence index'
         actual = evidence[path]
         assert actual == expected, (

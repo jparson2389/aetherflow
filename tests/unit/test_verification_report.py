@@ -14,6 +14,7 @@ def _write_evidence_pack(
     *,
     reviewer_status: str,
     app_testable: bool = False,
+    reviewer_identity: str = 'qa.lead',
 ) -> None:
     path.write_text(
         '\n'.join(
@@ -21,7 +22,7 @@ def _write_evidence_pack(
                 '# Evidence Pack',
                 '',
                 '- Reviewer Status: ' + reviewer_status,
-                '- Reviewer: qa.lead',
+                '- Reviewer: ' + reviewer_identity,
                 '- Reviewed At: 2026-03-16T12:00:00Z',
                 '- App-Testable: ' + ('yes' if app_testable else 'no'),
                 '- App Surface: main-window',
@@ -137,6 +138,46 @@ def test_item_with_approved_evidence_pack_and_validation_is_verified(
     assert result.status == 'verified'
     assert result.app_testable is True
     assert result.developer_alert == 'New feature added, check for functionality'
+
+
+def test_developer_placeholder_reviewer_does_not_set_approved_by(
+    tmp_path: Path,
+) -> None:
+    """Evidence packs use Reviewer: Developer as a placeholder; not authoritative."""
+    target_path = tmp_path / 'src' / 'feature.py'
+    target_path.parent.mkdir(parents=True)
+    target_path.write_text("def run() -> str:\n    return 'ok'\n", encoding='utf-8')
+    evidence_path = tmp_path / 'docs' / 'evidence' / 'AF-10-01.md'
+    evidence_path.parent.mkdir(parents=True)
+    _write_evidence_pack(
+        evidence_path,
+        reviewer_status='approved',
+        app_testable=False,
+        reviewer_identity='Developer',
+    )
+
+    item = PlanItem(
+        item_id='AF-10-01',
+        title='Example item',
+        targets=[Path('src/feature.py')],
+        validations=['uv run pytest tests/unit/test_example.py'],
+        evidence_pack=Path('docs/evidence/AF-10-01.md'),
+        feature_class='service',
+        entry_point='main-window',
+        required_proofs=['integration'],
+        failure_modes=['invalid configuration rejected'],
+    )
+
+    result = evaluate_plan_item(
+        repo_root=tmp_path,
+        item=item,
+        validation_runner=lambda _repo_root, _command: True,
+    )
+
+    assert result.status == 'verified'
+    assert result.approved_by is None
+    payload = result.to_payload()
+    assert payload['reviewer_status'] == 'pending'
 
 
 def test_item_can_be_retired_without_evidence_pack(tmp_path: Path) -> None:
