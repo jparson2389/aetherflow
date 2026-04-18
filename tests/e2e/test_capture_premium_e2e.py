@@ -271,6 +271,12 @@ class TestPremiumBackendFallbackWhenLockedMidSession:
         # Step 2: Revoke entitlement (transition to LOCKED)
         services.entitlements.revoke('capture.mf')
 
+        # Stop the original session to release resources
+        try:
+            plugin.stop_capture(device.stable_id)
+        except PermissionError:
+            pass  # Expected if revocation affects existing sessions
+
         # Step 3: Verify the backend raises PermissionError on next operation
         # Creating a new plugin instance reflects the revoked state
         plugin_revoked = MediaFoundationCapturePlugin(services=services)

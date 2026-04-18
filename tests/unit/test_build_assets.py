@@ -8,6 +8,20 @@ import pytest
 from tools import build_assets
 
 
+def test_grpc_stub_sibling_imports_become_package_relative(tmp_path: Path) -> None:
+    out_dir = tmp_path / 'proto'
+    out_dir.mkdir()
+    stub = out_dir / 'capture_pb2_grpc.py'
+    stub.write_text(
+        'import grpc\nimport capture_pb2 as capture__pb2\n',
+        encoding='utf-8',
+    )
+    build_assets._grpc_stub_sibling_imports_package_relative(out_dir)
+    assert 'from . import capture_pb2 as capture__pb2' in stub.read_text(
+        encoding='utf-8'
+    )
+
+
 def test_compile_proto_assets_runs_protoc_and_creates_package_init(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
