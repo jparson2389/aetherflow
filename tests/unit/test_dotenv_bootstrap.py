@@ -6,6 +6,11 @@ from pathlib import Path
 import pytest
 
 from aetherflow import main as main_module
+from aetherflow.core.dotenv_bootstrap import REPO_ROOT
+
+
+def test_repo_root_contains_pyproject_toml() -> None:
+    assert (REPO_ROOT / 'pyproject.toml').is_file()
 
 
 def test_configure_environment_loads_variables_from_explicit_dotenv(

@@ -8,7 +8,18 @@ from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 
 DEFAULT_DOTENV_FILENAME = '.env'
-REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _find_repo_root() -> Path:
+    candidate = Path(__file__).resolve().parent
+    while candidate != candidate.parent:
+        if (candidate / 'pyproject.toml').is_file():
+            return candidate
+        candidate = candidate.parent
+    raise RuntimeError('Repository root not found — no pyproject.toml on path')
+
+
+REPO_ROOT = _find_repo_root()
 DEFAULT_ENV_FILE = REPO_ROOT / DEFAULT_DOTENV_FILENAME
 
 
