@@ -1,8 +1,9 @@
 """Contract tests for verify-requirements evidence heuristics."""
 
 import re
-import subprocess
 from pathlib import Path
+
+from tools.verify_requirements import REPO_ROOTS, write_evidence_index
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -30,27 +31,13 @@ GOLDEN_EXPECTATIONS = {
 
 
 def _run_verify_requirements(tmp_path: Path) -> Path:
-    """Run verify_requirements with outputs under tmp_path (no tracked logs/)."""
+    """Write evidence index under tmp_path (no tracked logs/)."""
     evidence_path = tmp_path / 'verify-requirements-evidence.md'
-    out_dir = tmp_path / 'verification'
-    report_path = tmp_path / 'requirements-report.md'
-    subprocess.run(
-        [
-            'uv',
-            'run',
-            'python',
-            '-m',
-            'tools.verify_requirements',
-            '--results-dir',
-            str(out_dir),
-            '--report',
-            str(report_path),
-            '--evidence-index',
-            str(evidence_path),
-        ],
-        cwd=PROJECT_ROOT,
-        check=True,
-        capture_output=True,
+    roots = [PROJECT_ROOT / part for part in REPO_ROOTS]
+    write_evidence_index(
+        evidence_path=evidence_path,
+        roots=roots,
+        repo_root=PROJECT_ROOT,
     )
     return evidence_path
 
