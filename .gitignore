@@ -75,9 +75,6 @@ docs/requirements-report.md
 !logs/verification/
 !logs/lazy-agent-report-rework-plan.log
 
-# Tools
-tools/wrap_markdown_tables.py
-
 # Local noise
 .cursor/agents/
 .gemini/gemini-config-schema.json
