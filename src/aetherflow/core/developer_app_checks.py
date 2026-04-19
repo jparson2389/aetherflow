@@ -93,6 +93,10 @@ class PendingAppCheckStore:
         Args:
             item_id: Stable work-item identifier.
 
+        Returns:
+            ``True`` when a pending alert with the given ``item_id`` was found
+            and removed; ``False`` when no such alert exists.
+
         """
         pending = self.pending_alerts()
         remaining = [alert for alert in pending if alert.item_id != item_id]
