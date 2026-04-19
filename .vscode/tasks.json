@@ -45,7 +45,7 @@
             "label": "Markdown: Prettify tables (current file)",
             "type": "shell",
             "command": "npx",
-            "args": ["-y", "markdown-table-formatter", "${file}"],
+            "args": ["-y", "markdown-table-formatter@0.2.0", "${file}"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -60,7 +60,7 @@
             "label": "Markdown: Prettify tables (check current file)",
             "type": "shell",
             "command": "npx",
-            "args": ["-y", "markdown-table-formatter", "--check", "${file}"],
+            "args": ["-y", "markdown-table-formatter@0.2.0", "--check", "${file}"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
