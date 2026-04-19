@@ -10,6 +10,8 @@ from aetherflow.core.dotenv_bootstrap import REPO_ROOT
 
 
 def test_repo_root_contains_pyproject_toml() -> None:
+    if REPO_ROOT is None:
+        pytest.skip('REPO_ROOT unavailable (installed layout without pyproject.toml)')
     assert (REPO_ROOT / 'pyproject.toml').is_file()
 
 
