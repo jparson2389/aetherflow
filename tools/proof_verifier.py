@@ -140,15 +140,6 @@ def run_regrade(
     results = generate_results(repo_root=repo_root, plan_path=plan_path)
     batch_ran_at = datetime.now(UTC).isoformat()
 
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    for result in results:
-        build_verification_json(
-            item_id=result.item_id,
-            result=result,
-            logs_dir=logs_dir,
-            ran_at=batch_ran_at,
-        )
-
     write_results(
         report_path=report_path,
         results_dir=logs_dir,
