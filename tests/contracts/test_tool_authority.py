@@ -20,13 +20,15 @@ REPORT_PATH = PROJECT_ROOT / 'docs' / 'requirements-report.md'
 
 def test_audit_plan_completion_does_not_write_verification_outputs() -> None:
     """audit_plan_completion must not write requirements-report or verification JSON."""
-    report_mtime_before = REPORT_PATH.stat().st_mtime if REPORT_PATH.exists() else None
+    report_existed_before = REPORT_PATH.exists()
+    report_mtime_before = REPORT_PATH.stat().st_mtime if report_existed_before else None
 
     json_files_before = {
         p: p.stat().st_mtime
         for p in VERIFICATION_DIR.glob('*.json')
         if p.name != 'pending_app_checks.json' and p.name != 'status_snapshot.json'
     }
+    json_names_before = {p.name for p in json_files_before}
 
     time.sleep(0.05)
 
@@ -50,6 +52,9 @@ def test_audit_plan_completion_does_not_write_verification_outputs() -> None:
 
     assert result.returncode == 0, result.stderr
 
+    assert REPORT_PATH.exists() == report_existed_before, (
+        'audit_plan_completion must not create docs/requirements-report.md'
+    )
     if REPORT_PATH.exists() and report_mtime_before is not None:
         assert REPORT_PATH.stat().st_mtime == report_mtime_before, (
             'audit_plan_completion must not modify docs/requirements-report.md'
@@ -60,6 +65,16 @@ def test_audit_plan_completion_does_not_write_verification_outputs() -> None:
             f'audit_plan_completion must not modify {json_path.name}'
         )
 
+    json_names_after = {
+        p.name
+        for p in VERIFICATION_DIR.glob('*.json')
+        if p.name != 'pending_app_checks.json' and p.name != 'status_snapshot.json'
+    }
+    new_json_names = json_names_after - json_names_before
+    assert not new_json_names, (
+        f'audit_plan_completion must not create new verification JSON files: {sorted(new_json_names)}'
+    )
+
 
 def test_generate_verification_report_is_a_pure_wrapper(tmp_path: Path) -> None:
     """generate_verification_report must produce identical status to verify_requirements."""
@@ -67,6 +82,7 @@ def test_generate_verification_report_is_a_pure_wrapper(tmp_path: Path) -> None:
     canonical_dir = tmp_path / 'canonical'
     wrapper_report = wrapper_dir / 'requirements-report.md'
     canonical_report = canonical_dir / 'requirements-report.md'
+    canonical_evidence = canonical_dir / 'verify-requirements-evidence.md'
 
     result_wrapper = subprocess.run(
         [
@@ -98,6 +114,8 @@ def test_generate_verification_report_is_a_pure_wrapper(tmp_path: Path) -> None:
             str(canonical_dir),
             '--report',
             str(canonical_report),
+            '--evidence-index',
+            str(canonical_evidence),
         ],
         cwd=PROJECT_ROOT,
         capture_output=True,
