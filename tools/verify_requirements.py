@@ -257,7 +257,6 @@ def main() -> int:
     _evidence_out = (
         args.evidence_index if args.evidence_index is not None else EVIDENCE_PATH
     )
-    LOGS_PATH.mkdir(parents=True, exist_ok=True)
     roots = [ROOT / part for part in REPO_ROOTS]
     _evidence_out.parent.mkdir(parents=True, exist_ok=True)
     write_evidence_index(evidence_path=_evidence_out, roots=roots, repo_root=ROOT)
