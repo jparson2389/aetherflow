@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import deque
+
 from aetherflow.core.runtime_state import RuntimeState
 from aetherflow.output.device_masking import DeviceMaskingError, DeviceMaskingService
 
@@ -20,7 +22,7 @@ class VirtualControllerService:
         self._driver_installed = False
         self._runtime_state = RuntimeState.RUNNING
         self._failure_reason: str | None = None
-        self._diagnostics: list[str] = []
+        self._diagnostics: deque[str] = deque(maxlen=20)
 
     def status(self) -> dict[str, object]:
         """Return an output-driver status snapshot."""
@@ -103,5 +105,3 @@ class VirtualControllerService:
     def _record_diagnostic(self, message: str) -> None:
         """Retain a bounded diagnostics breadcrumb trail."""
         self._diagnostics.append(message)
-        if len(self._diagnostics) > 20:
-            self._diagnostics.pop(0)

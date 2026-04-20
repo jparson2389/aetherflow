@@ -38,31 +38,36 @@ def test_kbm_pipeline_emits_latency_diagnostics_for_fixture_events() -> None:
         listener=listener,
     )
     results = []
-    mapping.subscribe(results.append)
+    handler = results.append
+    mapping.subscribe(handler)
 
     ingestion.start()
-    listener.push(
-        InputEvent(
-            kind=InputEventKind.KEY_PRESS,
-            device_family='keyboard-mouse',
-            timestamp_ns=1000,
-            key='KEY_A',
+    try:
+        listener.push(
+            InputEvent(
+                kind=InputEventKind.KEY_PRESS,
+                device_family='keyboard-mouse',
+                timestamp_ns=1000,
+                key='KEY_A',
+            )
         )
-    )
-    listener.push(
-        InputEvent(
-            kind=InputEventKind.MOUSE_MOVE,
-            device_family='keyboard-mouse',
-            timestamp_ns=2000,
-            position=(320, 240),
+        listener.push(
+            InputEvent(
+                kind=InputEventKind.MOUSE_MOVE,
+                device_family='keyboard-mouse',
+                timestamp_ns=2000,
+                position=(320, 240),
+            )
         )
-    )
 
-    snapshot = mapping.diagnostics_snapshot()
+        snapshot = mapping.diagnostics_snapshot()
 
-    assert len(results) == 2
-    assert mapping.telemetry.sample_count == 2
-    assert snapshot.event_rate_hz > 0.0
-    assert snapshot.output_rate_hz > 0.0
-    assert snapshot.latency_ms >= 0.0
-    assert snapshot.jitter_ms >= 0.0
+        assert len(results) == 2
+        assert mapping.telemetry.sample_count == 2
+        assert snapshot.event_rate_hz > 0.0
+        assert snapshot.output_rate_hz > 0.0
+        assert snapshot.latency_ms >= 0.0
+        assert snapshot.jitter_ms >= 0.0
+    finally:
+        mapping.unsubscribe(handler)
+        ingestion.stop()

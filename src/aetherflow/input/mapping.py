@@ -110,6 +110,10 @@ class MappingPipeline:
         """
         self._profile_store = profile_store
         self._telemetry = InputLatencyTelemetry()
+        # Threading: _on_event is called from the OS listener thread (via
+        # DeviceIngestionPipeline._dispatch); diagnostics_snapshot() may be
+        # called from the UI/main thread.  PipelineDiagnosticsTracker is
+        # internally locked to protect concurrent access.
         self._diagnostics = PipelineDiagnosticsTracker()
         self._subscribers: list[Callable[[MappedEvent], None]] = []
         self._lock = threading.Lock()
@@ -121,7 +125,12 @@ class MappingPipeline:
         return self._telemetry
 
     def diagnostics_snapshot(self) -> PipelineDiagnostics:
-        """Return the current controller pipeline diagnostics snapshot."""
+        """Return the current controller pipeline diagnostics snapshot.
+
+        Returns:
+            Snapshot of current event/output rates, latency, and jitter.
+
+        """
         return self._diagnostics.snapshot()
 
     def subscribe(self, handler: Callable[[MappedEvent], None]) -> None:

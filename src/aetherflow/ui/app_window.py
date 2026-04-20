@@ -23,7 +23,11 @@ from aetherflow.ui.panel_host import PanelHost
 from aetherflow.ui.panels.driver_status_panel import DriverStatusPanelModel
 from aetherflow.ui.shell import ShellModel
 from aetherflow.ui.status_hud import StatusHUDModel
-from aetherflow.vision.opencv_capture import CaptureMode, OpenCVCapturePlugin
+from aetherflow.vision.opencv_capture import (
+    CaptureDevice,
+    CaptureMode,
+    OpenCVCapturePlugin,
+)
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 _BG_DEEP = '#0a0c0f'
@@ -198,6 +202,7 @@ class CapturePanelWidget(QWidget):
         """
         super().__init__(parent)
         self._plugin = plugin
+        self._cached_devices: list[CaptureDevice] = []
         self.summary_label = QLabel()
         self.device_details_label = QLabel()
         self.device_details_label.setWordWrap(True)
@@ -224,6 +229,7 @@ class CapturePanelWidget(QWidget):
     def refresh(self) -> None:
         """Refresh the device and mode lists from the plugin."""
         devices = self._plugin.enumerate_devices()
+        self._cached_devices = list(devices)
         self.device_list.clear()
         self.mode_list.clear()
         if not devices:
@@ -251,7 +257,7 @@ class CapturePanelWidget(QWidget):
         device = next(
             (
                 candidate
-                for candidate in self._plugin.enumerate_devices()
+                for candidate in self._cached_devices
                 if candidate.stable_id == stable_id
             ),
             None,
@@ -386,16 +392,22 @@ class DriverStatusPanelWidget(QWidget):
         self.refresh()
 
     def _on_retry_masking(self) -> None:
-        self._service.enable_masking()
+        ok = self._service.enable_masking()
         self.refresh()
+        if not ok:
+            self.failure_label.setText('Masking could not be enabled')
 
     def _on_enable_masking(self) -> None:
-        self._service.enable_masking()
+        ok = self._service.enable_masking()
         self.refresh()
+        if not ok:
+            self.failure_label.setText('Masking could not be enabled')
 
     def _on_disable_masking(self) -> None:
-        self._service.disable_masking()
+        ok = self._service.disable_masking()
         self.refresh()
+        if not ok:
+            self.failure_label.setText('Masking could not be disabled')
 
     def _on_copy_diagnostics(self) -> None:
         from PySide6.QtWidgets import QApplication
@@ -506,7 +518,11 @@ class AppWindow(QMainWindow):
                     break
         finally:
             self.route_list.blockSignals(False)
-        panel_id = self._shell.set_active_route(route_name, role=self._nav_role)
+        try:
+            panel_id = self._shell.set_active_route(route_name, role=self._nav_role)
+        except PermissionError as exc:
+            self.statusBar().showMessage(str(exc), 5000)
+            return
         self.panel_host.show_panel(panel_id)
 
     def _populate_routes(self) -> None:
@@ -587,5 +603,9 @@ class AppWindow(QMainWindow):
             return
         item = self.route_list.item(row)
         route_name = item.data(Qt.ItemDataRole.UserRole)
-        panel_id = self._shell.set_active_route(route_name, role=self._nav_role)
+        try:
+            panel_id = self._shell.set_active_route(route_name, role=self._nav_role)
+        except PermissionError as exc:
+            self.statusBar().showMessage(str(exc), 5000)
+            return
         self.panel_host.show_panel(panel_id)

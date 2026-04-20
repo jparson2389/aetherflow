@@ -32,7 +32,13 @@ def test_profile_translation_is_deterministic_for_identical_inputs() -> None:
     profile.sensitivity_layers.append(SensitivityLayer(name='aim', multiplier=1.5))
 
     first = profile.translate({'A': True, 'LX': 0.5})
-    profile._last_values.clear()
-    second = profile.translate({'A': True, 'LX': 0.5})
+    second_profile = InputProfile.default('Default')
+    second_profile.curve_exponent = 1.0
+    second_profile.smoothing_alpha = 1.0
+    second_profile.button_map['A'] = 'X'
+    second_profile.sensitivity_layers.append(
+        SensitivityLayer(name='aim', multiplier=1.5)
+    )
+    second = second_profile.translate({'A': True, 'LX': 0.5})
 
     assert first == second

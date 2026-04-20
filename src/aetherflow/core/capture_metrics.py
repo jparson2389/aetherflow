@@ -93,7 +93,7 @@ class CaptureMetricsTracker:
         duration_s = self._frames[-1] - self._frames[0]
         if duration_s <= 0.0:
             return 0.0, 0.0
-        return len(self._frames) / duration_s, duration_s
+        return (len(self._frames) - 1) / duration_s, duration_s
 
     def _jitter_ms(self, *, target_fps: int) -> float:
         """Return a simple mean frame-interval jitter in milliseconds."""

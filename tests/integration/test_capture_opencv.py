@@ -1,3 +1,5 @@
+import pytest
+
 from aetherflow.vision.opencv_capture import (
     CaptureDevice,
     OpenCVCapturePlugin,
@@ -17,31 +19,35 @@ def test_opencv_capture_enumerates_supported_modes_per_device() -> None:
     assert all(mode.capture_width > 0 and mode.capture_fps > 0 for mode in modes)
 
 
-def test_opencv_capture_supports_60_fps_baseline() -> None:
-    plugin = OpenCVCapturePlugin(probe=FakeCaptureProbe())
+def test_opencv_capture_supports_60_fps_baseline(
+    fake_capture_probe,
+) -> None:
+    plugin = OpenCVCapturePlugin(probe=fake_capture_probe)
     for device in plugin.enumerate_devices():
         modes = plugin.supported_modes(device.stable_id)
         assert any(mode.capture_fps == 60 for mode in modes)
 
 
-def test_opencv_capture_rejects_unsupported_mode_selection() -> None:
-    plugin = OpenCVCapturePlugin(probe=FakeCaptureProbe())
+def test_opencv_capture_rejects_unsupported_mode_selection(
+    fake_capture_probe,
+) -> None:
+    plugin = OpenCVCapturePlugin(probe=fake_capture_probe)
 
-    try:
+    with pytest.raises(ValueError) as excinfo:
         plugin.start_capture(
             stable_device_id='capture-swb-obs-virtual-camera',
             capture_width=2560,
             capture_height=1440,
             capture_fps=240,
         )
-    except ValueError as exc:
-        assert 'unsupported capture mode rejected' in str(exc)
-    else:
-        raise AssertionError('Expected unsupported capture mode to be rejected.')
+
+    assert 'unsupported capture mode rejected' in str(excinfo.value)
 
 
-def test_opencv_capture_start_stop_yields_measurable_metrics() -> None:
-    plugin = OpenCVCapturePlugin(probe=FakeCaptureProbe())
+def test_opencv_capture_start_stop_yields_measurable_metrics(
+    fake_capture_probe,
+) -> None:
+    plugin = OpenCVCapturePlugin(probe=fake_capture_probe)
     plugin.start_capture(
         stable_device_id='capture-swb-obs-virtual-camera',
         capture_width=1920,
@@ -70,7 +76,7 @@ def test_opencv_probe_maps_elgato_4k_s_capture_matrix_from_vid_pid() -> None:
         backend_index=0,
     )
 
-    modes = probe._fallback_modes_for(device)
+    modes = probe.supported_modes(device)
 
     assert [
         (mode.capture_width, mode.capture_height, mode.capture_fps) for mode in modes
