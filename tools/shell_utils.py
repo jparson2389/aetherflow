@@ -18,20 +18,20 @@ def resolve_powershell_executable() -> str:
 
     """
     candidates = [
-        shutil.which('powershell'),
         shutil.which('pwsh'),
+        str(
+            Path(os.environ.get('ProgramFiles', r'C:\Program Files'))
+            / 'PowerShell'
+            / '7'
+            / 'pwsh.exe'
+        ),
+        shutil.which('powershell'),
         str(
             Path(os.environ.get('SystemRoot', r'C:\Windows'))
             / 'System32'
             / 'WindowsPowerShell'
             / 'v1.0'
             / 'powershell.exe'
-        ),
-        str(
-            Path(os.environ.get('ProgramFiles', r'C:\Program Files'))
-            / 'PowerShell'
-            / '7'
-            / 'pwsh.exe'
         ),
     ]
 

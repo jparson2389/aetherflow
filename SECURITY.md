@@ -1,43 +1,44 @@
-  # Security Policy
+# Security Policy
 
-  ## Supported Versions
+## Supported Versions
 
-  Security updates are currently provided for the following version:
+Security updates are currently provided for the following version:
 
-  | Version | Supported |
-  | ------- | --------- |
-  | main    | Yes       |
+<!-- prettier-ignore-start -->
+| Version | Supported |
+|---------|-----------|
+| main    | Yes       |
+<!-- prettier-ignore-end -->
 
-  ## Reporting a Vulnerability
+## Reporting a Vulnerability
 
-  Please do not report security vulnerabilities through public GitHub issues,
-  discussions, or pull requests.
+Please do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.
 
-  Instead, report them privately to:
+Instead, report them privately to:
 
-  vampiresquid189@flounderfantasy.com
+<vampiresquid189@flounderfantasy.com>
 
-  Please include as much of the following information as possible:
-  - A clear description of the issue
-  - Steps to reproduce the behavior
-  - The affected version, commit, or branch
-  - The potential impact
-  - Any proof of concept, logs, screenshots, or suggested remediation
+Please include as much of the following information as possible:
 
-  ## Response Process
+- A clear description of the issue
+- Steps to reproduce the behavior
+- The affected version, commit, or branch
+- The potential impact
+- Any proof of concept, logs, screenshots, or suggested remediation
 
-  We will aim to:
-  - Acknowledge receipt within 3 business days
-  - Triage and assess severity as quickly as possible
-  - Provide status updates during investigation and remediation
-  - Release a fix or mitigation when warranted
+## Response Process
 
-  ## Disclosure Policy
+We will aim to:
 
-  We prefer coordinated disclosure. Please allow reasonable time for
-  investigation, validation, and remediation before any public disclosure.
+- Acknowledge receipt within 3 business days
+- Triage and assess severity as quickly as possible
+- Provide status updates during investigation and remediation
+- Release a fix or mitigation when warranted
 
-  ## Scope
+## Disclosure Policy
 
-  This policy applies to vulnerabilities in this repository and its maintained
-  code on the supported version listed above.
+We prefer coordinated disclosure. Please allow reasonable time for investigation, validation, and remediation before any public disclosure.
+
+## Scope
+
+This policy applies to vulnerabilities in this repository and its maintained code on the supported version listed above.

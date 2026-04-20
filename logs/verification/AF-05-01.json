@@ -1,0 +1,41 @@
+{
+  "item_id": "AF-05-01",
+  "title": "Build Online Resources trust flow with mock-provider fallback.",
+  "status": "evidenced",
+  "gaps": [
+    "[review/sign-off-gap] Reviewer sign-off is not approved"
+  ],
+  "evidence_pack": "docs/evidence/AF-05-01.md",
+  "validation_commands": [
+    "uv run pytest tests/integration/test_resources_manifest.py tests/ui/test_resource_details_modal.py tests/test_security.py"
+  ],
+  "validation_results": [
+    {
+      "command": "uv run pytest tests/integration/test_resources_manifest.py tests/ui/test_resource_details_modal.py tests/test_security.py",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1",
+        "AC2"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "uv run pytest tests/integration/test_resources_manifest.py tests/ui/test_resource_details_modal.py tests/test_security.py": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1",
+      "AC2"
+    ],
+    "required_failure_modes": [
+      "unsigned manifest rejected"
+    ]
+  },
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending",
+  "ran_at": "2026-04-16T17:02:03.063079+00:00"
+}

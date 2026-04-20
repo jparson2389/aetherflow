@@ -8,6 +8,15 @@ from aetherflow.plugins.manifest import (
     PluginVersion,
 )
 from aetherflow.plugins.registry import PluginRegistry
+from aetherflow.plugins.trust import PluginTrustResult
+
+
+class StubTrustVerifier:
+    def __init__(self, result: PluginTrustResult) -> None:
+        self._result = result
+
+    def verify(self, _manifest: PluginManifest) -> PluginTrustResult:
+        return self._result
 
 
 def make_manifest(
@@ -49,6 +58,30 @@ def test_registry_blocks_external_plugins_without_verified_artifact() -> None:
     assert entry.entitlement_state is EntitlementState.LOCKED
     assert entry.plugin_type is PluginType.CAPTURE
     assert entry.version == '1.0.0'
+
+
+def test_registry_blocks_untrusted_plugins_before_registration() -> None:
+    services = create_default_services()
+    services.trust_verifier = StubTrustVerifier(
+        PluginTrustResult(trusted=False, reason='untrusted-publisher')
+    )
+    registry = PluginRegistry(services=services)
+
+    result = registry.register(
+        make_manifest(
+            'capture.untrusted',
+            distribution=PluginDistribution.EXTERNAL,
+        )
+    )
+    entry = registry.catalog()[0]
+
+    assert result.loaded is False
+    assert result.reason == 'untrusted-publisher'
+    assert registry.get('capture.untrusted') is None
+    assert entry.selectable is False
+    assert entry.lock_state is CatalogLockState.LOCKED
+    assert entry.purchase_cta == 'Publisher certificate is not trusted'
+    assert entry.lock_reason == 'untrusted-publisher'
 
 
 def test_registry_blocks_locked_premium_plugins() -> None:

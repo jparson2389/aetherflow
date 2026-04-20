@@ -941,7 +941,9 @@ def reconcile_state_with_repo(
             None,
         )
         if updated_item is None:
-            logger.warning(f'[reconcile] item={item_id} missing from state after update — skipping')
+            logger.warning(
+                f'[reconcile] item={item_id} missing from state after update — skipping'
+            )
             continue
         reconciled.append(updated_item)
         audit_entries.append(
@@ -1116,7 +1118,9 @@ def call_json_with_retry(
     safe_stage = stage.replace('/', '_').replace('\\', '_')
     if os.environ.get('PLAN_EXEC_DUMP_PROMPTS'):
         debug_dir.mkdir(exist_ok=True)
-        (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(system, encoding='utf-8')
+        (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(
+            system, encoding='utf-8'
+        )
         (debug_dir / f'prompt_user_{safe_stage}.txt').write_text(user, encoding='utf-8')
 
     initial = call(

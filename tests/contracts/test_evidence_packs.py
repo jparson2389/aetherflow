@@ -44,18 +44,14 @@ def _assert_evidence_pack_valid(item_id: str) -> None:
     pack_path = EVIDENCE_DIR / f'{item_id}.md'
 
     # File must exist.
-    assert pack_path.exists(), (
-        f'Missing evidence pack: {pack_path.as_posix()}'
-    )
+    assert pack_path.exists(), f'Missing evidence pack: {pack_path.as_posix()}'
 
     text = pack_path.read_text(encoding='utf-8')
     lines = [line.rstrip() for line in text.splitlines()]
 
     # Must contain a Reviewer Status metadata line.
     has_reviewer_status = any(_REVIEWER_STATUS_RE.match(ln) for ln in lines)
-    assert has_reviewer_status, (
-        f"{item_id}: missing '- Reviewer Status:' metadata line"
-    )
+    assert has_reviewer_status, f"{item_id}: missing '- Reviewer Status:' metadata line"
 
     # Must have an ## Acceptance Criteria section with at least one - AC bullet.
     assert '## Acceptance Criteria' in lines, (
@@ -67,18 +63,14 @@ def _assert_evidence_pack_valid(item_id: str) -> None:
     )
 
     # Must have a ## Proof Matrix section with at least one | AC row.
-    assert '## Proof Matrix' in lines, (
-        f"{item_id}: missing '## Proof Matrix' section"
-    )
+    assert '## Proof Matrix' in lines, f"{item_id}: missing '## Proof Matrix' section"
     has_proof_row = any(_PROOF_ROW_RE.match(ln) for ln in lines)
     assert has_proof_row, (
         f"{item_id}: '## Proof Matrix' section has no '| AC' data rows"
     )
 
     # Must have a ## Sign-Off section with a - Status: line.
-    assert '## Sign-Off' in lines, (
-        f"{item_id}: missing '## Sign-Off' section"
-    )
+    assert '## Sign-Off' in lines, f"{item_id}: missing '## Sign-Off' section"
     has_sign_off_status = any(_SIGN_OFF_STATUS_RE.match(ln) for ln in lines)
     assert has_sign_off_status, (
         f"{item_id}: '## Sign-Off' section has no '- Status:' line"

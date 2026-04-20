@@ -9,6 +9,7 @@ import shutil
 import subprocess
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 from loguru import logger
@@ -381,6 +382,33 @@ def parse_evidence_pack(path: Path) -> EvidencePack:
     )
 
 
+_NON_AUTHORITATIVE_REVIEWER_IDENTITIES: frozenset[str] = frozenset({'developer'})
+
+
+def _reviewer_identity_for_approved_by(reviewer: str | None) -> str | None:
+    """Map evidence-pack ``Reviewer:`` to JSON ``approved_by`` only when authoritative.
+
+    Packs may use ``Reviewer: Developer`` as a workflow placeholder; that value must
+    not appear in ``approved_by``. Human sign-off uses a real identity (for example
+    ``qa.lead``) after manual review.
+
+    Args:
+        reviewer: Parsed ``- Reviewer:`` line from the evidence pack header.
+
+    Returns:
+        Stripped identity for ``approved_by``, or ``None`` if missing or placeholder.
+
+    """
+    if reviewer is None:
+        return None
+    stripped = reviewer.strip()
+    if not stripped:
+        return None
+    if stripped.casefold() in _NON_AUTHORITATIVE_REVIEWER_IDENTITIES:
+        return None
+    return stripped
+
+
 def _extract_required_scalar(
     lines: list[str], pattern: re.Pattern[str], path: Path
 ) -> str:
@@ -641,7 +669,7 @@ def evaluate_plan_item(
             validation_results=[],
             exit_codes={},
             requirement_links=requirement_links,
-            approved_by=evidence_pack.reviewer,
+            approved_by=_reviewer_identity_for_approved_by(evidence_pack.reviewer),
             app_testable=False,
             app_surface=None,
             developer_alert=None,
@@ -649,7 +677,7 @@ def evaluate_plan_item(
 
     gaps = _collect_evidence_gaps(item=item, evidence_pack=evidence_pack)
     if evidence_pack.reviewer_status != 'approved':
-        gaps.append('Reviewer sign-off is not approved')
+        gaps.append('[review/sign-off-gap] Reviewer sign-off is not approved')
 
     validation_ok = True
     validation_results: list[ValidationExecution] = []
@@ -664,7 +692,7 @@ def evaluate_plan_item(
         validation_results.append(execution)
         if not execution.passed:
             validation_ok = False
-            gaps.append(f'Validation failed: {command}')
+            gaps.append(f'[validation-gap] Validation failed: {command}')
 
     exit_codes = {entry.command: entry.exit_code for entry in validation_results}
     status = 'verified' if not gaps and validation_ok else 'evidenced'
@@ -678,7 +706,9 @@ def evaluate_plan_item(
         validation_results=validation_results,
         exit_codes=exit_codes,
         requirement_links=requirement_links,
-        approved_by=evidence_pack.reviewer if status == 'verified' else None,
+        approved_by=_reviewer_identity_for_approved_by(evidence_pack.reviewer)
+        if status == 'verified'
+        else None,
         app_testable=evidence_pack.app_testable if status == 'verified' else False,
         app_surface=evidence_pack.app_surface if status == 'verified' else None,
         developer_alert=evidence_pack.developer_alert if status == 'verified' else None,
@@ -700,22 +730,34 @@ def _collect_metadata_gaps(item: PlanItem) -> list[str]:
     """
     gaps: list[str] = []
     if not item.feature_class:
-        gaps.append('Missing required plan metadata: Feature-Class')
+        gaps.append('[metadata-gap] Missing required plan metadata: Feature-Class')
     if not item.entry_point:
-        gaps.append('Missing required plan metadata: Entry-Point')
+        gaps.append('[metadata-gap] Missing required plan metadata: Entry-Point')
     if not item.required_proofs:
-        gaps.append('Missing required plan metadata: Required-Proof-Types')
+        gaps.append(
+            '[metadata-gap] Missing required plan metadata: Required-Proof-Types'
+        )
     if not item.failure_modes:
-        gaps.append('Missing required plan metadata: Required-Failure-Modes')
+        gaps.append(
+            '[metadata-gap] Missing required plan metadata: Required-Failure-Modes'
+        )
     if not item.acceptance_criteria:
-        gaps.append('Missing required plan metadata: Acceptance Criteria')
+        gaps.append(
+            '[metadata-gap] Missing required plan metadata: Acceptance Criteria'
+        )
     if item.performance_claim:
         if not item.performance_threshold:
-            gaps.append('Missing required plan metadata: Performance-Threshold')
+            gaps.append(
+                '[metadata-gap] Missing required plan metadata: Performance-Threshold'
+            )
         if not item.performance_evidence_type:
-            gaps.append('Missing required plan metadata: Performance-Evidence-Type')
+            gaps.append(
+                '[metadata-gap] Missing required plan metadata: Performance-Evidence-Type'
+            )
         if not item.performance_evidence_location:
-            gaps.append('Missing required plan metadata: Performance-Evidence-Location')
+            gaps.append(
+                '[metadata-gap] Missing required plan metadata: Performance-Evidence-Location'
+            )
     return gaps
 
 
@@ -734,35 +776,39 @@ def _collect_evidence_gaps(*, item: PlanItem, evidence_pack: EvidencePack) -> li
     normalized_proofs = {proof.casefold() for proof in evidence_pack.proof_types}
     for required in item.required_proofs:
         if required.casefold() not in normalized_proofs:
-            gaps.append(f'Missing required proof type: {required}')
+            gaps.append(f'[ac-coverage-gap] Missing required proof type: {required}')
 
     normalized_failures = ' '.join(evidence_pack.failure_coverages).casefold()
     for failure_mode in item.failure_modes:
         if failure_mode.casefold() not in normalized_failures:
-            gaps.append(f'Missing failure coverage: {failure_mode}')
+            gaps.append(
+                f'[failure-coverage-gap] Missing failure coverage: {failure_mode}'
+            )
 
     if item.entry_point:
         normalized_entries = {entry.casefold() for entry in evidence_pack.entry_points}
         if item.entry_point.casefold() not in normalized_entries:
-            gaps.append(f'Entry point not exercised: {item.entry_point}')
+            gaps.append(
+                f'[ac-coverage-gap] Entry point not exercised: {item.entry_point}'
+            )
 
     if item.acceptance_criteria:
         covered = {c.casefold() for c in evidence_pack.criteria_covered}
         for ac_label in item.acceptance_criteria:
             if ac_label.casefold() not in covered:
                 gaps.append(
-                    f'Acceptance criterion not covered in proof matrix: {ac_label}'
+                    f'[ac-coverage-gap] Acceptance criterion not covered in proof matrix: {ac_label}'
                 )
 
     if item.performance_claim:
         pass_fail = evidence_pack.performance_artifact_pass_fail
         if not pass_fail:
             gaps.append(
-                'Missing performance proof: no performance artifacts in evidence pack'
+                '[performance-proof-gap] Missing performance proof: no performance artifacts in evidence pack'
             )
         elif any(v != 'pass' for v in pass_fail):
             gaps.append(
-                'Performance threshold not met: one or more performance artifacts failed'
+                '[performance-proof-gap] Performance threshold not met: one or more performance artifacts failed'
             )
 
     return gaps
@@ -943,6 +989,7 @@ def write_results(
     report_path: Path,
     results_dir: Path,
     results: list[VerificationResult],
+    ran_at: str | None = None,
 ) -> None:
     """Write the requirements report and per-item result files.
 
@@ -950,13 +997,17 @@ def write_results(
         report_path: Requirements report output path.
         results_dir: Directory for per-item JSON payloads.
         results: Evaluated verification results.
+        ran_at: ISO-8601 UTC timestamp for this verification batch; defaults to "now".
 
     """
     results_dir.mkdir(parents=True, exist_ok=True)
     report_path.parent.mkdir(parents=True, exist_ok=True)
+    batch_ran_at = ran_at if ran_at is not None else datetime.now(UTC).isoformat()
     for result in results:
+        payload = result.to_payload()
+        payload['ran_at'] = batch_ran_at
         (results_dir / f'{result.item_id}.json').write_text(
-            json.dumps(result.to_payload(), indent=2) + '\n',
+            json.dumps(payload, indent=2) + '\n',
             encoding='utf-8',
         )
 

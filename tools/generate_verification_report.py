@@ -1,4 +1,11 @@
-"""Generate evidence-based verification artifacts for plan items."""
+"""Non-authoritative compatibility wrapper around src/aetherflow/core/verification_report.
+
+This script delegates all evaluation to the canonical evaluator and must not be
+treated as a second verification authority. It does not independently compute,
+cache, or override status values. The sole authoritative regrade entry point is:
+
+    uv run python -m tools.verify_requirements
+"""
 
 from __future__ import annotations
 

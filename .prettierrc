@@ -24,6 +24,7 @@
         {
             "files": "*.md",
             "options": {
+                "printWidth": 1000,
                 "tabWidth": 2,
                 "proseWrap": "preserve"
             }

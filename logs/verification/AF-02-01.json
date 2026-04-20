@@ -1,0 +1,39 @@
+{
+  "item_id": "AF-02-01",
+  "title": "Deliver profiles, mapping, translation, diagnostics, and input plugins.",
+  "status": "verified",
+  "gaps": [],
+  "evidence_pack": "docs/evidence/AF-02-01.md",
+  "validation_commands": [
+    "uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py"
+  ],
+  "validation_results": [
+    {
+      "command": "uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1",
+        "AC2"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "uv run pytest tests/unit/test_profiles.py tests/integration/test_mapping_pipeline.py tests/integration/test_input_plugins.py": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1",
+      "AC2"
+    ],
+    "required_failure_modes": [
+      "invalid profile rejected"
+    ]
+  },
+  "approved_by": "qa.lead",
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "approved",
+  "ran_at": "2026-04-16T17:02:03.063079+00:00"
+}

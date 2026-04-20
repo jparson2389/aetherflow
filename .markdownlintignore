@@ -1,10 +1,18 @@
+# Python / tooling
 .venv
 .ruff_cache
 __pycache__
 dist
-logs
-.agents
-.codex
-.cursor
-.claude
+
+# Local agent tooling (not published docs)
+.agents/
+.codex/
+.cursor/
+.claude/
+
+# Generated reports
 docs/requirements-report.md
+
+# Agent-generated audit output (same patterns as .gitignore: ** = all under tree)
+logs/audit/**
+**/logs/audit/**

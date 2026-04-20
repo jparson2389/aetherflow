@@ -213,12 +213,16 @@ class ShellModel:
         Returns:
             Panel id for the active route.
 
+        Raises:
+            PermissionError: If the route is not accessible to the current role
+                or is locked.
+
         """
         try:
             panel_id = self.router.navigate(route_name, role=role)
         except PermissionError:
             logger.debug('Shell blocked navigation to locked route: {}', route_name)
-            return self.router.active_panel_id() or ''
+            raise
         if panel_id not in self.active_panels:
             self.active_panels.append(panel_id)
         logger.debug('Shell activated panel: {}', panel_id)

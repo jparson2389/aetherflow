@@ -101,8 +101,9 @@ columns remain readable without breaking each row into prose.
 
 <!-- markdownlint-disable MD060 -->
 
+<!-- prettier-ignore-start -->
 | ID       | PRD Ref                        | Type                   | Summary                                                       | Dependencies                 | Verification                        |
-| -------- | ------------------------------ | ---------------------- | ------------------------------------------------------------- | ---------------------------- | ----------------------------------- |
+|----------|--------------------------------|------------------------|---------------------------------------------------------------|------------------------------|-------------------------------------|
 | `REQ-01` | `§5`                           | Constraint             | Windows-only microkernel host and frozen contracts            | none                         | contract and docs tests             |
 | `REQ-02` | `§6`, `§7`, `§8`               | Security               | Numeric budgets, trust baseline, premium gating               | `REQ-01`                     | contract and policy tests           |
 | `REQ-03` | `§9.1`, `§9.9`                 | Functional             | Signed plugin and resource loading with explicit trust checks | `REQ-02`                     | loader and security tests           |
@@ -113,6 +114,7 @@ columns remain readable without breaking each row into prose.
 | `REQ-08` | `§9.7`, `§10.2`                | Functional/Ops         | Worker supervision, escalation ceilings, failure UX           | `REQ-02`                     | worker stress tests                 |
 | `REQ-09` | `§9.8`, `§9.9`                 | Functional             | Environment management and bundle validation                  | `REQ-08`                     | env and bundle tests                |
 | `REQ-10` | `§9.10`, `§9.11`, `§12`, `§13` | Operations             | Admin, diagnostics, packaging, evidence artifacts             | `REQ-03`, `REQ-08`, `REQ-09` | integration and e2e tests           |
+<!-- prettier-ignore-end -->
 
 <!-- markdownlint-enable MD060 -->
 
@@ -549,9 +551,10 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   >   **Target File:** `src/aetherflow/ui/panels/environment_panel.py`
   >   **Target File:** `tests/unit/test_env_manager.py`
   >   **Target File:** `tests/test_bundle_installer.py`
+  >   **Target File:** `tests/integration/test_environment_bundle_workflow.py`
   >   **Target File:** `tests/ui/test_environment_panel.py`
   >   **Behavior:** implement env create/repair/recreate/delete, required-import validation, optional GPU probe result shape, and bundle install fallback semantics from the sign-off packet.
-  >   **Validation:** `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py`
+  >   **Validation:** `uv run pytest tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/integration/test_environment_bundle_workflow.py tests/ui/test_environment_panel.py`
   >   **Evidence:** environment validation is consistent and bundle naming ambiguity does not block function.
   >   **Completion Gates:**
   > - Env create/repair/recreate operates on real environments.
@@ -563,7 +566,7 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
 
 ```text
 uv run ruff check .
-uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/ui/test_environment_panel.py
+uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py tests/unit/test_env_manager.py tests/test_bundle_installer.py tests/integration/test_environment_bundle_workflow.py tests/ui/test_environment_panel.py
 ```
 
 ---
@@ -641,13 +644,15 @@ powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 
 ## Risk Register
 
+<!-- prettier-ignore-start -->
 | ID        | Area                  | Description                                                  | Mitigation                                                 | Related Items                      |
-| --------- | --------------------- | ------------------------------------------------------------ | ---------------------------------------------------------- | ---------------------------------- |
+|-----------|-----------------------|--------------------------------------------------------------|------------------------------------------------------------|------------------------------------|
 | `RISK-01` | Canonical paths       | Repo/document drift causes implementation in the wrong tree  | Canonicalize early and enforce via tests                   | `AF-00-01`                         |
 | `RISK-02` | Tooling               | Windows/WSL mismatch breaks reproducibility                  | Verify boundary and shell behavior before freeze           | `AF-00-02a`, `AF-00-02b`           |
 | `RISK-03` | Weak trust policy     | Under-specified signing could allow weak verification        | Freeze Authenticode + RSA-3072 semantics in ABI/docs/tests | `AF-00-04`, `AF-01-01`             |
 | `RISK-04` | Performance ambiguity | Latency and capture compliance drift without numeric budgets | Encode budgets in PRD and phase validations                | `AF-00-03`, `AF-03-01`, `AF-03-02` |
 | `RISK-05` | Failure UX regression | Plugin or worker faults destabilize the host shell           | Publish and test host-safe degradation model               | `AF-00-05`, `AF-01-02`, `AF-04-01` |
+<!-- prettier-ignore-end -->
 
 ---
 
@@ -658,8 +663,9 @@ scannable as a single table.
 
 <!-- markdownlint-disable MD060 -->
 
+<!-- prettier-ignore-start -->
 | PRD Section                    | Requirement IDs              | Work Item IDs                                                | Status   |
-| ------------------------------ | ---------------------------- | ------------------------------------------------------------ | -------- |
+|--------------------------------|------------------------------|--------------------------------------------------------------|----------|
 | `§5`                           | `REQ-01`                     | `AF-00-01`, `AF-00-02a`, `AF-00-02b`, `AF-00-03`, `AF-00-04` | Planned  |
 | `§6`                           | `REQ-02`, `REQ-06`, `REQ-08` | `AF-00-03`, `AF-03-01`, `AF-04-01`                           | Planned  |
 | `§7`, `§7.4`                   | `REQ-02`, `REQ-08`           | `AF-00-03`, `AF-01-02`, `AF-04-01`                           | Planned  |
@@ -675,6 +681,7 @@ scannable as a single table.
 | `§14`                          | `ASM-02`, `ASM-03`           | `AF-00-05`, `AF-04-02`, `AF-05-01`                           | Planned  |
 | `§15`, `§9.12`                 | `ASM-04`                     | `None (deferred out of v1)`                                  | Deferred |
 | `§15`, `§9.13`, `§9.14`        | `Deferred scope only`        | `None (deferred out of v1)`                                  | Deferred |
+<!-- prettier-ignore-end -->
 
 <!-- markdownlint-enable MD060 -->
 

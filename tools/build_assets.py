@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
 from loguru import logger
+
+# grpc_tools emits `import foo_pb2` for sibling modules; that only resolves when the
+# output directory is a sys.path root. The aetherflow package layout needs relative
+# imports between generated siblings (see grpc/grpc#29459 and related issues).
+_GRPC_SIBLING_PB2_IMPORT = re.compile(
+    r'^import (?P<mod>[A-Za-z_]\w*_pb2) as (?P<alias>[A-Za-z_]\w*)\s*$',
+    re.MULTILINE,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -17,6 +26,16 @@ def _run_command(command: list[str], *, cwd: Path) -> subprocess.CompletedProces
         text=True,
         check=False,
     )
+
+
+def _grpc_stub_sibling_imports_package_relative(out_dir: Path) -> None:
+    """Rewrite grpc_python sibling imports so ``aetherflow.proto.*`` imports work."""
+    for path in sorted(out_dir.glob('*_pb2_grpc.py')):
+        text = path.read_text(encoding='utf-8')
+        new = _GRPC_SIBLING_PB2_IMPORT.sub(r'from . import \g<mod> as \g<alias>', text)
+        if new != text:
+            path.write_text(new, encoding='utf-8')
+            logger.debug('Adjusted sibling pb2 imports in {}.', path.name)
 
 
 def _ensure_proto_package(out_dir: Path) -> None:
@@ -35,7 +54,9 @@ def compile_proto_assets(repo_root: Path) -> None:
     proto_dir = repo_root / 'proto'
     proto_files = sorted(proto_dir.glob('*.proto'))
     if not proto_files:
-        logger.info('No .proto files found under {}. Skipping gRPC compilation.', proto_dir)
+        logger.info(
+            'No .proto files found under {}. Skipping gRPC compilation.', proto_dir
+        )
         return
 
     out_dir = repo_root / 'src' / 'aetherflow' / 'proto'
@@ -58,6 +79,7 @@ def compile_proto_assets(repo_root: Path) -> None:
             'gRPC compilation failed:\n'
             f'{(result.stdout or "")}{(result.stderr or "")}'.strip()
         )
+    _grpc_stub_sibling_imports_package_relative(out_dir)
     logger.info('Compiled {} proto file(s) into {}.', len(proto_files), out_dir)
 
 

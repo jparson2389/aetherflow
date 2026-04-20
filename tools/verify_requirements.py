@@ -1,3 +1,13 @@
+"""Canonical repo regrade entry point.
+
+This is the only tool authorised to write ``docs/requirements-report.md`` and
+``logs/verification/<item-id>.json``. Wrapper scripts that call this module
+must not be treated as equivalent authorities — authoritative status comes from
+running this tool directly:
+
+    uv run python -m tools.verify_requirements
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -147,10 +157,26 @@ def write_evidence_index(
     evidence_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
-def run_regrade(*, repo_root: Path) -> None:
+def run_regrade(
+    *,
+    repo_root: Path,
+    results_dir: Path,
+    report_path: Path,
+) -> None:
     """Generate the requirements report via the proof verifier."""
+    cmd = [
+        'uv',
+        'run',
+        'python',
+        'tools/proof_verifier.py',
+        '--regrade',
+        '--results-dir',
+        str(results_dir),
+        '--report',
+        str(report_path),
+    ]
     result = subprocess.run(
-        ['uv', 'run', 'python', 'tools/proof_verifier.py', '--regrade'],
+        cmd,
         cwd=repo_root,
         capture_output=True,
         text=True,
@@ -167,15 +193,87 @@ def main() -> int:
     """CLI entrypoint for repo-owned verify-requirements."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument(
+        '--acknowledge',
+        metavar='ITEM_ID',
+        help='Acknowledge and remove a pending developer app-check alert by item ID.',
+    )
+    parser.add_argument(
+        '--pending-path',
+        metavar='PATH',
+        help='Override path to pending_app_checks.json (for testing).',
+    )
+    parser.add_argument(
+        '--results-dir',
+        type=Path,
+        help=(
+            'Directory for per-item verification JSON files '
+            '(default: logs/verification).'
+        ),
+    )
+    parser.add_argument(
+        '--report',
+        type=Path,
+        help='Output path for requirements-report.md (default: docs/requirements-report.md).',
+    )
+    parser.add_argument(
+        '--evidence-index',
+        type=Path,
+        metavar='PATH',
+        help=(
+            'Output path for the repository evidence index markdown '
+            '(default: logs/verify-requirements-evidence.md).'
+        ),
+    )
     args = parser.parse_args()
 
-    LOGS_PATH.mkdir(parents=True, exist_ok=True)
-    roots = [ROOT / part for part in REPO_ROOTS]
-    write_evidence_index(evidence_path=EVIDENCE_PATH, roots=roots, repo_root=ROOT)
-    run_regrade(repo_root=ROOT)
+    if args.acknowledge:
+        from aetherflow.core.developer_app_checks import PendingAppCheckStore
 
-    logger.info('Wrote {}', REPORT_PATH)
-    logger.info('Evidence index: {}', EVIDENCE_PATH)
+        pending_path = (
+            Path(args.pending_path)
+            if args.pending_path
+            else LOGS_PATH / 'verification' / 'pending_app_checks.json'
+        )
+        snapshot_path = pending_path.parent / 'status_snapshot.json'
+        store = PendingAppCheckStore(
+            pending_path=pending_path,
+            snapshot_path=snapshot_path,
+        )
+        removed = store.acknowledge(args.acknowledge)
+        if not removed:
+            logger.error(
+                'No pending alert found to acknowledge for item: {}',
+                args.acknowledge,
+            )
+            return 1
+        logger.info('Acknowledged alert: {}', args.acknowledge)
+        return 0
+
+    _results_dir = (
+        args.results_dir if args.results_dir is not None else LOGS_PATH / 'verification'
+    )
+    _report_out = args.report if args.report is not None else REPORT_PATH
+    _evidence_out = (
+        args.evidence_index if args.evidence_index is not None else EVIDENCE_PATH
+    )
+    roots = [ROOT / part for part in REPO_ROOTS]
+    _evidence_out.parent.mkdir(parents=True, exist_ok=True)
+    write_evidence_index(evidence_path=_evidence_out, roots=roots, repo_root=ROOT)
+    run_regrade(
+        repo_root=ROOT,
+        results_dir=_results_dir,
+        report_path=_report_out,
+    )
+
+    _af_json_count = len(list(_results_dir.glob('AF-*.json')))
+    logger.info(
+        'Proof verifier regrade finished; {} per-item verification JSON file(s) under {}',
+        _af_json_count,
+        _results_dir,
+    )
+    logger.info('Wrote requirements report: {}', _report_out)
+    logger.info('Wrote repository evidence index: {}', _evidence_out)
 
     if args.debug:
         logger.info('Debug mode enabled for verify_requirements.')

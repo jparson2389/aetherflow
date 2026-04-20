@@ -94,3 +94,36 @@ The alert rules are:
 - persist the alert in a machine-readable log
 - do not backfill alerts for already-verified legacy work on initial baseline
 - clear the alert once the developer acknowledges it
+
+## Acknowledging an Alert
+
+An alert is triggered when a plan item transitions to `verified` and carries
+`App-Testable: true`. The developer must manually confirm the surface behaviour
+and then acknowledge the alert to clear it.
+
+**What triggers an alert:** a plan item moves to `verified` status and its
+evidence pack declares `App-Testable: true`. The verification pipeline writes
+the alert to `logs/verification/pending_app_checks.json`.
+
+**List pending alerts:**
+
+```text
+uv run python -m tools.verify_requirements
+```
+
+Pending alerts are printed as a startup notice when the tool runs.
+
+**Acknowledge an alert:**
+
+```text
+uv run python -m tools.verify_requirements --acknowledge <item-id>
+```
+
+For example:
+
+```text
+uv run python -m tools.verify_requirements --acknowledge AF-01-02
+```
+
+**Effect:** the alert is removed from `logs/verification/pending_app_checks.json`.
+The item remains `verified` — acknowledgement only clears the pending notice.

@@ -1,0 +1,75 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "UV: Sync (Dev + Automation)",
+            "type": "shell",
+            "command": "uv sync --group dev --group automation",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Ruff: Format (src)",
+            "type": "shell",
+            "command": "uv run ruff format src",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Ruff: Check",
+            "type": "shell",
+            "command": "uv run ruff check .",
+            "group": "test",
+            "problemMatcher": "$python"
+        },
+        {
+            "label": "Pytest: Run All Tests",
+            "type": "shell",
+            "command": "uv run pytest",
+            "group": "test",
+            "problemMatcher": {
+                "owner": "python",
+                "fileLocation": ["relative", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^(.+\\.py):(\\d+):(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "message": 3
+                }
+            }
+        },
+        {
+            "label": "Markdown: Prettify tables (current file)",
+            "type": "shell",
+            "command": "npx",
+            "args": ["-y", "markdown-table-formatter@0.2.0", "${file}"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "focus": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Markdown: Prettify tables (check current file)",
+            "type": "shell",
+            "command": "npx",
+            "args": ["-y", "markdown-table-formatter@0.2.0", "--check", "${file}"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "focus": false
+            },
+            "problemMatcher": []
+        }
+    ]
+}

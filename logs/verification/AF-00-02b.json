@@ -1,0 +1,39 @@
+{
+  "item_id": "AF-00-02b",
+  "title": "Establish native boundary and build harness.",
+  "status": "verified",
+  "gaps": [],
+  "evidence_pack": "docs/evidence/AF-00-02b.md",
+  "validation_commands": [
+    "powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1"
+  ],
+  "validation_results": [
+    {
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1",
+        "AC2"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1",
+      "AC2"
+    ],
+    "required_failure_modes": [
+      "native boundary violation rejected"
+    ]
+  },
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending",
+  "ran_at": "2026-04-16T17:02:03.063079+00:00"
+}

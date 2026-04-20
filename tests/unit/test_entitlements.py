@@ -23,6 +23,38 @@ def test_entitlement_store_resolves_grace_before_lock() -> None:
     assert state is EntitlementState.GRACE
 
 
+def test_entitlement_store_grace_expiry_relocks_plugin() -> None:
+    store = EntitlementStore()
+    store.activate_grace('capture.premium', ('vision',))
+
+    assert store.evaluate('capture.premium', ('vision',)) is EntitlementState.GRACE
+
+    store.expire_grace('capture.premium')
+
+    assert store.evaluate('capture.premium', ('vision',)) is EntitlementState.LOCKED
+
+
+def test_entitlement_store_prefers_granted_entitlements_over_grace() -> None:
+    store = EntitlementStore()
+    store.activate_grace('capture.premium', ('vision',))
+    store.grant('capture.premium', ('vision',))
+
+    state = store.evaluate('capture.premium', ('vision',))
+
+    assert state is EntitlementState.LOADED
+
+
+def test_entitlement_store_revoke_relocks_granted_plugin() -> None:
+    store = EntitlementStore()
+    store.grant('capture.premium', ('vision',))
+
+    assert store.evaluate('capture.premium', ('vision',)) is EntitlementState.LOADED
+
+    store.revoke('capture.premium')
+
+    assert store.evaluate('capture.premium', ('vision',)) is EntitlementState.LOCKED
+
+
 def test_role_capabilities_are_explicit() -> None:
     role = UserRole(name=RoleName.VISION_ML_TINKERER)
 

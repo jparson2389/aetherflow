@@ -23,11 +23,11 @@ Fallback if deadline is missed:
 Failure UX and degraded-state model:
 
 <!-- prettier-ignore-start -->
-| Scenario | Host state | Environment-management surface | Worker state | Required behavior |
-| --- | --- | --- | --- | --- |
-| Naming sign-off unanswered for 24 hours | `RUNNING` | `RUNNING` with fallback archive semantics | `RUNNING` | Proceed with the signed archive plus internal `bundle.json`, preserve one-click install UX, and defer only the external extension name |
-| Manifest, digest, or signature verification fails | `RUNNING` | `FAILED` only for the active install attempt | `FAILED` for that install transaction | Reject activation, quarantine the invalid bundle, stream failure logs, and keep unrelated shell surfaces available |
-| Bundle is valid but required environment validation fails | `RUNNING` | `DEGRADED` | `RECOVERING` while repair guidance is generated | Preserve the staged bundle, expose actionable repair guidance, and allow manual retry without blocking other features |
+| Scenario                                                  | Host state | Environment-management surface               | Worker state                                    | Required behavior                                                                                                                      |
+|-----------------------------------------------------------|------------|----------------------------------------------|-------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| Naming sign-off unanswered for 24 hours                   | `RUNNING`  | `RUNNING` with fallback archive semantics    | `RUNNING`                                       | Proceed with the signed archive plus internal `bundle.json`, preserve one-click install UX, and defer only the external extension name |
+| Manifest, digest, or signature verification fails         | `RUNNING`  | `FAILED` only for the active install attempt | `FAILED` for that install transaction           | Reject activation, quarantine the invalid bundle, stream failure logs, and keep unrelated shell surfaces available                     |
+| Bundle is valid but required environment validation fails | `RUNNING`  | `DEGRADED`                                   | `RECOVERING` while repair guidance is generated | Preserve the staged bundle, expose actionable repair guidance, and allow manual retry without blocking other features                  |
 <!-- prettier-ignore-end -->
 
 Downstream unblock rule:

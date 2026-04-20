@@ -137,6 +137,10 @@ exclude = [
     ".agents",
     "src/aetherflow/proto",
 ]
+# `exclude` alone is not enough: Pyright/Based Pyright may still analyze excluded
+# files when they are imported from included code (see basedpyright "exclude" docs).
+# `ignore` suppresses diagnostics for those paths even when they stay in the graph.
+ignore = ["src/aetherflow/proto/*_pb2.py", "src/aetherflow/proto/*_pb2_grpc.py"]
 extraPaths = ["src", "."]
 venvPath = "."
 venv = ".venv"
