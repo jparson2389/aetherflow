@@ -18,6 +18,7 @@ GOLDEN_EXPECTATIONS = {
     'src/aetherflow/proto/capture_pb2.py': False,
     'docs/PLAN.md': False,
     'docs/PRD.md': False,
+    'docs/governance/constraint-inventory.md': False,
     'scripts/package-windows.ps1': True,
     'scripts/run-e2e.ps1': True,
     'tools/prompts.py': True,
