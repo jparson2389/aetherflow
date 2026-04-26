@@ -66,23 +66,43 @@ C++ host (host/) + plugins (include/plugin_system.hpp)
 | `src/aetherflow/core/entitlements.py`         | Canonical entitlement state machine — ONLY call `EntitlementStore.evaluate()`   |
 | `src/aetherflow/core/runtime_state.py`        | User-visible states: RUNNING, DEGRADED, RECOVERING, FAILED, LOCKED, GRACE       |
 | `src/aetherflow/core/services.py`             | `AppServices` — shared runtime container (entitlements, trust verifier, roles)  |
-| `src/aetherflow/core/worker_supervisor.py`    | Health tracking and restart budgets for Python workers                          |
+| `host/` and `include/`                        | Native host boundary: supervisor of record, plugin lifecycle authority, IPC     |
+| `src/aetherflow/core/worker_supervisor.py`    | Transitional Python-side adapter/client; not the supervisor of record           |
 | `src/aetherflow/core/shared_memory_layout.py` | Ring buffer contract and pixel formats for frame exchange                       |
 | `src/aetherflow/plugins/`                     | Catalog, manifest, registry, and trust verifier                                 |
 | `src/aetherflow/ui/`                          | PySide6 shell, router, and status HUD models                                    |
 | `proto/capture.proto`                         | **Frozen** gRPC control-plane contract — never modify without explicit approval |
 | `src/aetherflow/proto/`                       | Generated gRPC stubs (`*_pb2.py`, `*_pb2_grpc.py`) — never hand-edit            |
 
+### Packaged runtime model
+
+- Root `Aetherflow.exe` is the wrapper/bootstrap executable.
+- `lib/Aetherflow2.exe` is the primary runtime executable.
+- `plugins/` is the primary plugin DLL load directory.
+- `lib/plugins/` is a runtime-support subtree, not a replacement for
+  `plugins/`.
+- Plugin translations live under `lib/translations/plugins/<PluginName>/`.
+- Managed Python runtimes, `uv.exe`, workload roots such as `cv/`, and
+  `.aenv` environments live under
+  `%LOCALAPPDATA%/AetherflowProject/Aetherflow/python/`, not inside the
+  packaged app root.
+
+### Tooling scope
+
+- `tools/` is development-only, non-shipping infrastructure.
+- Do not spend product-delivery effort in `tools/` unless the task is explicitly about packaging, validation, or repo maintenance.
+- Default implementation focus is the app itself: `host/`, `include/`, `src/aetherflow/`, `proto/`, packaged runtime docs, and tests that validate shipped behavior.
+
 ### Automated plan execution (tools/)
 
-The `tools/` directory contains an AI-driven implementation loop:
+The `tools/` directory contains repository automation and validation helpers:
 
-- `tools/plan_exec.py` — Main orchestrator that reads `PLAN.md`, selects work items via an LLM PM agent, dispatches to implementation agents, builds repo-owned assets, and validates results through a 3-layer gate
+- `tools/plan_exec.py` — Main orchestrator that reads `PLAN.md`, selects work items via an LLM PM agent, dispatches to implementation agents, builds repo-owned assets, and validates results through a 3-layer gate; it also supports deterministic `--reconcile-only` state sync without invoking an LLM
 - `tools/validation_gate.py` — Layer 1: file existence; Layer 2: command execution (pytest/ruff); Layer 3: PM semantic verification
 - `tools/apply_writes.py` — Secure file writer with path allowlist enforcement
 - `tools/prompts.py` — Canonical system prompts for all agent roles
 
-Plan state persists to `state/plan_state.json`. Per-run logs go to `logs/plan_execution_*.log`. Verification artifacts land in `logs/verification/<item_id>.json`.
+Plan state persists to `state/plan_state.json`. Treat it as an executor checkpoint, not authoritative proof of repo reality. Per-run logs go to `logs/plan_execution_*.log`. Verification artifacts land in `logs/verification/<item_id>.json`.
 
 ### Constraints enforced by AGENTS.md
 

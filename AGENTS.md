@@ -14,6 +14,10 @@ host/server and plugin environment, communicating strictly with Python (Python
 in-process embedding—C++ and Python interact only through gRPC control-plane
 services (as defined in frozen contracts) and shared memory for frame data.
 These boundaries are enforced structurally and by automated verification.
+Aetherflow.exe/host is the supervisor of record. The PySide6 shell is a
+durable client and rendering surface that must remain alive when plugins or
+workers fail, and Python workers and vision/script workloads stay out of
+process.
 
 Development is driven by an automated AI loop orchestrated with OpenAI Python
 SDK, executing against a PRD and implementation plan. Strict code generation,
@@ -21,7 +25,8 @@ review, and validation rules apply.
 
 ### Repository Structure
 
-- `host/`: C++ host and plugin native code **only**
+- `host/`: C++ host and plugin native code **only**, including the supervisor
+  of record, plugin lifecycle authority, and IPC endpoints
 - `include/`: C++ header files
 - `proto/`: **Authority** for proto contracts, e.g. `proto/capture.proto`
   (**frozen**)
@@ -37,6 +42,7 @@ review, and validation rules apply.
 
 > **NEVER** modify dev tooling at the repo root as part of feature/codegen
 > work.
+> **Always** use the OpenAI developer documentation MCP server if you need to work with the OpenAI API, ChatGPT Apps SDK, Codex,… without me having to explicitly ask.
 
 ---
 
@@ -139,6 +145,7 @@ code):
 - `uv sync`
 - `uv run ruff check`
 - Prefer `tools/` for repo-owned development automation. Do not create duplicate helper scripts under other top-level paths.
+- `tools/` is development-only, non-shipping infrastructure. Unless the task is explicitly about packaging, validation, or repo maintenance, focus effort on the application under `host/`, `include/`, `src/aetherflow/`, `proto/`, and packaged runtime docs instead of extending local automation.
 - **All** functions, methods, and classes must include:
   - Full type hints on every argument and return value.
   - Docstrings using `"""`, never `'''`.
@@ -209,6 +216,8 @@ def foo(x: int) -> bool:
 
 - **Python workers/UI:**
   - All logic is in `src/aetherflow/`. No direct embedding of C++.
+  - The PySide6 shell is a durable client and rendering surface, not the supervisor of record.
+  - Workers stay out of process and report state through IPC.
   - IPC: gRPC control plane (`proto/capture.proto` authority); shared memory (`shared_memory_layout.py`).
 
 - **gRPC boundary:**
@@ -235,7 +244,7 @@ def foo(x: int) -> bool:
 
 - **Source (Development)**
   - `src/aetherflow/` → main Python package.
-    - `core/` → runtime orchestration, plugin manager, shared logic.
+    - `core/` → shared logic, IPC clients/adapters, and transitional Python-side integration; not the supervisor of record or plugin lifecycle authority.
     - `proto/` → generated Python protobuf/gRPC stubs; tool-managed only.
     - `ui/` → PySide6 UI shell and panels.
     - `vision/` → capture + CV interfaces.
@@ -292,12 +301,25 @@ def foo(x: int) -> bool:
 
 - The Windows runtime/package layout is fixed to:
   - `Aetherflow.exe`
+  - `aetherflow_settings.ini`
+  - `qt.conf`
+  - `version_info.json`
   - `lib/`
   - `plugins/`
-  - `assets/`
   - `scripts/`
 
 - This layout is for packaged runtime artifacts, not ordinary development work.
+- `Aetherflow.exe` at the root is the wrapper/bootstrap executable.
+- `lib/Aetherflow2.exe` is the primary runtime executable launched by the
+  wrapper.
+- `plugins/` is the primary plugin DLL load tree.
+- `lib/plugins/` is a runtime-support subtree and must not be treated as a
+  replacement for the root `plugins/` directory.
+- `lib/translations/plugins/<PluginName>/` is the canonical plugin translation
+  subtree in the packaged runtime layout.
+- Managed Python runtimes and `.aenv` environments live under
+  `%LOCALAPPDATA%/AetherflowProject/Aetherflow/python/` and are not part of
+  the packaged root tree.
 - `scripts/` may exist in the packaged application as an empty directory.
 - Do not add development helpers, generated tooling, or ad hoc automation to `scripts/` unless the task is explicitly about packaging/runtime distribution.
 - During normal development, prefer repo-owned tooling in `tools/`, not `scripts/`.

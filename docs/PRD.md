@@ -108,7 +108,50 @@ Everything else ships as plugins or workers.
 - Sensing: capture, preview, metrics, inference
 - Acting: virtual output and future bridge output
 
-### 5.3 Frozen Contracts
+### 5.3 Packaged Runtime Layout
+
+This section defines the target packaged output for Windows distribution. It
+does not imply the source repository already contains these directories at repo
+root during development.
+
+The Windows packaged runtime layout is:
+
+- `Aetherflow.exe`
+- `aetherflow_settings.ini`
+- `qt.conf`
+- `version_info.json`
+- `lib/`
+- `plugins/`
+- `scripts/`
+
+Executable roles:
+
+- Root `Aetherflow.exe` is the wrapper/bootstrap executable.
+- `lib/Aetherflow2.exe` is the primary runtime executable launched by the
+  wrapper.
+
+Packaged placement rules:
+
+- `plugins/` is the primary plugin DLL load directory.
+- `lib/plugins/` is a runtime-support subtree and must not replace the root
+  `plugins/` directory.
+- Plugin translations live under
+  `lib/translations/plugins/<PluginName>/`.
+- Qt runtime support files live under `lib/` subtrees such as `platforms/`,
+  `imageformats/`, `tls/`, `iconengines/`, and `networkinformation/`.
+- Python helper payloads and native Python extension bridges live under
+  `lib/py/`.
+- Packaged script bundles live under `scripts/`.
+
+Managed runtime state:
+
+- Managed Python interpreters, `uv.exe`, workload roots, and `.aenv`
+  environments live under
+  `%LOCALAPPDATA%/AetherflowProject/Aetherflow/python/`.
+- Managed Python environments are mutable runtime state and are not part of the
+  packaged application root tree.
+
+### 5.4 Frozen Contracts
 
 | File                                          | Freeze Point   | Breaking Change Log                     |
 | --------------------------------------------- | -------------- | --------------------------------------- |

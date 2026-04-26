@@ -23,6 +23,13 @@ Rules for this plan:
   `proto/capture.proto`, `src/aetherflow/core/shared_memory_layout.py`.
 - Entitlement state machine freezes after Phase 4:
   `src/aetherflow/core/entitlements.py`.
+- Supervision authority is host-owned: `Aetherflow.exe` is the supervisor of
+  record, and Python surfaces render or relay authoritative host state rather
+  than acting as the supervisor of record.
+- host-owned worker supervision remains a hard architecture boundary for
+  lifecycle, restart-budget, heartbeat, and escalation authority.
+- Python-side adapters only where needed for shell clients.
+- Product-delivery work is the priority. Treat `tools/` as development-only support infrastructure unless the work item is explicitly about packaging, validation, or repo maintenance.
 - Mandatory validation for completed work remains `uv run ruff check .` and
   `uv run pytest`.
 - TDD is required on every work item.
@@ -89,6 +96,8 @@ steps 1–3 first.
 - `src/aetherflow/core/shared_memory_layout.py`: ring-buffer metadata, pixel
   formats, stride semantics, and overflow policy.
 - `src/aetherflow/core/entitlements.py`: `LOADED`, `GRACE`, `LOCKED` semantics.
+- `host/` plus `include/`: supervisor-of-record for plugin lifecycle, worker
+  start or stop, restart budgets, heartbeat handling, and escalation.
 - `docs/PRD.md`: runtime budgets, state precedence, failure UX, and validated
   capture guarantees.
 
@@ -506,7 +515,7 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   > **PRD Refs:** `§6.2`, `§7`, `§9.7`, `§10.2`, `REQ-08`
   > **Role:** `runtime-services`
   > **Feature-Class:** `service`
-  > **Entry-Point:** `worker supervisor`
+  > **Entry-Point:** `host worker supervisor`
   > **Acceptance Criteria:**
   >
   > - AC1: Restart ceilings are enforced and logged.
@@ -516,17 +525,21 @@ uv run pytest tests/integration/test_capture_opencv.py tests/ui/test_capture_mod
   >   **App-Testable:** `false`
   >   **Required-Failure-Modes:** `restart ceiling breach escalates to FAILED`
   >   **Preconditions:** `AF-00-03`, `AF-03-01`
-  >   **Target File:** `src/aetherflow/core/worker_supervisor.py`
+  >   **Target File:** `host/` native supervision and IPC implementation files to be created for this phase
+  >   **Target File:** `include/` native supervision and IPC headers to be created for this phase
   >   **Target File:** `src/aetherflow/ui/panels/worker_health_panel.py`
   >   **Target File:** `tests/integration/test_worker_supervisor.py`
   >   **Target File:** `tests/stress/test_worker_crash_loop.py`
   >   **Target File:** `tests/ui/test_worker_health_panel.py`
-  >   **Behavior:** enforce heartbeat budgets, restart ceilings, escalation to `FAILED`, and host-safe worker degradation.
+  >   **Behavior:** the current native surface is insufficient for PRD `§5.1`; this phase must create the missing host-side worker supervisor and IPC endpoint implementation boundary in native code. Supervision authority is host-owned; Python must not own start/stop/restart/heartbeat/escalation decisions and may only consume or relay authoritative host state.
   >   **Validation:** `uv run pytest tests/integration/test_worker_supervisor.py tests/stress/test_worker_crash_loop.py tests/ui/test_worker_health_panel.py`
   >   **Evidence:** host survivability is a hard phase gate.
   >   **Completion Gates:**
+  > - Native host supervision and IPC implementation artifacts exist beyond the Phase 0 harness or ABI scaffold.
   > - Worker supervision is integrated with real worker processes.
+  > - Host owns start, stop, restart, heartbeat, and escalation authority.
   > - Escalation UX is wired and tested under fault injection.
+  > - Any Python worker supervisor code is reduced to a client adapter or retired; no Python-side supervisor-of-record logic remains.
   > - Restart ceilings persist and emit evidence logs.
   >   **ARP Trigger:** if host death or uncontrolled restart loops occur, block the phase.
 - [ ] `AF-04-02` Deliver environment manager and bounded bundle validation workflow.

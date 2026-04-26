@@ -51,7 +51,9 @@ These files are the control plane for the loop:
   filters to Python targets, writes `logs/quality-gate.log`, and runs Ruff and
   pytest against either the scoped set or the full repo.
 - `state/plan_state.json`
-  Persisted execution state and history.
+  Persisted executor checkpoint and history. It is derived from `docs/PLAN.md`
+  plus reconciliation results and is not authoritative proof of actual shipped
+  implementation.
 - `logs/`
   Prompt dumps, invalid LLM responses, execution logs, reconciliation audit,
   and post-run reports.
@@ -155,7 +157,10 @@ The script supports these executor-side CLI flags:
 - `--prd`, default `docs/PRD.md`
 - `--manifest`, default `agent_manifest.json`
 - `--max-doc-chars`, default `32000`
-- `--state-only`, reconcile state and exit without LLM execution
+- `--reconcile-only`, reconcile `state/plan_state.json` against repo evidence
+  and exit without LLM execution
+- `--state-only`, legacy alias for deterministic reconciliation without LLM
+  execution
 
 ### C. Load Documents And Manifest
 
@@ -249,11 +254,11 @@ This is a critical behavior:
 - For each incomplete item in that phase, it runs the physical validation gate
   against the repo as it currently exists.
 - If the repo already satisfies the item's target files and validation command,
-  the item is promoted to `verified` without any new model call.
+  the item is promoted to `done` without any new model call.
 
 Side effects of successful reconciliation:
 
-- item status is updated to `verified`
+- item status is updated to `done`
 - history entry is appended
 - `logs/plan_reconciliation_audit.md` receives a Markdown audit entry
 - `state/plan_state.json` is re-saved
@@ -265,7 +270,7 @@ implemented outside the loop.
 
 After reconciliation:
 
-- if `--state-only` was passed, the script exits `0`
+- if `--reconcile-only` or `--state-only` was passed, the script exits `0`
 - if no open items remain, the script exits `0`
 - otherwise it selects the earliest incomplete phase and all incomplete items in
   that phase
@@ -887,4 +892,4 @@ Typical operator sequence today:
    `docs/requirements-report.md` and `logs/verification/*.json`.
 
 If you only want to reconcile the current repo against PLAN state without
-calling models, use `python -m tools.plan_exec --state-only`.
+calling models, use `uv run python -m tools.plan_exec --reconcile-only`.
