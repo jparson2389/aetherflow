@@ -247,8 +247,8 @@ def parse_evidence_pack(path: Path) -> EvidencePack:
     if not acceptance_criteria:
         raise ValueError(f'Missing acceptance criteria in {path.as_posix()}')
 
-    criteria_covered, proof_types, entry_points, failure_coverages = _extract_proof_matrix(
-        lines, path
+    criteria_covered, proof_types, entry_points, failure_coverages = (
+        _extract_proof_matrix(lines, path)
     )
     return EvidencePack(
         reviewer_status=reviewer_status.casefold(),
@@ -525,7 +525,9 @@ def _collect_evidence_gaps(*, item: PlanItem, evidence_pack: EvidencePack) -> li
         covered = {c.casefold() for c in evidence_pack.criteria_covered}
         for ac_label in item.acceptance_criteria:
             if ac_label.casefold() not in covered:
-                gaps.append(f'Acceptance criterion not covered in proof matrix: {ac_label}')
+                gaps.append(
+                    f'Acceptance criterion not covered in proof matrix: {ac_label}'
+                )
 
     return gaps
 

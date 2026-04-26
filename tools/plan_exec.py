@@ -519,6 +519,42 @@ def save_plan_state(state: dict[str, Any]) -> None:
     STATE_PATH.write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
 
 
+def stamp_state_metadata(
+    state: dict[str, Any],
+    *,
+    mode: str,
+    llm_driven: bool,
+    source: str = 'tools.plan_exec',
+) -> None:
+    """Record provenance and authority limits for ``plan_state.json``.
+
+    Args:
+        state: Mutable plan state payload.
+        mode: Execution mode that last updated the checkpoint.
+        llm_driven: Whether the current mode used an LLM path.
+        source: Tool responsible for the latest update.
+
+    """
+    metadata = state.get('metadata')
+    if not isinstance(metadata, dict):
+        metadata = {}
+        state['metadata'] = metadata
+
+    metadata.update(
+        {
+            'source': source,
+            'last_mode': mode,
+            'llm_driven': llm_driven,
+            'purpose': 'Executor checkpoint derived from PLAN.md and repo reconciliation.',
+            'authority_note': (
+                'This file is execution state, not authoritative proof of shipped '
+                'implementation. Use repository artifacts, tests, and evidence docs '
+                'to determine actual repo reality.'
+            ),
+        }
+    )
+
+
 def load_or_initialize_plan_state(plan_items: list[PlanWorkItem]) -> dict[str, Any]:
     """Load an existing plan_state.json or initialise from PLAN.md items."""
     existing: dict[str, Any] = {}
@@ -614,6 +650,7 @@ def load_or_initialize_plan_state(plan_items: list[PlanWorkItem]) -> dict[str, A
         'items': merged_items,
         'history': history,
     }
+    stamp_state_metadata(state, mode='initialized', llm_driven=False)
     save_plan_state(state)
     return state
 
@@ -941,7 +978,9 @@ def reconcile_state_with_repo(
             None,
         )
         if updated_item is None:
-            logger.warning(f'[reconcile] item={item_id} missing from state after update — skipping')
+            logger.warning(
+                f'[reconcile] item={item_id} missing from state after update — skipping'
+            )
             continue
         reconciled.append(updated_item)
         audit_entries.append(
@@ -1116,7 +1155,9 @@ def call_json_with_retry(
     safe_stage = stage.replace('/', '_').replace('\\', '_')
     if os.environ.get('PLAN_EXEC_DUMP_PROMPTS'):
         debug_dir.mkdir(exist_ok=True)
-        (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(system, encoding='utf-8')
+        (debug_dir / f'prompt_system_{safe_stage}.txt').write_text(
+            system, encoding='utf-8'
+        )
         (debug_dir / f'prompt_user_{safe_stage}.txt').write_text(user, encoding='utf-8')
 
     initial = call(
@@ -1332,12 +1373,33 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog='tools.plan_exec')
     ap.add_argument('--max-doc-chars', type=int, default=32000)
     ap.add_argument('--state-only', action='store_true')
+    ap.add_argument('--reconcile-only', action='store_true')
     ap.add_argument('--plan', default='docs/PLAN.md')
     ap.add_argument('--prd', default='docs/PRD.md')
     ap.add_argument('--manifest', default='agent_manifest.json')
     args = ap.parse_args(argv if argv is not None else sys.argv[1:])
 
-    # Load manifest and initialise API client
+    # Read source documents needed for deterministic state handling first.
+    plan = (ROOT / args.plan).read_text(encoding='utf-8', errors='ignore')
+    plan_items = extract_phase_work_items(plan)
+    state = load_or_initialize_plan_state(plan_items)
+    reconciled_items = reconcile_state_with_repo(state)
+
+    if args.reconcile_only or args.state_only:
+        mode = 'reconcile_only' if args.reconcile_only else 'state_only'
+        stamp_state_metadata(state, mode=mode, llm_driven=False)
+        save_plan_state(state)
+        if args.state_only:
+            logger.warning(
+                '--state-only is a legacy alias. Prefer --reconcile-only for '
+                'deterministic repo reconciliation without LLM execution.'
+            )
+        logger.info(
+            f'[state] deterministic reconciliation complete: {len(reconciled_items)} item(s) updated'
+        )
+        return 0
+
+    # Load manifest and initialise API client only for LLM execution mode.
     manifest_data: dict[str, Any] = json.loads(
         (ROOT / args.manifest).read_text(encoding='utf-8')
     )
@@ -1346,8 +1408,6 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
     _ctx_monitor = ContextMonitor()
     client = OpenAI(base_url=manifest.base_url, api_key=manifest.api_key, timeout=300)
 
-    # Read source documents
-    plan = (ROOT / args.plan).read_text(encoding='utf-8', errors='ignore')
     prd = (
         (ROOT / args.prd).read_text(encoding='utf-8', errors='ignore')
         if (ROOT / args.prd).exists()
@@ -1357,15 +1417,10 @@ def _run_plan_exec(argv: list[str] | None = None) -> int:
 
     plan_summary = extract_plan_phase_summary(plan, max_doc_chars)
     prd_summary = extract_prd_hard_requirements(prd, max_doc_chars)
-
-    plan_items = extract_phase_work_items(plan)
     plan_items_by_id: dict[str, PlanWorkItem] = {item.id: item for item in plan_items}
-    state = load_or_initialize_plan_state(plan_items)
-    reconcile_state_with_repo(state)
+    stamp_state_metadata(state, mode='executor', llm_driven=True)
+    save_plan_state(state)
     selected_phase, open_items = next_open_work_items(state)
-
-    if args.state_only:
-        return 0
 
     if not open_items:
         logger.success('[state] no open work items remain after reconciliation')

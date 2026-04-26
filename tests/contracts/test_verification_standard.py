@@ -12,25 +12,25 @@ def _text() -> str:
 
 
 def test_document_exists() -> None:
-    '''docs/verification_standard.md must exist.'''
+    """docs/verification_standard.md must exist."""
     assert _DOC.exists(), f'Missing: {_DOC}'
 
 
 def test_definitions_section_covers_implementation() -> None:
-    '''Definitions section must mention Implementation.'''
+    """Definitions section must mention Implementation."""
     text = _text()
     assert '## Definitions' in text, "Missing '## Definitions' section"
     assert 'Implementation' in text, "Missing 'Implementation' definition"
 
 
 def test_verification_states_section_exists() -> None:
-    '''Verification States section covers what counts as verification.'''
+    """Verification States section covers what counts as verification."""
     text = _text()
     assert '## Verification States' in text, "Missing '## Verification States' section"
 
 
 def test_what_does_not_count_as_proof_section() -> None:
-    '''What Does Not Count As Proof must list all required disqualifiers.'''
+    """What Does Not Count As Proof must list all required disqualifiers."""
     text = _text()
     assert '## What Does Not Count As Proof' in text, (
         "Missing '## What Does Not Count As Proof' section"
@@ -52,7 +52,7 @@ def test_what_does_not_count_as_proof_section() -> None:
 
 
 def test_proof_strength_hierarchy_has_five_levels() -> None:
-    '''Proof Strength Hierarchy must contain exactly 5 numbered levels.'''
+    """Proof Strength Hierarchy must contain exactly 5 numbered levels."""
     text = _text()
     assert '## Proof Strength Hierarchy' in text, (
         "Missing '## Proof Strength Hierarchy' section"
@@ -76,7 +76,7 @@ def test_proof_strength_hierarchy_has_five_levels() -> None:
 
 
 def test_feature_class_rules_has_all_five_classes() -> None:
-    '''Feature-Class Rules must cover all 5 feature classes.'''
+    """Feature-Class Rules must cover all 5 feature classes."""
     text = _text()
     assert '## Feature-Class Rules' in text, "Missing '## Feature-Class Rules' section"
     for cls in ('logic', 'service', 'ui', 'boundary', 'workflow'):
@@ -84,7 +84,7 @@ def test_feature_class_rules_has_all_five_classes() -> None:
 
 
 def test_evidence_requirements_section() -> None:
-    '''Evidence Requirements must list all mandatory proof elements.'''
+    """Evidence Requirements must list all mandatory proof elements."""
     text = _text()
     assert '## Evidence Requirements' in text, (
         "Missing '## Evidence Requirements' section"
@@ -104,7 +104,7 @@ def test_evidence_requirements_section() -> None:
 
 
 def test_human_or_reviewer_signoff_mentioned() -> None:
-    '''A sign-off requirement (human or reviewer) must be present.'''
+    """A sign-off requirement (human or reviewer) must be present."""
     text = _text()
     assert 'human sign-off' in text or 'reviewer sign-off' in text, (
         "Missing 'human sign-off' or 'reviewer sign-off' requirement"
@@ -112,7 +112,7 @@ def test_human_or_reviewer_signoff_mentioned() -> None:
 
 
 def test_developer_app_check_alerts_section() -> None:
-    '''Developer App-Check Alerts section must cover all alert rules.'''
+    """Developer App-Check Alerts section must cover all alert rules."""
     text = _text()
     assert '## Developer App-Check Alerts' in text, (
         "Missing '## Developer App-Check Alerts' section"

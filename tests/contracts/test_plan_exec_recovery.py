@@ -104,6 +104,52 @@ def test_load_or_initialize_plan_state_preserves_status_across_plan_reformat(
     assert state['items'][0]['id'] == 'af_00_01'
     assert state['items'][0]['status'] == 'done'
     assert state['items'][0]['notes'] == 'Certified'
+    assert state['metadata']['last_mode'] == 'initialized'
+    assert state['metadata']['llm_driven'] is False
+    assert 'not authoritative proof of shipped implementation' in (
+        state['metadata']['authority_note']
+    )
+
+
+def test_reconcile_only_mode_skips_openai_and_stamps_checkpoint_metadata(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    docs_dir = tmp_path / 'docs'
+    state_dir = tmp_path / 'state'
+    docs_dir.mkdir()
+    state_dir.mkdir()
+    (docs_dir / 'PLAN.md').write_text(
+        '## Phase 0 - Test\n\n'
+        '- [ ] `AF-00-01` Reconcile only.\n'
+        '> **Target File:** `docs/artifact.md`\n',
+        encoding='utf-8',
+    )
+
+    monkeypatch.setattr(plan_exec, 'ROOT', tmp_path)
+    monkeypatch.setattr(plan_exec, 'STATE_PATH', state_dir / 'plan_state.json')
+    def fail_if_openai_constructed(
+        *_args: object, **_kwargs: object
+    ) -> object:
+        raise AssertionError(
+            'OpenAI must not be constructed in reconcile-only mode'
+        )
+
+    monkeypatch.setattr(plan_exec, 'OpenAI', fail_if_openai_constructed)
+
+    def fake_reconcile(
+        state: dict[str, object], **_kwargs: object
+    ) -> list[dict[str, object]]:
+        return state.get('items', [])[:1]  # type: ignore[index]
+
+    monkeypatch.setattr(plan_exec, 'reconcile_state_with_repo', fake_reconcile)
+
+    assert plan_exec._run_plan_exec(['--reconcile-only']) == 0
+
+    saved_state = json.loads((state_dir / 'plan_state.json').read_text(encoding='utf-8'))
+
+    assert saved_state['metadata']['last_mode'] == 'reconcile_only'
+    assert saved_state['metadata']['llm_driven'] is False
+    assert saved_state['metadata']['source'] == 'tools.plan_exec'
 
 
 def test_verified_status_counts_as_complete_for_progression() -> None:

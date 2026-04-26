@@ -17,7 +17,7 @@ ALLOWED_WRITE_PREFIXES: tuple[str, ...] = (
     'host/',
     '.cursor/',
     '.github/',
-    'proto/',        # intentional: repo-owned build assets tooling reads proto/ to regenerate stubs
+    'proto/',  # intentional: repo-owned build assets tooling reads proto/ to regenerate stubs
     'assets/',
     'tests/',
     'docs/',

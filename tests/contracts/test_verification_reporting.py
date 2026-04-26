@@ -6,6 +6,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+
 def test_verify_requirements_generates_evidence_based_outputs() -> None:
     result = subprocess.run(
         ['uv', 'run', 'python', '-m', 'tools.verify_requirements'],
