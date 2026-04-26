@@ -1,11 +1,14 @@
-from aetherflow.core.worker_supervisor import WorkerHealth, WorkerSupervisor
+from aetherflow.core.worker_supervisor import WorkerHealth, WorkerStateView
 from aetherflow.ui.panels.worker_health_panel import WorkerHealthPanelModel
 
 
 def test_worker_health_panel_builds_from_supervisor() -> None:
     """Build worker health panel models from supervisor snapshots."""
-    supervisor = WorkerSupervisor()
-    supervisor.start('vision-worker')
+    supervisor = WorkerStateView()
+    supervisor.register('vision-worker')
+    supervisor.apply_heartbeat(
+        'vision-worker', health=WorkerHealth.RUNNING, missed_heartbeats=0
+    )
 
     panels = WorkerHealthPanelModel.list_from_supervisor(supervisor)
 
