@@ -32,17 +32,11 @@ jobs:
 
       - name: Dependency audit
         # CVE-2026-4539  (Pygments ReDoS): no patched release available yet; drop when pygments is updated.
-        # CVE-2026-34073 (cryptography): fix is 46.0.6; drop when lockfile is updated to >=46.0.6.
-        # CVE-2026-39892 (cryptography): fix is 46.0.7; drop when lockfile is updated to >=46.0.7.
-        # CVE-2025-71176 (pytest): fix is 9.0.3; drop when lockfile is updated to >=9.0.3.
-        # CVE-2026-25645 (requests): transitive dependency — no direct pin; drop when the upstream dep bumps its own constraint.
+        # CVE-2026-3219  (Pip audit vulnerability): no patched release available yet; drop when pip is updated.
         run: >-
           uv run pip-audit
           --ignore-vuln CVE-2026-4539
-          --ignore-vuln CVE-2026-34073
-          --ignore-vuln CVE-2026-39892
-          --ignore-vuln CVE-2025-71176
-          --ignore-vuln CVE-2026-25645
+          --ignore-vuln CVE-2026-3219
           --skip-editable
 
       - name: Secret scan
