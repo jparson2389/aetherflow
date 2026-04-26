@@ -358,6 +358,49 @@ namespace
             &report->errors);
     }
 
+    void ValidateSupervisorHeader(const Options &options, Report *report)
+    {
+        const fs::path supervisor_path =
+            options.header_path.parent_path() / "supervisor.hpp";
+
+        if (!fs::exists(supervisor_path))
+        {
+            report->errors.push_back(
+                "Missing supervisor header: " + PathText(supervisor_path));
+            return;
+        }
+
+        const auto supervisor_text =
+            ReadTextFile(supervisor_path, &report->errors);
+        if (!supervisor_text.has_value())
+        {
+            return;
+        }
+
+        const std::vector<std::string_view> required_tokens = {
+            "IWorkerSupervisor",
+            "IProcessHandle",
+            "UnitSnapshot",
+            "ExitStatus",
+            "StartUnit",
+            "StopUnit",
+            "RecordHeartbeat",
+            "RecordMissedHeartbeat",
+            "RecordCrash",
+            "EnforceRestartBudget",
+            "GetSnapshot",
+            "GetState",
+            "kDefaultMaxRestarts",
+            "kDefaultRestartWindow",
+            "kInvalidUnitId",
+        };
+        ContainsAllTokens(
+            *supervisor_text,
+            required_tokens,
+            "supervisor.hpp",
+            &report->errors);
+    }
+
     void ValidateProto(const Options &options, Report *report)
     {
         const auto proto_text = ReadTextFile(options.proto_path, &report->errors);
@@ -453,6 +496,7 @@ int main(int argc, char *argv[])
         Report report;
         ValidateHeader(options, &report);
         ValidateProto(options, &report);
+        ValidateSupervisorHeader(options, &report);
         ValidateBoundary(options, &report);
         report.success = report.errors.empty();
 
