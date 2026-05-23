@@ -154,7 +154,10 @@ plan_item:
   dossier_ref: null            # id | null — the DO- dossier that defines the contract
   dossier_sections: []         # list<string> — specific sections within the dossier
   primary_evidence_req: null   # string | null — the single primary evidence obligation
-  parent_capability: null      # id | null — the PI- parent this leaf rolls up to
+  parent_capability: null      # id | null — the PI- capability group this leaf rolls up to;
+                               #   distinct from the base `parent` field: `parent` is the
+                               #   immediate hierarchy parent (any type, e.g. PE-); this
+                               #   field is always a PI- node for rollup reporting
   responsible_files: []        # list<string> — files this item concretely modifies;
                                #   not a "may touch" list
 ```
