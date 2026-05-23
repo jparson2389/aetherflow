@@ -36,10 +36,28 @@ dist/
 # Local editor and workspace folders
 .vscode/settings.json
 .cursor/settings.json
+.cursor/rules/
 .tmp/
 .worktrees/
 .firecrawl/
 .playwright/
+
+# AI tool runtime and state
+.claude/
+.agents/
+.codex/
+.opencode/
+
+# Node
+node_modules/
+package-lock.json
+
+# Skills and plugin lockfiles
+skills-lock.json
+
+# Local plan and task working files
+plan/
+tasks/
 
 # Machine-local state and reports
 state/plan_state.json
@@ -55,6 +73,7 @@ scripts/dev-shell.ps1
 # Generated logs, reports, prompts
 logs/*.txt
 logs/*.log
+logs/*.md
 logs/*.ndjson
 logs/plan_exec_*.md
 logs/lazy-agent-report-*.md
@@ -66,6 +85,11 @@ logs/diagnostics_export.json
 logs/verify-requirements-evidence.md
 logs/audit/
 logs/verification/pending_app_checks.json
+logs/verification/TASK-*.json
+.github/hooks/*.log
+
+# Generated docs
+docs/evidence/*.md
 
 # Tool-generated report (see tools/verify_requirements.py, tools/proof_verifier.py)
 docs/requirements-report.md
