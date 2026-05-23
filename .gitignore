@@ -67,3 +67,5 @@ _recovery/
 plan/
 package-lock.json
 .cursor/
+.opencode/opencode.jsonc
+skills-lock.json

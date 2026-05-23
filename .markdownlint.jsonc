@@ -19,13 +19,11 @@
     "MD036": false,
     "MD040": false,
     "MD041": false,
-    "MD046": false,
     "MD048": {
         "style": "backtick"
     },
     "MD055": {
         "style": "leading_and_trailing"
     },
-    "MD056": false,
     "MD060": false
 }

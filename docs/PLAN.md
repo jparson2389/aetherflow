@@ -709,6 +709,12 @@ status. They are evidence-driven and should become work items as needed.
 - **Capture/runtime realism**
   - Implement device probing and capture start/stop integration.
   - Emit real FPS and drop-rate metrics with evidence artifacts.
+- **Delivery-unit alignment**
+  - Use `docs/architecture/delivery-architecture-alignment-notes.md`
+    section 5.0 as the source of truth for shipped, implement-before-ship,
+    and excluded feature delivery units.
+  - Treat shipped feature rows without a host loader path or helper launch
+    path as release blockers.
 - **Environment/Resources workflows**
   - Implement real env create/repair/recreate and GPU probe paths.
   - Implement resource download/install with trust checks.

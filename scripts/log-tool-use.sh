@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 INPUT=$(cat)
 TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp')
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name')

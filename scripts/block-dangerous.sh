@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name')
 

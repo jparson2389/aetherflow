@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # format-changed-files.sh
 # Runs after the agent edits or creates a file.
 # - Python: Ruff format + lint fix (skips proto-generated files)

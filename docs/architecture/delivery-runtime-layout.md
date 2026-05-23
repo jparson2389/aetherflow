@@ -394,22 +394,25 @@ management.
 
 ## Runtime Classification
 
+<!-- prettier-ignore-start -->
 | Packaged path                | Runtime role                 | Allowed contents                                                                                                             |
-| ---------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+|------------------------------|------------------------------|------------------------------------------------------------------------------------------------------------------------------|
 | `Aetherflow.exe`             | wrapper bootstrap executable | top-level launcher only; delegates into `lib/Aetherflow2.exe`                                                                |
 | `lib/Aetherflow2.exe`        | primary runtime executable   | real runtime entry point after wrapper delegation                                                                            |
 | `lib/`                       | runtime support tree         | Qt runtime, helper executables, support DLLs, Python helper payloads, styles, layouts, translations, support plugin payloads |
 | `plugins/`                   | primary plugin load tree     | plugin DLLs and explicitly declared colocated metadata only                                                                  |
 | `scripts/`                   | shipped user script bundles  | user-facing script payloads only, never repo development tooling                                                             |
 | `%LOCALAPPDATA%/.../python/` | managed runtime state        | managed interpreter, `uv`, workload roots, `.aenv` environments                                                              |
+<!-- prettier-ignore-end -->
 
 ## Source Area Role Mapping
 
 Each top-level source area must map to exactly one shipped role or be marked as
 `development-only`.
 
+<!-- prettier-ignore-start -->
 | Source area              | Assigned role                                                                                                                        |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+|--------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
 | `host/`                  | Source of truth for wrapper/primary runtime executable implementations and host-owned runtime DLL classes shipped in `lib/`.         |
 | `include/`               | Source of truth for native ABI/header contracts compiled into host and plugin DLL artifacts.                                         |
 | `proto/`                 | Source of truth for frozen control-plane schema used to generate shipping IPC stubs/contracts.                                       |
@@ -420,11 +423,13 @@ Each top-level source area must map to exactly one shipped role or be marked as
 | `src/aetherflow/vision/` | Source of truth for vision-domain Python modules and helper payload definitions for packaged runtime support.                        |
 | `assets/`                | Source of truth for shipped styles, icons, layouts, and translation inputs consumed by packaged `lib/styles/` and translation trees. |
 | `tools/`                 | `development-only` packaging/staging automation and validation scripts; not shipped as runtime payload.                              |
+<!-- prettier-ignore-end -->
 
 ## Artifact Source-of-Truth Mapping
 
+<!-- prettier-ignore-start -->
 | Packaged artifact class                                                                         | Source-of-truth location                                                                                                         |
-| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+|-------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
 | wrapper executable at root                                                                      | `host/` build outputs staged to packaged `Aetherflow.exe` at root.                                                               |
 | primary runtime executable under `lib/`                                                         | `host/` build outputs staged to `lib/Aetherflow2.exe`.                                                                           |
 | host DLLs                                                                                       | `host/` and `include/` native implementations/headers staged under `lib/`.                                                       |
@@ -436,6 +441,7 @@ Each top-level source area must map to exactly one shipped role or be marked as
 | styles, layouts, and translation assets                                                         | `assets/` plus generated translation/style packaging inputs staged under `lib/styles/`, `lib/layouts/`, and `lib/translations/`. |
 | packaged user script payloads under `scripts/`                                                  | Curated shipped script bundles sourced from release-approved script payload inputs, staged under `scripts/`.                     |
 | managed Python runtime assets under `%LOCALAPPDATA%/AetherflowProject/Aetherflow/python/`       | Runtime-managed environment installer and environment manager outputs; never sourced from packaged root tree.                    |
+<!-- prettier-ignore-end -->
 
 ## Runtime-only Subtree Placement Rules
 
@@ -454,6 +460,49 @@ guess alternate locations.
   placement subtree.
 - `scripts/_aetherflow_*` bundles: packaged user-facing script payload bundles
   only.
+
+## Python Helper Artifact Contract
+
+`lib/py/` is the packaged Python helper/runtime payload tree. It contains
+release-approved modules that run either inside the PySide shell or inside
+host-supervised helper processes. It is not a managed virtual environment.
+
+Required placement and launch rules:
+
+- `lib/py/aetherflow/` contains the shipped Python package modules required by
+  shell support code, worker bootstrap code, IPC clients, and helper payloads.
+- `lib/cv_python_host/CVPythonHost.exe` is the packaged helper executable used
+  by the host supervisor to launch Python capture/input helper modules.
+- Helper launch specs name the executable plus a module argument, for example
+  `lib/cv_python_host/CVPythonHost.exe --module aetherflow.vision.opencv_capture`.
+- Generated protobuf stubs required by helper IPC live under
+  `lib/py/aetherflow/proto/` and are regenerated from `proto/`; they are never
+  hand-edited.
+- compiled extension modules required by shipped helpers live under `lib/py/`
+  or the helper-specific `lib/` subtree declared by the delivery record.
+- shared DLLs required by native extension modules live under `lib/` subtrees
+  such as `lib/cv_cpp/`; they are not copied beside arbitrary Python modules.
+- `lib/py/` must not include `.aenv`, managed interpreters, `uv.exe`, test
+  fixtures, repo automation, or editable source checkouts.
+
+## Script Payload Contract
+
+`scripts/` is reserved for shipped user-facing script bundles. It is isolated
+from repository tooling and is not a place for development helpers.
+
+Required placement and launch rules:
+
+- `scripts/_aetherflow_*` bundle directories are the only approved packaged
+  script payload shape until a later packaging contract expands the format.
+- launcher expectations are explicit per bundle: a bundle either declares a
+  host-launched entry point or is omitted from the first delivery manifest.
+- settings/data placement belongs in the bundle's declared user-data location
+  or managed runtime state under `%LOCALAPPDATA%/AetherflowProject/Aetherflow/`;
+  scripts must not write mutable data into the packaged app root.
+- Script bundles may depend on `lib/py/` helper modules only when the delivery
+  record declares that dependency and launch path.
+- Repo development tooling from `tools/`, root-level build scripts, test
+  fixtures, and quality-gate automation must never be staged into `scripts/`.
 
 ## Mermaid View
 

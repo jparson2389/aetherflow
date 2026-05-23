@@ -6,6 +6,13 @@
                 "command": "./scripts/block-dangerous.sh",
                 "timeout": 5
             }
+        ],
+        "PostToolUse": [
+            {
+                "type": "command",
+                "command": "./scripts/scan-secrets.sh",
+                "timeout": 30
+            }
         ]
     }
 }

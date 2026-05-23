@@ -25,7 +25,7 @@ with the PRD's host-authoritative failure model.
 - `host/` and `include/` own supervision and plugin lifecycle authority.
 - `src/aetherflow/core/ipc/` is the Python client bridge to authoritative host
   state.
-- `src/aetherflow/core/worker_supervisor.py` is transitional and must become a
-  thin adapter or be retired once host-owned supervision is in place.
+- `src/aetherflow/core/worker_supervisor.py` exposes only a read-only
+  host-reported state view until the real IPC client replaces it.
 - Shell HUD, diagnostics, and reload actions render host-reported state rather
   than inferring local supervision authority.
