@@ -202,6 +202,10 @@ dossier:
   #   capability: string
   #   proof_class: enum — runtime-artifact | measurement | diagnostic | smoke-review | manual-review
   #   invalidation_criteria: string
+  # For dossiers: the base `source` field holds the canonical anchor document
+  # (the single most authoritative reference). `source_trust` lists all aggregated
+  # sources including the anchor. Populate both fields — base `source` is the anchor,
+  # `source_trust` is the full set.
   source_trust: []
   # Each entry:
   #   source: string
