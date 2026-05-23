@@ -210,7 +210,7 @@ dossier:
 Items advance through lifecycle states. The table below defines who may trigger
 each transition and what evidence is required.
 
-```
+```text
 draft
   │  actor: agent or human
   │  requires: source fields populated, claim normalized
@@ -249,7 +249,7 @@ accepted                    ← HUMAN ONLY; agents must not self-advance here
 
 Retirement may occur from any state:
 
-```
+```text
 any state → retired
   actor: human only
   requires: state_history entry with rationale
@@ -257,7 +257,7 @@ any state → retired
 
 Invalidation downgrades (any accepted or evidenced item):
 
-```
+```text
 accepted/evidenced → downgrade_target_state
   soft invalidation: → evidenced  (re-evidence required; acceptance revoked)
   hard invalidation: → draft or researched  (full re-audit required)
