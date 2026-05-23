@@ -29,11 +29,11 @@ Every governance item, regardless of type, carries the following fields.
 ```yaml
 # ── Identity ──────────────────────────────────────────────────────────────────
 schema_version: "1.0"          # string — must match the file's declared version
-id: "CL-001"                   # string — globally unique; format: <PREFIX>-<NNN>
-                               #   CL-  constraint
-                               #   PI-  plan-item
-                               #   PE-  phase-exit
-                               #   DO-  dossier
+id: "CL-001"                   # string — globally unique; format is type-specific:
+                               #   CL-<NNN>  constraint  (3-digit zero-padded, e.g. CL-001)
+                               #   PI-<NNN>  plan-item   (3-digit zero-padded, e.g. PI-042)
+                               #   PE-<NN>   phase-exit  (2-digit zero-padded, e.g. PE-00)
+                               #   DO-<slug> dossier     (plugin slug, e.g. DO-my-plugin)
 type: constraint               # enum: constraint | plan-item | phase-exit | dossier
 title: "Short claim title"     # string — one sentence, present tense
 parent: null                   # id | null — parent item id, null for root items
