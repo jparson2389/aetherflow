@@ -95,7 +95,8 @@ supersession:
 ownership:
   owner: "human:jparson2389"   # string — human:<username> or team:<name>
   authority_tier: human        # enum: human | agent
-                               #   human  → only a human may accept or reject
+                               #   human  → agents may advance to evidenced;
+                               #            only a human may advance to accepted
                                #   agent  → agents may self-advance to evidenced;
                                #            humans still required for accepted
   update_trigger: ""           # string — condition that requires re-review of this item
@@ -297,8 +298,8 @@ record explicitly authorizes them. They may not substitute for automatable proof
 
 ## Authority Rules
 
-- `authority_tier: human` → a human must accept **and** may be the only actor to
-  advance beyond `evidenced`.
+- `authority_tier: human` → only a human may advance from `evidenced` to `accepted`;
+  agents may advance to `evidenced`.
 - `authority_tier: agent` → agents may advance items through `implemented` and
   produce `evidenced` records, but **only humans may set `acceptance.accepted: true`**.
 - Agents must never set `acceptance.accepted: true`.
