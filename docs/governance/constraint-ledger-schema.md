@@ -280,6 +280,7 @@ accepted/evidenced → downgrade_target_state
 Only the following evidence types count toward state advancement. Tests do not
 count as closure evidence (tests are TDD support only).
 
+<!-- prettier-ignore-start -->
 | Type | Description | Allowed for accepted |
 |------|-------------|---------------------|
 | `runtime-artifact` | Produced artifact from a running system (log, snapshot, trace) | Yes |
@@ -287,6 +288,7 @@ count as closure evidence (tests are TDD support only).
 | `diagnostic` | Tool-produced diagnostic output (lint clean, schema validation pass) | Yes |
 | `smoke-review` | Structured human smoke review with defined checklist | Yes |
 | `manual-review` | Bounded human review justified by dossier contract | Yes |
+<!-- prettier-ignore-end -->
 
 `smoke-review` and `manual-review` may only be used when the dossier or item
 record explicitly authorizes them. They may not substitute for automatable proof.
@@ -295,6 +297,7 @@ record explicitly authorizes them. They may not substitute for automatable proof
 
 ## Enforcement Status (constraints only)
 
+<!-- prettier-ignore-start -->
 | Value | Meaning |
 |-------|---------|
 | `enforced` | Repo demonstrably enforces the claim; rejection proof exists |
@@ -302,6 +305,7 @@ record explicitly authorizes them. They may not substitute for automatable proof
 | `ambiguous` | Conflicting signals; requires explicit human resolution |
 | `false` | Claim is in documentation but repo does not enforce it |
 | `undetermined` | Audit not yet performed |
+<!-- prettier-ignore-end -->
 
 ---
 
@@ -422,12 +426,14 @@ constraint:
 
 ## File Location Convention
 
+<!-- prettier-ignore-start -->
 | Item type | Storage path |
 |-----------|-------------|
 | `constraint` | `docs/governance/ledger/constraints/CL-<NNN>.yaml` |
 | `plan-item` | `docs/governance/ledger/plan-items/PI-<NNN>.yaml` |
 | `phase-exit` | `docs/governance/ledger/phase-exits/PE-<NN>.yaml` |
 | `dossier` | `docs/governance/dossiers/DO-<plugin-slug>.yaml` |
+<!-- prettier-ignore-end -->
 
 The constraint inventory table in `docs/governance/constraint-inventory.md`
 (produced by issue #14) remains the prose-readable index. Individual YAML ledger
@@ -437,6 +443,8 @@ files are the machine-readable authority. On conflict, the YAML ledger file wins
 
 ## Changelog
 
+<!-- prettier-ignore-start -->
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
 | 1.0 | 2026-05-23 | agent:claude-code | Initial schema — issue #15 |
+<!-- prettier-ignore-end -->
