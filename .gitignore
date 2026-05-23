@@ -96,7 +96,6 @@ docs/requirements-report.md
 
 # Keep intentional artifacts
 !logs/quality-gate.log
-!logs/verification/
 !logs/lazy-agent-report-rework-plan.log
 
 # Local noise
