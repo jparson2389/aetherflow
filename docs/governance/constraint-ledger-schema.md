@@ -72,6 +72,8 @@ evidence: []
 #                         smoke-review | manual-review
 #   description:   string — what this evidence proves
 #   artifact_ref:  string — repo-relative path or URL to the produced artifact
+#                  (paths under docs/evidence/ are local-only; not git-tracked —
+#                  verification checks disk presence, not git history)
 #   timestamp:     ISO 8601 UTC
 #   produced_by:   string — agent:<name> or human:<username>
 #   superseded:    bool — true if a later record replaces this one
