@@ -44,11 +44,13 @@ Examples:
 
 ## Enforcement
 
+<!-- prettier-ignore-start -->
 | Mechanism | Requirement |
 |-----------|-------------|
 | `.gitignore` | `logs/verification/*.json` ignored exactly once; no `!logs/verification/` negation |
 | Contract tests | Assert gitignore policy; no file-existence replay gates on generated JSON |
 | CI | `uv run python -m tools.verify_requirements` before `uv run pytest` |
+<!-- prettier-ignore-end -->
 
 ## Related Documents
 
