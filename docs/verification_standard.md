@@ -86,7 +86,8 @@ An item may not be promoted to `verified` when:
 ## Developer App-Check Alerts
 
 If a newly verified item is marked app-testable from the GUI or startup flow,
-the verification pipeline must create a developer alert.
+the verification pipeline must create a developer alert when it detects a
+transition from a non-verified status to `verified`.
 
 The alert rules are:
 
@@ -94,6 +95,16 @@ The alert rules are:
 - persist the alert in a machine-readable log
 - do not backfill alerts for already-verified legacy work on initial baseline
 - clear the alert once the developer acknowledges it
+
+**Clean-checkout and initial-baseline behaviour:** Transition detection requires
+a prior `logs/verification/status_snapshot.json` to compare against. When no
+snapshot exists (clean checkout, first run), the pipeline writes the current
+statuses as the baseline and emits no alerts — the "do not backfill" rule
+applies to all items seen for the first time. Alert detection therefore requires
+at least two consecutive local runs of `uv run python -m tools.verify_requirements`
+with the item transitioning to `verified` in between. This is by design:
+`status_snapshot.json` is Tier 2 generated runtime output (see
+`docs/governance/artifact-storage-policy.md`) and is not git-tracked.
 
 ## Acknowledging an Alert
 
