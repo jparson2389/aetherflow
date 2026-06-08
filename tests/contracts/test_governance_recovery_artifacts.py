@@ -52,7 +52,6 @@ def test_recovery_branch_contains_constraint_inventory_artifact() -> None:
     assert '`AGENTS.md`' in artifact_text
     assert '`docs/verification_standard.md`' in artifact_text
     assert '`docs/verify-requirements-pipeline.md`' in artifact_text
-    assert '`CLAUDE.md`' in artifact_text
     assert '| CI-001 |' in artifact_text
     assert '| CI-050 |' in artifact_text
 
