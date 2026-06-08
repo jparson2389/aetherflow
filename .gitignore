@@ -65,18 +65,12 @@ security_report.html
 DEV-COMMANDS.md
 reset_env.ps1
 start-loop2.ps1
-scripts/with-env.sh
-scripts/with-env.ps1
-scripts/dev-shell.sh
-scripts/dev-shell.ps1
 
 # Generated logs, reports, prompts
 logs/*.txt
 logs/*.log
 logs/*.md
 logs/*.ndjson
-logs/plan_exec_*.md
-logs/lazy-agent-report-*.md
 logs/prompt_*.txt
 logs/*claudeconvo*.txt
 logs/env_report.json
@@ -84,8 +78,7 @@ logs/bundle_install_report.json
 logs/diagnostics_export.json
 logs/verify-requirements-evidence.md
 logs/audit/
-logs/verification/pending_app_checks.json
-logs/verification/TASK-*.json
+logs/verification/*.json
 .github/hooks/*.log
 
 # Generated docs
