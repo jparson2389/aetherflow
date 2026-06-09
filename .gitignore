@@ -95,3 +95,7 @@ docs/requirements-report.md
 .cursor/agents/
 .gemini/gemini-config-schema.json
 codebase-map.html
+
+# Gemini Actions runtime output and minted credentials (config.yaml/styleguide.md stay tracked)
+.gemini/telemetry.log
+gha-creds-*.json

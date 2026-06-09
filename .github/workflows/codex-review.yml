@@ -2,11 +2,12 @@ name: Codex Pull Request Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [labeled]
 
 jobs:
   codex:
     runs-on: ubuntu-latest
+    if: github.event.label.name == 'codex-review'
     permissions:
       contents: read # Least-privilege: read-only repo access
     outputs:
@@ -31,6 +32,8 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: gpt-5.4-mini
+          effort: medium
           safety-strategy: drop-sudo # Revokes sudo before Codex runs
           sandbox: workspace-write # Limits filesystem/network access
           prompt-file: .github/codex/prompts/review.md
@@ -40,7 +43,7 @@ jobs:
     needs: codex
     if: needs.codex.outputs.final_message != ''
     permissions:
-      pull-requests: write # Scoped only to what's needed
+      issues: write # PR comments are issue comments
     steps:
       - name: Post Codex feedback
         uses: actions/github-script@v7
