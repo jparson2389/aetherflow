@@ -46,7 +46,9 @@ def test_frozen_contracts_test_file_present() -> None:
 
 def test_verification_reporting_test_file_present() -> None:
     """72e947e added test_verification_reporting.py; Master carries a better version."""
-    assert (PROJECT_ROOT / 'tests' / 'contracts' / 'test_verification_reporting.py').exists()
+    assert (
+        PROJECT_ROOT / 'tests' / 'contracts' / 'test_verification_reporting.py'
+    ).exists()
 
 
 def test_proof_verifier_test_file_present() -> None:
@@ -70,7 +72,9 @@ def test_governance_prd_artifact_in_evidence_index(tmp_path: Path) -> None:
 
     evidence_file = tmp_path / 'evidence.md'
     roots = [PROJECT_ROOT / part for part in REPO_ROOTS]
-    write_evidence_index(evidence_path=evidence_file, roots=roots, repo_root=PROJECT_ROOT)
+    write_evidence_index(
+        evidence_path=evidence_file, roots=roots, repo_root=PROJECT_ROOT
+    )
     text = evidence_file.read_text(encoding='utf-8')
 
     entries = {
