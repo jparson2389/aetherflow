@@ -281,8 +281,6 @@ This repo uses a **Markdown table prettifier** (e.g. the VS Code Markdown Table 
   - `uv run ruff check`
   - `uv run pytest`
   - `uv run python ...`
-  - Prefer `uv run python -m tools.*` entry points where available.
-- Make the smallest safe change that satisfies the task; do not restate success without running verification.
 - TDD: Write test files before feature code.
 - Add **type hints and Google-format docstrings** (`"""`) to all Python code.
 - Run `uv run ruff check && uv run pytest` before marking done.

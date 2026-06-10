@@ -14,6 +14,7 @@ claim against the original text.
 - `AGENTS.md`
 - `docs/verification_standard.md`
 - `docs/verify-requirements-pipeline.md`
+- `CLAUDE.md`
 
 ## Inventory
 
@@ -68,8 +69,8 @@ claim against the original text.
 | CI-046 | `docs/verification_standard.md`        | §Failure Conditions                | An item may not be promoted to `verified` if acceptance criteria are missing, no behavioral proof exists, or sign-off is absent.      | verification, process                  |
 | CI-047 | `docs/verify-requirements-pipeline.md` | §Verification Authority            | The singular canonical verification command is `uv run python -m tools.verify_requirements`; other tools are not equivalent authorities. | verification                           |
 | CI-048 | `docs/verify-requirements-pipeline.md` | §Heuristics                        | Status heuristics and placeholder classifications are advisory only; they do not establish functional completion or performance verification. | verification                           |
-| CI-049 | `AGENTS.md`                            | §Do's and Don'ts                   | Make the smallest safe change that satisfies the task; do not restate success without running verification.                           | process, verification                  |
-| CI-050 | `AGENTS.md`                            | §Do's and Don'ts                   | Prefer `uv run python -m tools.*` entry points where available.                                                                       | process                                |
+| CI-049 | `CLAUDE.md`                            | §Claude-Specific Expectations      | Make the smallest safe change that satisfies the task; do not restate success without running verification.                           | process, verification                  |
+| CI-050 | `CLAUDE.md`                            | §Environment Notes                 | Prefer `uv run python -m tools.*` entry points where available.                                                                       | process                                |
 | CI-051 | `docs/governance/artifact-storage-policy.md` | §Tier 2 — Generated runtime | `logs/verification/*.json` and `status_snapshot.json` are generated runtime artifacts; they must never be git-tracked.              | process, verification                |
 | CI-052 | `docs/governance/artifact-storage-policy.md` | §Enforcement              | `.gitignore` must include `logs/verification/*.json` exactly once; `!logs/verification/` negation exceptions are forbidden.           | process                                |
 | CI-053 | `docs/governance/artifact-storage-policy.md` | §Enforcement              | CI must run `uv run python -m tools.verify_requirements` before pytest so generated verification JSON exists without git tracking.   | process, verification                |

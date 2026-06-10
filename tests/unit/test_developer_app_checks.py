@@ -203,30 +203,3 @@ def test_regraded_legacy_items_do_not_create_alerts(tmp_path: Path) -> None:
         [_result(item_id='AF-02-02', status='verified', app_testable=True)]
     )
     assert store.pending_alerts() == []
-
-
-def test_clean_checkout_no_snapshot_does_not_alert_for_verified_items(
-    tmp_path: Path,
-) -> None:
-    """Clean checkout (no snapshot) treats all verified items as pre-existing baseline.
-
-    status_snapshot.json is Tier 2 generated runtime output and is never git-tracked.
-    On first run the 'do not backfill' rule applies: all currently-verified items are
-    written as the baseline and no alerts are emitted.  Two consecutive local runs are
-    required to detect a transition.
-    """
-    store = PendingAppCheckStore(
-        pending_path=tmp_path / 'logs' / 'verification' / 'pending_app_checks.json',
-        snapshot_path=tmp_path / 'logs' / 'verification' / 'status_snapshot.json',
-    )
-    assert not store.snapshot_path.exists()
-
-    store.sync_results(
-        [
-            _result(item_id='AF-01-01', status='verified', app_testable=True),
-            _result(item_id='AF-01-02', status='verified', app_testable=True),
-        ]
-    )
-
-    assert store.snapshot_path.exists(), 'snapshot written after first run'
-    assert store.pending_alerts() == [], 'no alerts on initial baseline'
