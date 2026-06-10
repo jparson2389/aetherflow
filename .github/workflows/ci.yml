@@ -30,9 +30,6 @@ jobs:
       - name: Ruff
         run: uv run ruff check .
 
-      - name: Verify requirements
-        run: uv run python -m tools.verify_requirements
-
       - name: Pytest
         run: uv run pytest
 

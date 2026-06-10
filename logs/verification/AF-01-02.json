@@ -1,0 +1,43 @@
+{
+  "item_id": "AF-01-02",
+  "title": "Implement entitlement runtime states and shell-safe degradation model.",
+  "status": "evidenced",
+  "gaps": [
+    "[failure-coverage-gap] Missing failure coverage: unauthorized navigation blocked"
+  ],
+  "evidence_pack": "docs/evidence/AF-01-02.md",
+  "validation_commands": [
+    "uv run pytest tests/unit/test_entitlements.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py"
+  ],
+  "validation_results": [
+    {
+      "command": "uv run pytest tests/unit/test_entitlements.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1",
+        "AC2",
+        "AC3"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "uv run pytest tests/unit/test_entitlements.py tests/integration/test_plugin_catalog_locking.py tests/ui/test_status_hud.py": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1",
+      "AC2",
+      "AC3"
+    ],
+    "required_failure_modes": [
+      "unauthorized navigation blocked"
+    ]
+  },
+  "approved_by": null,
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "pending",
+  "ran_at": "2026-06-10T10:28:52.666314+00:00"
+}

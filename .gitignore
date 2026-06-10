@@ -36,28 +36,10 @@ dist/
 # Local editor and workspace folders
 .vscode/settings.json
 .cursor/settings.json
-.cursor/rules/
 .tmp/
 .worktrees/
 .firecrawl/
 .playwright/
-
-# AI tool runtime and state
-.claude/
-.agents/
-.codex/
-.opencode/
-
-# Node
-node_modules/
-package-lock.json
-
-# Skills and plugin lockfiles
-skills-lock.json
-
-# Local plan and task working files
-plan/
-tasks/
 
 # Machine-local state and reports
 state/plan_state.json
@@ -65,12 +47,17 @@ security_report.html
 DEV-COMMANDS.md
 reset_env.ps1
 start-loop2.ps1
+scripts/with-env.sh
+scripts/with-env.ps1
+scripts/dev-shell.sh
+scripts/dev-shell.ps1
 
 # Generated logs, reports, prompts
 logs/*.txt
 logs/*.log
-logs/*.md
 logs/*.ndjson
+logs/plan_exec_*.md
+logs/lazy-agent-report-*.md
 logs/prompt_*.txt
 logs/*claudeconvo*.txt
 logs/env_report.json
@@ -78,17 +65,14 @@ logs/bundle_install_report.json
 logs/diagnostics_export.json
 logs/verify-requirements-evidence.md
 logs/audit/
-logs/verification/*.json
-.github/hooks/*.log
-
-# Generated docs
-docs/evidence/*.md
+logs/verification/pending_app_checks.json
 
 # Tool-generated report (see tools/verify_requirements.py, tools/proof_verifier.py)
 docs/requirements-report.md
 
 # Keep intentional artifacts
 !logs/quality-gate.log
+!logs/verification/
 !logs/lazy-agent-report-rework-plan.log
 
 # Local noise

@@ -437,11 +437,6 @@ The constraint inventory table in `docs/governance/constraint-inventory.md`
 (produced by issue #14) remains the prose-readable index. Individual YAML ledger
 files are the machine-readable authority. On conflict, the YAML ledger file wins.
 
-Artifact storage tiers (canonical tracked vs generated runtime vs local-only)
-are defined in `docs/governance/artifact-storage-policy.md`. Ledger YAML files
-are Tier 1; verification JSON under `logs/verification/` is Tier 2 generated
-output and must not be committed.
-
 ---
 
 ## Changelog

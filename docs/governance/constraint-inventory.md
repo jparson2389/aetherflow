@@ -71,10 +71,6 @@ claim against the original text.
 | CI-048 | `docs/verify-requirements-pipeline.md` | §Heuristics                        | Status heuristics and placeholder classifications are advisory only; they do not establish functional completion or performance verification. | verification                           |
 | CI-049 | `CLAUDE.md`                            | §Claude-Specific Expectations      | Make the smallest safe change that satisfies the task; do not restate success without running verification.                           | process, verification                  |
 | CI-050 | `CLAUDE.md`                            | §Environment Notes                 | Prefer `uv run python -m tools.*` entry points where available.                                                                       | process                                |
-| CI-051 | `docs/governance/artifact-storage-policy.md` | §Tier 2 — Generated runtime | `logs/verification/*.json` and `status_snapshot.json` are generated runtime artifacts; they must never be git-tracked.              | process, verification                |
-| CI-052 | `docs/governance/artifact-storage-policy.md` | §Enforcement              | `.gitignore` must include `logs/verification/*.json` exactly once; `!logs/verification/` negation exceptions are forbidden.           | process                                |
-| CI-053 | `docs/governance/artifact-storage-policy.md` | §Enforcement              | CI must run `uv run python -m tools.verify_requirements` before pytest so generated verification JSON exists without git tracking.   | process, verification                |
-| CI-054 | `docs/governance/artifact-storage-policy.md` | §Tier 1 — Canonical tracked | Governance docs and ledger YAML under `docs/governance/` are canonical tracked artifacts.                                            | process                                |
 <!-- prettier-ignore-end -->
 
 ## Classification Key

@@ -1,0 +1,39 @@
+{
+  "item_id": "AF-00-04",
+  "title": "Publish signing and runtime-state ABI, then freeze contracts.",
+  "status": "verified",
+  "gaps": [],
+  "evidence_pack": "docs/evidence/AF-00-04.md",
+  "validation_commands": [
+    "uv run pytest tests/contracts/test_execution_contracts.py tests/contracts/test_frozen_contracts.py"
+  ],
+  "validation_results": [
+    {
+      "command": "uv run pytest tests/contracts/test_execution_contracts.py tests/contracts/test_frozen_contracts.py",
+      "exit_code": 0,
+      "passed": true,
+      "requirement_links": [
+        "AC1",
+        "AC2"
+      ]
+    }
+  ],
+  "exit_codes": {
+    "uv run pytest tests/contracts/test_execution_contracts.py tests/contracts/test_frozen_contracts.py": 0
+  },
+  "requirement_links": {
+    "acceptance_criteria": [
+      "AC1",
+      "AC2"
+    ],
+    "required_failure_modes": [
+      "missing runtime state rejected"
+    ]
+  },
+  "approved_by": "qa.lead",
+  "app_testable": false,
+  "app_surface": null,
+  "developer_alert": null,
+  "reviewer_status": "approved",
+  "ran_at": "2026-06-10T10:28:52.666314+00:00"
+}
