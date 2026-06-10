@@ -32,11 +32,9 @@ jobs:
 
       - name: Dependency audit
         # CVE-2026-4539  (Pygments ReDoS): no patched release available yet; drop when pygments is updated.
-        # CVE-2026-3219  (Pip audit vulnerability): no patched release available yet; drop when pip is updated.
         run: >-
           uv run pip-audit
           --ignore-vuln CVE-2026-4539
-          --ignore-vuln CVE-2026-3219
           --skip-editable
 
       - name: Secret scan
