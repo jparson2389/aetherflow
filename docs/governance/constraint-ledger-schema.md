@@ -153,14 +153,28 @@ plan_item:
                                #            must NOT enter scaffolded or implemented states
   dossier_ref: null            # id | null — the DO- dossier that defines the contract
   dossier_sections: []         # list<string> — specific sections within the dossier
-  primary_evidence_req: null   # string | null — the single primary evidence obligation
+  primary_evidence_req: null   # string | null — the single primary evidence obligation;
+                               #   REQUIRED (non-null) when item_kind: leaf — validators must
+                               #   reject acceptance of a leaf item without a primary evidence
+                               #   requirement (PRD user story #12)
   parent_capability: null      # id | null — the PI- capability group this leaf rolls up to;
-                               #   distinct from the base `parent` field: `parent` is the
-                               #   immediate hierarchy parent (any type, e.g. PE-); this
-                               #   field is always a PI- node for rollup reporting
+                               #   REQUIRED (non-null) when item_kind: leaf — validators must
+                               #   reject acceptance of a leaf item without a parent capability
+                               #   (PRD user story #12); distinct from the base `parent` field:
+                               #   `parent` is the immediate hierarchy parent (any type, e.g.
+                               #   PE-); this field is always a PI- node for rollup reporting
   responsible_files: []        # list<string> — files this item concretely modifies;
                                #   not a "may touch" list
 ```
+
+**Leaf-item required fields:** When `item_kind: leaf`, the following fields are mandatory
+(non-null). Validators must reject acceptance of any leaf item that omits them:
+
+- `parent_capability` — every leaf must roll up to exactly one PI- capability group
+- `primary_evidence_req` — every leaf must declare exactly one primary evidence obligation
+
+Parent plan-items (`item_kind: parent`) leave both fields null; their completion is derived
+solely from accepted leaf descendants.
 
 ---
 
