@@ -147,8 +147,10 @@ Extends base schema for leaf and parent execution plan items.
 # ── Plan-item-specific ────────────────────────────────────────────────────────
 plan_item:
   item_kind: leaf              # enum: leaf | parent
-                               #   leaf   → implementable, evidenceable, acceptable
-                               #   parent → grouping only; completion derived from leaves
+                               #   leaf   → implementable, evidenceable, acceptable;
+                               #            may enter scaffolded and implemented states
+                               #   parent → grouping only; completion derived from accepted leaves;
+                               #            must NOT enter scaffolded or implemented states
   dossier_ref: null            # id | null — the DO- dossier that defines the contract
   dossier_sections: []         # list<string> — specific sections within the dossier
   primary_evidence_req: null   # string | null — the single primary evidence obligation
@@ -236,11 +238,11 @@ ready
   │  actor: agent or human
   │  requires: all prerequisite items accepted or not applicable
   ▼
-scaffolded                  ← plan-items only; constraints skip
+scaffolded                  ← plan-items (item_kind: leaf) only; constraints and parent plan-items skip
   │  actor: agent
   │  requires: structural file skeletons present
   ▼
-implemented                 ← plan-items only; constraints skip
+implemented                 ← plan-items (item_kind: leaf) only; constraints and parent plan-items skip
   │  actor: agent
   │  requires: implementation complete per contract
   ▼
@@ -254,6 +256,13 @@ accepted                    ← HUMAN ONLY; agents must not self-advance here
   │            review_packet_ref populated,
   │            all prerequisite items accepted
 ```
+
+**Parent plan-item lifecycle note:** Items with `plan_item.item_kind: parent` are
+grouping-only. They may not enter `scaffolded` or `implemented` states directly.
+A parent item reaches `evidenced` only when all of its accepted leaf descendants
+have been accepted; it may not self-advance through implementation transitions.
+Validators must reject any state write of `scaffolded` or `implemented` on a
+parent plan-item.
 
 Retirement may occur from any state:
 
