@@ -164,7 +164,12 @@ plan_item:
                                #   parent → grouping only; completion derived from accepted leaves;
                                #            must NOT enter scaffolded or implemented states
   dossier_ref: null            # id | null — the DO- dossier that defines the contract
-  dossier_sections: []         # list<string> — specific sections within the dossier
+  dossier_sections: []         # list<string> — specific sections within the dossier;
+                               #   REQUIRED (non-empty) when dossier_ref is set: a
+                               #   plugin-backed plan item must anchor to the dossier
+                               #   sections that define its contract (PRD: "every plan
+                               #   item must point at the dossier sections"). May remain
+                               #   empty only when dossier_ref is null (non-plugin items)
   primary_evidence_req: null   # string | null — the single primary evidence obligation;
                                #   REQUIRED (non-null) when item_kind: leaf — validators must
                                #   reject acceptance of a leaf item without a primary evidence
@@ -258,7 +263,10 @@ researched
   ▼
 contract-defined            ← constraints skip this state
   │  actor: agent or human
-  │  requires: dossier_ref set, responsible_files listed (plan-items)
+  │  requires (plan-items): dossier_ref set, non-empty dossier_sections,
+  │            and responsible_files listed. Contract tests must reject a
+  │            plugin-backed plan-item that omits dossier section anchors
+  │            before it can reach ready.
   ▼
 ready
   │  actor: agent or human
