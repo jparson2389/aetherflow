@@ -86,16 +86,35 @@ evidence: []
 #   artifact_ref:  string — repo-relative path or URL to the produced artifact
 #   timestamp:     ISO 8601 UTC
 #   produced_by:   string — agent:<name> or human:<username>
-#   superseded:    bool — true if a later record replaces this one
-#   superseded_reason: string | null
+#   supersedes:    string | null — id of an earlier evidence record this one
+#                  replaces. Supersession is recorded by APPENDING this new
+#                  record with the pointer set; the earlier record is NEVER
+#                  mutated (records are append-only). A record is "current"
+#                  when no later record's `supersedes` points at it.
+#   supersede_reason: string | null — why the earlier record was replaced
 
-# ── Acceptance ──────────────────────────────────────────────────────────────────
+# ── Acceptance (current snapshot) ─────────────────────────────────────────────
+# Current acceptance state, derived from the latest acceptance_history record.
+# Rewritten on each acceptance event; the durable trail lives in acceptance_history.
 acceptance:
   accepted: false              # bool
   accepted_by: null            # string | null — must be human:<username>; agents cannot accept
   accepted_at: null            # ISO 8601 UTC | null
   review_packet_ref: null      # string | null — path to the review packet artifact
   conditions: null             # string | null — any stated conditions on this acceptance
+
+# ── Acceptance history (append-only) ───────────────────────────────────────────
+# Every acceptance event APPENDS a record here — initial sign-off, re-acceptance
+# after invalidation, acceptance with changed conditions, or revocation. Prior
+# human sign-offs are never overwritten or deleted. Mirrors state_history.
+acceptance_history: []
+# Each record:
+#   accepted:          bool — acceptance state set by this event
+#   accepted_by:       string | null — human:<username> (agents cannot accept)
+#   accepted_at:       ISO 8601 UTC | null
+#   review_packet_ref: string | null — review packet artifact for this event
+#   conditions:        string | null — conditions stated at this event
+#   rationale:         string — why this acceptance event occurred
 
 # ── Supersession ────────────────────────────────────────────────────────────────
 supersession:
@@ -263,10 +282,13 @@ researched
   ▼
 contract-defined            ← constraints skip this state
   │  actor: agent or human
-  │  requires (plan-items): dossier_ref set, non-empty dossier_sections,
-  │            and responsible_files listed. Contract tests must reject a
-  │            plugin-backed plan-item that omits dossier section anchors
-  │            before it can reach ready.
+  │  requires (plugin-backed leaf plan-items only): dossier_ref set, non-empty
+  │            dossier_sections, and responsible_files listed. Contract tests
+  │            must reject a plugin-backed leaf plan-item that omits dossier
+  │            section anchors before it can reach ready.
+  │  Non-plugin plan-items (dossier_ref null) and parent plan-items
+  │            (item_kind: parent) carry NO dossier-anchor or responsible_files
+  │            requirement and pass this transition without them.
   ▼
 ready
   │  actor: agent or human
@@ -357,8 +379,8 @@ record explicitly authorizes them. They may not substitute for automatable proof
 - `authority_tier: agent` → agents may advance items through `implemented` and
   produce `evidenced` records, but **only humans may set `acceptance.accepted: true`**.
 - Agents must never set `acceptance.accepted: true`.
-- Evidence and state-history records are **append-only**. Supersede records
-  instead of modifying or deleting them.
+- Evidence, state-history, and acceptance-history records are **append-only**.
+  Supersede records instead of modifying or deleting them.
 
 ---
 
@@ -438,6 +460,8 @@ acceptance:
   accepted_at: null
   review_packet_ref: null
   conditions: null
+
+acceptance_history: []
 
 supersession:
   superseded_by: null
