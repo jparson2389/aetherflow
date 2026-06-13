@@ -200,7 +200,10 @@ plan_item:
                                #   `parent` is the immediate hierarchy parent (any type, e.g.
                                #   PE-); this field is always a PI- node for rollup reporting
   responsible_files: []        # list<string> — files this item concretely modifies;
-                               #   not a "may touch" list
+                               #   not a "may touch" list. REQUIRED (non-empty) for
+                               #   plugin-backed leaf plan-items entering contract-defined
+                               #   (see State Machine); may stay empty for non-plugin and
+                               #   parent plan-items
 ```
 
 **Leaf-item required fields:** When `item_kind: leaf`, the following fields are mandatory
