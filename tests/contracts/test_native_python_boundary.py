@@ -97,7 +97,7 @@ def test_af_00_02b_status_snapshot_is_present() -> None:
     valid_states = {'evidenced', 'verified'}
     status = snapshot['items']['AF-00-02b']
     assert status in valid_states, (
-        f"AF-00-02b status must be one of {valid_states}, got {status!r}"
+        f'AF-00-02b status must be one of {valid_states}, got {status!r}'
     )
 
 
