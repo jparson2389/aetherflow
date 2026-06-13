@@ -52,6 +52,18 @@ source:
 classification:                # list<enum> — one or more of:
   - architectural              #   architectural | process | testing |
                                #   dependency | security | verification
+                               #   topical category only — the subject area of the
+                               #   claim, NOT how it is proven (see proof_claim_type)
+
+# ── Proof claim type ─────────────────────────────────────────────────────────────
+proof_claim_type: structural   # enum: measurable | observable | structural
+                               #   classifies the claim by how acceptable proof is
+                               #   determined up front (PRD user story #26):
+                               #     measurable  → proven by a quantified metric
+                               #     observable  → proven by a produced runtime artifact
+                               #     structural  → proven by repo structure/configuration
+                               #   distinct from topical `classification` above:
+                               #   classification = subject area; proof_claim_type = proof model
 
 # ── Lifecycle state ────────────────────────────────────────────────────────────
 state: draft                   # enum — see State Machine section below
@@ -393,6 +405,8 @@ source:
 
 classification:
   - architectural
+
+proof_claim_type: structural
 
 state: researched
 
