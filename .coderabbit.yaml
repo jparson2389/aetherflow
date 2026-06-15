@@ -239,8 +239,9 @@ reviews:
         ## Scope
         - tools/ contains repo-owned developer automation scripts only. NOT application code.
         - Do not suggest importing runtime dependencies (cryptography, grpcio, pyside6, etc.) here.
-        - Per pyproject.toml per-file-ignores: D (pydocstyle) and T201 (print) rules are skipped
-          for tools/**. Do not flag missing docstrings or print() calls in this directory.
+        - Per pyproject.toml per-file-ignores: only D100, D104 (module/package docstrings) and
+          T201 (print) are skipped for tools/**. Do not flag missing module/package docstrings or
+          print() calls, but class/function/method docstrings are still enforced.
 
         ## Structure rules
         - Flag any tools/ script that duplicates functionality of an existing canonical file.

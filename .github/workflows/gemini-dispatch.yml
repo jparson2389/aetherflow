@@ -47,6 +47,7 @@ jobs:
         github.event.pull_request.head.repo.fork == false
       ) || (
         github.event.sender.type == 'User' &&
+        (github.event_name != 'issue_comment' || github.event.issue.pull_request) &&
         startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '@gemini-cli') &&
         contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
       )
@@ -119,7 +120,10 @@ jobs:
       pull-requests: 'write'
     with:
       additional_context: '${{ needs.dispatch.outputs.additional_context }}'
-    secrets: 'inherit'
+    secrets:
+      APP_PRIVATE_KEY: '${{ secrets.APP_PRIVATE_KEY }}'
+      GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}'
+      GOOGLE_API_KEY: '${{ secrets.GOOGLE_API_KEY }}'
 
   fallthrough:
     needs:
