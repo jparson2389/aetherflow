@@ -30,8 +30,17 @@ def generated_report(tmp_path: Path) -> str:
 
 def test_requirements_report_has_all_six_states(generated_report: str):
     """docs/requirements-report.md must report all six state labels."""
-    for state_label in ('- Retired:', '- Drafted:', '- Coded:', '- Evidenced:', '- Verified:', '- Complete:'):
-        assert state_label in generated_report, f'Report missing state label: {state_label}'
+    for state_label in (
+        '- Retired:',
+        '- Drafted:',
+        '- Coded:',
+        '- Evidenced:',
+        '- Verified:',
+        '- Complete:',
+    ):
+        assert state_label in generated_report, (
+            f'Report missing state label: {state_label}'
+        )
 
 
 def test_each_item_entry_includes_required_fields(generated_report: str):
@@ -40,12 +49,16 @@ def test_each_item_entry_includes_required_fields(generated_report: str):
     item_sections = [
         f'### AF-{chunk}' for chunk in generated_report.split('\n### AF-')[1:]
     ]
-    assert len(item_sections) >= 15, f'Expected at least 15 item sections, found {len(item_sections)}'
+    assert len(item_sections) >= 15, (
+        f'Expected at least 15 item sections, found {len(item_sections)}'
+    )
     for section in item_sections:
         if '- Status: retired' in section:
             continue
         assert '- Status:' in section, 'Missing status field in item section'
-        assert '- Evidence Pack:' in section, 'Missing evidence-pack field in item section'
+        assert '- Evidence Pack:' in section, (
+            'Missing evidence-pack field in item section'
+        )
 
 
 def test_coded_items_not_shown_as_verified(generated_report: str):
@@ -60,12 +73,16 @@ def test_coded_items_not_shown_as_verified(generated_report: str):
             status = line.split(':', 1)[1].strip()
             if status in ('coded', 'evidenced'):
                 # The status must not say 'verified'
-                assert status != 'verified', f'{current_item} should not be verified but was: {status}'
+                assert status != 'verified', (
+                    f'{current_item} should not be verified but was: {status}'
+                )
 
 
 def test_retired_item_excluded_from_shipping_count(generated_report: str):
     """AF-00-01 is retired and must show status: retired, not be in verified count."""
-    assert '- Retired: 1' in generated_report, 'Expected exactly 1 retired item (AF-00-01)'
+    assert '- Retired: 1' in generated_report, (
+        'Expected exactly 1 retired item (AF-00-01)'
+    )
     # AF-00-01 section shows retired
     assert 'AF-00-01' in generated_report
     lines = generated_report.splitlines()

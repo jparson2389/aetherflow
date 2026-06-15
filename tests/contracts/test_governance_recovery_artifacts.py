@@ -13,7 +13,9 @@ def _fresh_evidence_paths(tmp_path: Path) -> set[str]:
     """Generate a fresh evidence index and return the set of scanned paths."""
     evidence_file = tmp_path / 'evidence.md'
     roots = [PROJECT_ROOT / part for part in REPO_ROOTS]
-    write_evidence_index(evidence_path=evidence_file, roots=roots, repo_root=PROJECT_ROOT)
+    write_evidence_index(
+        evidence_path=evidence_file, roots=roots, repo_root=PROJECT_ROOT
+    )
     text = evidence_file.read_text(encoding='utf-8')
     return {m.group(1) for m in re.finditer(r'path="([^"]+)"', text)}
 
@@ -32,7 +34,10 @@ def test_recovery_branch_contains_execution_governance_prd_artifact() -> None:
     assert '## Implementation Decisions' in artifact_text
     assert '## Testing Decisions' in artifact_text
     assert '## Out of Scope' in artifact_text
-    assert 'phase-blocking system built around four canonical artifact types' in artifact_text
+    assert (
+        'phase-blocking system built around four canonical artifact types'
+        in artifact_text
+    )
     assert 'foundational constraint ledger' in artifact_text
 
 

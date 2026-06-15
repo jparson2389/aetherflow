@@ -98,7 +98,9 @@ def test_claude_md_claude_specific_expectations_section() -> None:
 def test_af03_remediation_tasks_file_exists() -> None:
     """607f4f5: tasks/tasks-af-03-02-remediation.md must exist on the recovery branch."""
     tasks_file = PROJECT_ROOT / 'tasks' / 'tasks-af-03-02-remediation.md'
-    assert tasks_file.exists(), 'AF-03-02 remediation task file missing from recovery branch'
+    assert tasks_file.exists(), (
+        'AF-03-02 remediation task file missing from recovery branch'
+    )
 
 
 def test_af03_remediation_tasks_file_has_relevant_files() -> None:

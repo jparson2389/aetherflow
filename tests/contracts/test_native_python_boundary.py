@@ -38,9 +38,7 @@ def test_af_00_02b_ac2_proof_row_distinct_from_ac1() -> None:
         encoding='utf-8'
     )
     rows = [
-        line.strip()
-        for line in text.splitlines()
-        if line.strip().startswith('| AC')
+        line.strip() for line in text.splitlines() if line.strip().startswith('| AC')
     ]
     assert len(rows) >= 2, 'Expected at least 2 AC rows in the proof matrix'
     # Entry-point column is index 4 when split on '|' (0=empty, 1=criterion, …)
@@ -84,9 +82,7 @@ def test_af_00_02b_status_snapshot_is_present() -> None:
     state.  Without MSVC the native build cannot run, so the honest status
     in this environment is 'evidenced' (build-gap), not 'verified'.
     """
-    snapshot_path = (
-        PROJECT_ROOT / 'logs' / 'verification' / 'status_snapshot.json'
-    )
+    snapshot_path = PROJECT_ROOT / 'logs' / 'verification' / 'status_snapshot.json'
     assert snapshot_path.exists(), 'status_snapshot.json is missing'
     snapshot = json.loads(snapshot_path.read_text(encoding='utf-8'))
     assert 'AF-00-02b' in snapshot.get('items', {}), (
@@ -116,5 +112,5 @@ def test_af_00_02b_item_json_present_and_tracked() -> None:
     assert item.get('evidence_pack') == 'docs/evidence/AF-00-02b.md'
     # Status is 'evidenced' when MSVC is absent; accept either state.
     assert item.get('status') in {'evidenced', 'verified'}, (
-        f"Unexpected status {item.get('status')!r} for AF-00-02b.json"
+        f'Unexpected status {item.get("status")!r} for AF-00-02b.json'
     )
