@@ -1,0 +1,57 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# POSIX sh scripts
+[*.sh]
+indent_style = tab
+shell_variant = posix
+switch_case_indent = true
+simplify = true
+
+# Windows scripts
+[*.{bat,cmd,ps1,vbs}]
+end_of_line = crlf
+
+# YAML
+[*.{yaml,yml}]
+indent_size = 2
+
+# Markdown
+[*.md]
+indent_size = 2
+
+# JSON / JSONC (manifests, markdownlint configs, etc.)
+[*.{json,jsonc}]
+indent_size = 4
+
+# TOML (pyproject.toml)
+[*.toml]
+indent_size = 2
+
+# CMake
+[{CMakeLists.txt,*.cmake}]
+indent_style = space
+indent_size = 4
+
+# Python — Ruff owns real formatting; this is advisory
+[*.py]
+max_line_length = 88
+
+# C / C++
+[*.{c,cpp,h,hpp}]
+indent_size = 4
+max_line_length = 120
+
+# Protobuf
+[*.proto]
+indent_size = 2

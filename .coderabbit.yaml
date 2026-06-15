@@ -1,0 +1,318 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# .coderabbit.yaml
+# Generated from app.coderabbit.ai organization settings for jparson2389
+
+language: "en-US"
+early_access: true
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  high_level_summary_in_walkthrough: false
+  auto_title_placeholder: "@coderabbitai"
+  review_status: true
+  review_details: true
+  commit_status: true
+  fail_commit_status: true
+  collapse_walkthrough: true
+  changed_files_summary: true
+  sequence_diagrams: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: true
+  suggested_reviewers: true
+  auto_assign_reviewers: true
+  abort_on_close: true
+  disable_cache: true
+  poem: true
+  in_progress_fortune: true
+  prompt_for_ai_agents: true
+
+  anti_slop:
+    enabled: true
+
+  path_filters:
+    - "!**/*_pb2.py"
+    - "!**/*_pb2_grpc.py"
+    - "!build/**"
+    - "!dist/**"
+    - "!.venv/**"
+    - "!state/**"
+    - "!logs/**"
+    - "!.agents/**"
+    - "!.claude/**"
+    - "!.tmp/**"
+    - "!.cursor/**"
+    - "!.gemini/**"
+    - "!.ruff_cache/**"
+    - "!.pytest_cache/**"
+
+  path_instructions:
+    - path: "**/*.py"
+      instructions: |
+        # Aetherflow Python Review Guide
+
+        This file is for code review guidance. For canonical project policy, structure,
+        tooling, and constraints, defer to AGENTS.md and pyproject.toml. If this file
+        conflicts with either of those, follow the repo files.
+
+        ## Review Goal
+
+        When reviewing Python changes in this repository, prioritize:
+        - correctness
+        - maintainability
+        - consistency with repo tooling
+        - architectural fit
+        - testability
+        - minimal, safe changes
+
+        Do not suggest stylistic preferences that conflict with the repo's configured tooling.
+
+        ## Source of Truth for Reviews
+
+        - Python version: 3.12+
+        - Environment/tool runner: uv
+        - Formatter/linter: Ruff
+        - Test runner: pytest
+        - Main Python package root: src/aetherflow/
+        - Tests live in: tests/
+
+        ## What Reviewers Should Check
+
+        ### 1. Repo placement and boundaries
+        - Python application code outside src/aetherflow/
+        - tests outside expected test structure without good reason
+        - generated proto/grpc files being hand-edited
+        - logic being added in the wrong layer or wrong subsystem
+
+        ### 2. Tooling alignment
+        - suggestions that conflict with Ruff formatting or lint rules
+        - suggestions that ignore line-length = 88
+        - commands that use bare python or pip instead of uv
+
+        ### 3. Types and signatures
+        - missing argument type hints on public functions
+        - missing return annotations on public functions
+        - vague or overly broad types where a clearer type is practical
+        - path handling that should use pathlib.Path
+
+        ### 4. Docstrings and public API clarity
+        - missing or weak docstrings where the interface is non-obvious
+        - docstrings that do not match actual behavior
+        - Prefer concise, accurate Google-style docstrings
+
+        ### 5. Imports and module hygiene
+        - broken import grouping, unnecessary/unused imports
+        - local imports that should be module-level
+        - Prefer absolute imports and clean module boundaries
+
+        ### 6. Error handling
+        - broad except Exception without a strong boundary reason
+        - swallowed exceptions, vague error messages
+        - retry or fallback logic that hides real failures
+
+        ### 7. Logging and observability
+        - noisy logs with little debugging value
+        - logs missing useful context or leaking sensitive data
+
+        ### 8. Test quality
+        - missing tests for meaningful behavior changes
+        - brittle tests tied to implementation details
+        - tests that depend on machine-specific state
+        - assertions that are too weak to prove behavior
+
+        ### 9. Architecture fit
+        - code crossing boundaries that should stay separate
+        - duplicated logic where a canonical service or module already exists
+        - changes that quietly undermine plugin, IPC, proto, or package boundaries
+
+        ## Default Review Priorities
+        1. correctness
+        2. architecture and boundary compliance
+        3. test adequacy
+        4. type/interface clarity
+        5. maintainability
+        6. style consistency already defined by tooling
+
+        ## Reviewer Constraints
+        Do not:
+        - invent new repo policy
+        - override AGENTS.md or pyproject.toml
+        - recommend hand-formatting against Ruff
+        - recommend editing generated proto/grpc Python files
+        - recommend workflows based on bare python or pip
+
+    - path: "{host,include}/**/*.{cpp,hpp,h}"
+      instructions: |
+        # Aetherflow C++ Review Guide
+
+        ## Architecture Boundaries — Flag violations immediately
+        - C++ code MUST only live under host/ (implementation) and include/ (headers).
+        - C++ and Python communicate ONLY via gRPC (proto/capture.proto) and shared memory
+          (shared_memory_layout.py). Flag any ctypes, pybind11, cffi, or in-process Python embedding.
+        - proto/capture.proto is FROZEN. Flag any diff that modifies it. Require explicit human sign-off.
+        - The IPC boundary is validated by host/native_harness.cpp. Flag changes that could break it.
+
+        ## C++20 Standards
+        - Standard: C++20 strictly. Flag pre-C++20 constructs where modern equivalents exist.
+        - Flag missing [[nodiscard]] on functions returning error codes or resource handles.
+        - Flag raw owning pointers — prefer std::unique_ptr / std::shared_ptr.
+        - Flag reinterpret_cast and C-style casts; require justification.
+        - Flag undefined behavior patterns: signed overflow, out-of-bounds, use-after-free.
+
+        ## Plugin Architecture
+        - Flag any plugin loading path that bypasses entitlement/signing checks.
+        - Flag unsigned artifact execution.
+        - Flag plugins that communicate outside gRPC + shared memory channels.
+
+        ## IPC & Shared Memory
+        - gRPC stubs from proto/capture.proto are the only control-plane interface.
+        - Shared memory frame layout must match shared_memory_layout.py.
+        - Flag synchronization issues around shared memory access.
+
+        ## Security
+        - Flag DLL/plugin loading without signature verification.
+        - Flag system(), popen(), or shell injection vectors.
+        - Flag buffer overflows, unchecked array accesses, unsafe string operations (strcpy, sprintf).
+        - Windows-first: flag non-Windows API usage that breaks portability.
+
+        ## Code Quality
+        - Flag functions longer than ~50 lines without clear justification.
+        - Flag missing error handling on OS calls (HRESULT, GetLastError, etc.).
+        - Flag magic numbers — require named constants.
+        - Headers in include/ should be self-contained; prefer #pragma once.
+        - Flag circular includes.
+
+        ## ABI Freeze — Phase 0 (2026-03-08)
+        - include/plugin_system.hpp is a FROZEN ABI contract. Flag any diff as critical, requiring human sign-off.
+        - Frozen items — flag any change to:
+          - RuntimeState enum: RUNNING, DEGRADED, RECOVERING, FAILED, LOCKED, GRACE
+          - Signing baseline: Authenticode, SHA-256, RSA-3072
+          - Trust policy: pinned trust root + required publisher-chain validation
+          - Any exported struct fields in include/plugin_system.hpp
+        - Every ABI-affecting change MUST have a log entry in docs/breaking-changes/abi.md
+          AND a human sign-off entry BEFORE the PR merges.
+
+    - path: "proto/**/*.proto"
+      instructions: |
+        # Aetherflow Proto Contract Guide
+
+        ## FROZEN CONTRACT — Highest severity
+        - proto/capture.proto is FROZEN. Any modification requires explicit human sign-off.
+          Flag every diff to this file as a critical violation regardless of how minor.
+        - Document any proto change in docs/breaking-changes/proto.md. Flag PRs that modify
+          proto without updating this file.
+
+        ## What is allowed without sign-off
+        - Adding comments to .proto files (non-breaking).
+        - Adding new optional fields with new field numbers (flag anyway, lower severity).
+
+        ## What always requires sign-off
+        - Renaming fields or messages
+        - Removing fields
+        - Changing field types or field numbers
+        - Reordering fields
+        - Changing service method signatures
+        - Any change that would break generated stub compatibility
+
+        ## Generated stubs
+        - Never suggest editing src/aetherflow/proto/*_pb2.py or *_pb2_grpc.py directly.
+        - Flag any PR that hand-edits generated stubs.
+        - Generated stubs must stay in src/aetherflow/proto/ only.
+
+        ## Frozen Surface Detail (freeze checkpoint: 2026-03-08, Phase 0)
+        - Service: CaptureControl
+        - Frozen RPCs: StartCapture, StopCapture, ReportHeartbeat, ForwardWorkerLog,
+          ReportPluginLoadResult, ExportDiagnostics
+        - Frozen required fields: runtime_state, retry_budget_remaining, error_code, error_message
+        - Every breaking change MUST be logged in docs/breaking-changes/proto.md with a human
+          sign-off entry BEFORE the PR merges.
+
+    - path: "tools/**/*.py"
+      instructions: |
+        # Aetherflow tools/ Review Guide
+
+        ## Scope
+        - tools/ contains repo-owned developer automation scripts only. NOT application code.
+        - Do not suggest importing runtime dependencies (cryptography, grpcio, pyside6, etc.) here.
+        - Per pyproject.toml per-file-ignores: D (pydocstyle) and T201 (print) rules are skipped
+          for tools/**. Do not flag missing docstrings or print() calls in this directory.
+
+        ## Structure rules
+        - Flag any tools/ script that duplicates functionality of an existing canonical file.
+        - Flag creation of new top-level repo directories from within tools/ scripts.
+        - Automation output goes to state/, logs/, build/, or dist/ only. Flag writes elsewhere.
+
+        ## Python standards still apply
+        - Python 3.12, type hints on all functions and methods.
+        - Use uv run for subprocess calls invoking Python. Flag bare python invocations.
+        - isort, Pyflakes, pyupgrade, bugbear rules still apply.
+        - No relative imports outside src/aetherflow/.
+
+    - path: "src/aetherflow/core/entitlements.py"
+      instructions: |
+        # Aetherflow Entitlement State Machine — FROZEN (Phase 4)
+
+        ## Freeze status
+        - This file is frozen after Phase 4. Any modification requires explicit human sign-off
+          and a log entry in docs/breaking-changes/entitlements.md BEFORE merge.
+
+        ## Zero-tolerance rules — flag every violation
+        - EntitlementStore.evaluate(...) is the ONLY valid entitlement check. Flag any code in
+          ANY file that reimplements, duplicates, or inlines entitlement resolution logic.
+        - EntitlementState values: LOADED, ELIGIBLE, LOCKED, GRACE. Flag any addition, removal,
+          or rename of states.
+        - Flag any new transitions between states added without explicit sign-off.
+        - Flag any bypass of entitlement checks before loading premium DLLs or unlocking plugins.
+        - RoleName, ROLE_CAPABILITIES, UserRole model the PRD roles — flag any modification.
+
+        ## Integration points — flag regressions
+        - UI shell/router must respect entitlement state. Flag UI changes that render premium
+          features without checking entitlement.
+        - Plugin catalog: flag any catalog change that doesn't call EntitlementStore.evaluate(...).
+        - Status HUD: flag rendering changes that misrepresent entitlement state.
+
+        ## Required test coverage
+        - Any change requires corresponding updates to: tests/unit/test_entitlements.py,
+          tests/integration/test_plugin_catalog_locking.py, tests/ui/test_status_hud.py.
+
+  labeling_instructions:
+    - label: "bug"
+      instructions: "Apply when the PR fixes a defect, regression, or unintended behavior in any component (host, Python services, etc.)"
+    - label: "enhancement"
+      instructions: "Apply when the PR adds new functionality, a new plugin, a new worker, or a new UI capability. Not for refactors."
+    - label: "refactor"
+      instructions: "Apply when the PR restructures, cleans up, or improves code quality without changing external behavior."
+    - label: "breaking-change"
+      instructions: >
+        Apply when the PR touches any frozen contract or ABI. Covers:
+        (1) proto/capture.proto — service CaptureControl, RPCs StartCapture/StopCapture/ReportHeartbeat/ForwardWorkerLog/ReportPluginLoadResult/ExportDiagnostics,
+        required fields runtime_state/retry_budget_remaining/error_code/error_message — log in docs/breaking-changes/proto.md;
+        (2) include/plugin_system.hpp — RuntimeState enum, signing baseline (Authenticode/SHA-256/RSA-3072), trust policy — log in docs/breaking-changes/abi.md;
+        (3) src/aetherflow/core/shared_memory_layout.py — ring slot count, pixel labels (BGR24/NV12/YUY2/MJPEG/RGB32), overflow policy, metadata fields — log in docs/breaking-changes/shmem.md;
+        (4) src/aetherflow/core/entitlements.py — EntitlementState, roles, transitions (frozen after Phase 4) — log in docs/breaking-changes/entitlements.md.
+        All require a human sign-off entry in the relevant doc BEFORE merge.
+    - label: "documentation"
+      instructions: "Apply when the PR only modifies documentation: PLAN.md, AGENTS.md, docs/, docstrings, README, proto/capture.md, or any docs/breaking-changes/*.md file. No production code or test logic changes."
+    - label: "mode:HITL"
+      instructions: >
+        Apply when the PR requires human judgment before it can proceed or merge. Triggers include:
+        any modification to a frozen contract (proto/capture.proto, include/plugin_system.hpp,
+        shared_memory_layout.py, entitlements.py), changes to the entitlement state machine,
+        breaking ABI changes, signing/trust policy changes, or any change that AGENTS.md requires
+        explicit human sign-off for.
+    - label: "dependencies"
+      instructions: >
+        Apply when the PR's primary change is updating a dependency: bumps to pyproject.toml,
+        uv.lock changes, or grpcio/protobuf/pyside6 version changes. Note: pyside6 is pinned
+        exactly (6.9.1) and protobuf has an intentional upper bound — flag if either constraint
+        is relaxed.
+    - label: "needs-fix"
+      instructions: >
+        Apply when the PR has unresolved review comments that must be addressed before merge.
+        Use when CodeRabbit flags actionable issues the author needs to fix (e.g. missing type
+        hints, uv run violations, architecture boundary issues, missing docstrings).

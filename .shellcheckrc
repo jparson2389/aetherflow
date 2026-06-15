@@ -1,0 +1,4 @@
+# shellcheck ignore file
+shell=bash
+external-sources=true
+source-path=SCRIPTDIR
