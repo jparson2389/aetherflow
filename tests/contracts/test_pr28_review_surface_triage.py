@@ -47,5 +47,5 @@ def test_ci_004_to_ci_007_source_ref_is_guidance() -> None:
     for cid in ('CI-004', 'CI-005', 'CI-006', 'CI-007'):
         assert rows.get(cid) == '§2 Guidance', (
             f"{cid} Source Ref should be '§2 Guidance' (PRD §2 Guidance section), "
-            f"got {rows.get(cid)!r}"
+            f'got {rows.get(cid)!r}'
         )

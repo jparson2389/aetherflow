@@ -44,13 +44,6 @@ dist/
 # Machine-local state and reports
 state/plan_state.json
 security_report.html
-DEV-COMMANDS.md
-reset_env.ps1
-start-loop2.ps1
-scripts/with-env.sh
-scripts/with-env.ps1
-scripts/dev-shell.sh
-scripts/dev-shell.ps1
 
 # Generated logs, reports, prompts
 logs/*.txt
@@ -58,8 +51,6 @@ logs/*.log
 logs/*.ndjson
 logs/plan_exec_*.md
 logs/lazy-agent-report-*.md
-logs/prompt_*.txt
-logs/*claudeconvo*.txt
 logs/env_report.json
 logs/bundle_install_report.json
 logs/diagnostics_export.json
@@ -76,6 +67,6 @@ docs/requirements-report.md
 !logs/lazy-agent-report-rework-plan.log
 
 # Local noise
-.cursor/agents/
 .gemini/gemini-config-schema.json
-codebase-map.html
+.gemini/telemetry.log
+gha-creds-*.json

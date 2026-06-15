@@ -1,6 +1,8 @@
 name: Run Claude Code Review
 
 on:
+  pull_request:
+    types: [opened, reopened]
   workflow_dispatch: {}
 
 jobs:
@@ -18,5 +20,10 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: >
-            Review this pull request for bugs, regressions, security issues,
-            and missing tests. Leave actionable review comments on the PR.
+            Review this pull request as an Aetherflow maintainer, applying the
+            repo's coding standards and architectural constraints already in your
+            context. Prioritize: correctness (bugs, regressions, unreachable
+            paths); the C++/Python IPC boundary and frozen contracts; entitlement
+            and generated-stub rules; and test adequacy — tests that prove
+            behavior, not file existence or "no exception thrown". Leave specific,
+            actionable comments; do not approve on superficial signals.

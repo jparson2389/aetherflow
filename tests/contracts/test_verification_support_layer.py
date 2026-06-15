@@ -46,7 +46,9 @@ def test_frozen_contracts_test_file_present() -> None:
 
 def test_verification_reporting_test_file_present() -> None:
     """72e947e added test_verification_reporting.py; Master carries a better version."""
-    assert (PROJECT_ROOT / 'tests' / 'contracts' / 'test_verification_reporting.py').exists()
+    assert (
+        PROJECT_ROOT / 'tests' / 'contracts' / 'test_verification_reporting.py'
+    ).exists()
 
 
 def test_proof_verifier_test_file_present() -> None:
@@ -70,7 +72,9 @@ def test_governance_prd_artifact_in_evidence_index(tmp_path: Path) -> None:
 
     evidence_file = tmp_path / 'evidence.md'
     roots = [PROJECT_ROOT / part for part in REPO_ROOTS]
-    write_evidence_index(evidence_path=evidence_file, roots=roots, repo_root=PROJECT_ROOT)
+    write_evidence_index(
+        evidence_path=evidence_file, roots=roots, repo_root=PROJECT_ROOT
+    )
     text = evidence_file.read_text(encoding='utf-8')
 
     entries = {
@@ -93,15 +97,33 @@ def test_governance_prd_artifact_in_evidence_index(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_verification_pipeline_clean_with_recovered_governance_artifacts() -> None:
+def test_verification_pipeline_clean_with_recovered_governance_artifacts(
+    tmp_path: Path,
+) -> None:
     """verify_requirements must exit cleanly on the reconstructed PR #28 branch.
 
     This is the primary 72e947e checkpoint: the full verification pipeline must
     accept the recovered governance artifacts without error, confirming the
     reconstructed branch is validation-clean.
+
+    Outputs are redirected to ``tmp_path`` so the run does not rewrite the
+    tracked ``logs/verification/*.json`` artifacts in place (the test only
+    asserts the pipeline exits cleanly; it never reads the outputs).
     """
     result = subprocess.run(
-        ['uv', 'run', 'python', '-m', 'tools.verify_requirements'],
+        [
+            'uv',
+            'run',
+            'python',
+            '-m',
+            'tools.verify_requirements',
+            '--results-dir',
+            str(tmp_path / 'verification'),
+            '--report',
+            str(tmp_path / 'requirements-report.md'),
+            '--evidence-index',
+            str(tmp_path / 'evidence.md'),
+        ],
         cwd=PROJECT_ROOT,
         check=False,
         capture_output=True,
