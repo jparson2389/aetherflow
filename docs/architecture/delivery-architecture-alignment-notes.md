@@ -208,9 +208,14 @@ required disposition before shipping.
 - There is no native plugin loader lifecycle integration that calls the
   supervisor as plugins register, start, unload, crash, recover, or exhaust
   reload budgets.
-- There is no watchdog loop that polls or receives process liveness events and
-  converts missed heartbeats or process exits into authoritative supervisor
-  updates.
+- ~~There is no watchdog loop that polls or receives process liveness events
+  and converts missed heartbeats or process exits into authoritative supervisor
+  updates.~~ Closed (3.5): `IWorkerSupervisor::PollProcessLiveness()` converts a
+  dead OS process into an authoritative crash, and `WorkerWatchdog`
+  (`host/supervisor.cpp`) drives it on a fixed interval. POSIX `IsAlive()` now
+  reaps zombies via `waitpid(WNOHANG)` so an exited child is detected rather
+  than reported alive. Workers are isolated processes only — `StartUnit` rejects
+  launcher-less (thread-only) targets.
 - Process restart launch policy is not implemented end-to-end: the state
   machine records recoverable crashes, but no host-owned relaunch path binds
   the restart budget to isolated worker or plugin process creation.
@@ -218,6 +223,43 @@ required disposition before shipping.
   host-shaped reports in `WorkerStateView`; the host still needs a stable
   runtime-state export that the shell can consume without synthesizing
   supervision decisions.
+
+### Concrete control-plane wiring deltas
+
+These are the specific, verifiable wiring gaps between the native supervisor
+surface and the frozen `CaptureControl` adapter. Each must be closed in 3.3+;
+none requires a frozen-contract change.
+
+<!-- prettier-ignore-start -->
+| Delta | Location | Blocked capability | Status |
+|-------|----------|--------------------|--------|
+| No gRPC path reaches `RecordMissedHeartbeat` or `RecordCrash`; `WorkerHeartbeat.missed_heartbeats` is ignored and `ReportHeartbeat` always calls `RecordHeartbeat`. | `host/capture_control.cpp` (`ReportHeartbeat`) | 3.2.3, 3.2.4 | Closed (3.3) — `ReportHeartbeat` now drives `RecordMissedHeartbeat` per reported missed tick so the host computes the resulting state; zero missed ticks records a clean heartbeat. |
+| `OperationStatus.retry_budget_remaining` is defined in the proto but never populated (always 0). | `host/capture_control.cpp` | 3.2.5 | Closed (3.3) — derived host-side as `max_restarts - restarts_in_window` via `UnitSnapshot.max_restarts`; populated on start/stop/heartbeat responses. |
+| `StopCapture` hardcodes a 250 ms grace period; the gRPC caller cannot pass a custom grace. | `host/capture_control.cpp` (`StopCapture`) | 3.2.2 | Deferred (3.3) — frozen `CaptureStopRequest` has no grace field; a custom grace cannot be plumbed without a proto change. Behavior left unchanged. |
+| No dedicated health-query RPC exists; runtime state is returned only as a side effect of other RPCs. | `proto/capture.proto` adapter in `host/capture_control_service.cpp` | 3.2.6 | Deferred — adding a query RPC requires a frozen-proto change; out of 3.3 scope. |
+| gRPC service maps every RPC to `grpc::Status::OK` even when `OperationStatus.ok == false`. | `host/capture_control_service.cpp` | all | Closed (3.3) — deliberate: gRPC status reflects transport health, `OperationStatus.ok` (frozen message field) reflects the host decision. Documented inline in `WriteStatus`. |
+| `StopUnit` transitions a stopped unit to `kFailed`; there is no distinct `kStopped` state to distinguish an intentional stop from a crash. | `host/supervisor.cpp` (`StopUnit`) | 3.2.2, 3.2.6 | Deferred (3.3) — a `kStopped` value requires editing the frozen `RuntimeState` enum in `include/plugin_system.hpp`; `test_native_harness.py` also asserts `StopCapture → "FAILED"`. Behavior left unchanged. |
+| `RegisterDependency` is C++-only; no gRPC RPC exposes dependency registration. | `host/capture_control.cpp` | 3.6 | Partial — `RegisterDependencySpec` + `ApplyDependencyManifest()` bind manifest edges to live `UnitId`s and are contract-tested, but no native plugin loader drives plugin-crash → supervisor → capability-unload; `ReportPluginLoadResult` is append-only. |
+| Python `WorkerHealth` enum lacks `LOCKED`/`GRACE` states that the C++ `RuntimeState` enum carries, so the mirror cannot represent every host state. | `src/aetherflow/core/worker_supervisor.py` | 3.2.6 | Open — tracked for 3.8/4.x shell-state work; not in 3.3–3.6 scope. |
+<!-- prettier-ignore-end -->
+
+### 3.3 deliberate decisions (frozen-contract constrained)
+
+- **No `kStopped` state.** `RuntimeState` lives in the Phase-0 frozen
+  `include/plugin_system.hpp`. Introducing a `kStopped` value is an ABI change
+  and is out of bounds. An intentional `StopUnit` therefore continues to resolve
+  to `kFailed`, matching the frozen `test_native_harness.py` expectation
+  (`StopCapture → runtime_state == "FAILED"`).
+- **Hardcoded 250 ms stop grace retained.** The frozen `CaptureStopRequest`
+  message carries no grace-period field, so a caller-supplied grace cannot be
+  plumbed through the control plane without a proto change. The native
+  `StopUnit(id, grace_period)` API still accepts a custom grace for host-internal
+  callers; only the gRPC-facing default is fixed at 250 ms.
+- **gRPC status vs. `OperationStatus.ok`.** Transport status stays
+  `grpc::Status::OK` for any delivered+processed request; the application
+  outcome is carried in the frozen `OperationStatus` message so that
+  `runtime_state`, `message`, and `retry_budget_remaining` are never discarded
+  by a non-OK gRPC status.
 
 ---
 
@@ -252,6 +294,16 @@ Design constraints for implementation work:
   transitions.
 - Direct dependency impact is explicit: a dependency failure degrades only the
   registered direct dependents and leaves unrelated runtime units unchanged.
+- **3.6 dependency wiring (frozen-proto workaround).** Plugin dependency graphs
+  are declared host-side from a static unit manifest, not over gRPC: the frozen
+  `CaptureControl` service has no dependency-registration RPC and none was added.
+  `CaptureControlEndpoint::RegisterDependencySpec(dependent, dependency)` records
+  manifest edges by runtime id; `ApplyDependencyManifest()` binds each edge to
+  the live `UnitId`s and calls the supervisor's `RegisterDependency` once both
+  endpoints are started (idempotent, re-appliable). A crashed unit therefore
+  degrades only its declared direct dependents while the shell-equivalent root
+  and unrelated units stay `RUNNING`
+  (`test_native_capture_control_registers_dependency_from_manifest`).
 - Plugin lifecycle integration must call these methods for plugin process
   units and their direct worker/helper units, preserving failure isolation
   between unrelated units.
