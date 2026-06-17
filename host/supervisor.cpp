@@ -1,12 +1,17 @@
 #include "supervisor.hpp"
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -123,8 +128,24 @@ public:
         if (pid_ <= 0) {
             return false;
         }
-        const int result = ::kill(pid_, 0);
-        return result == 0;
+        // Reap the child non-blockingly. A process that has exited but not yet
+        // been waited on is a zombie, and kill(pid, 0) still succeeds for a
+        // zombie — so kill() alone would falsely report it alive. waitpid()
+        // collects the exit status and lets the watchdog see the real death.
+        int status = 0;
+        const pid_t result = ::waitpid(pid_, &status, WNOHANG);
+        if (result == pid_) {
+            exit_code_ = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+            pid_ = -1;
+            return false;
+        }
+        if (result < 0) {
+            // No such child (already reaped elsewhere) — treat as not alive.
+            pid_ = -1;
+            return false;
+        }
+        // result == 0: child still running.
+        return ::kill(pid_, 0) == 0;
     }
 
     bool Terminate(std::chrono::milliseconds grace_period) override {
@@ -161,8 +182,8 @@ public:
     }
 
 private:
-    pid_t pid_;
-    int exit_code_{-1};
+    mutable pid_t pid_;
+    mutable int exit_code_{-1};
 };
 
 static std::unique_ptr<IProcessHandle> SpawnProcess(
@@ -199,12 +220,15 @@ using TimePoint = Clock::time_point;
 
 struct UnitRecord {
     std::string name;
+    std::string launcher_path;
+    std::string args;
     RuntimeState state{RuntimeState::kRunning};
     std::uint32_t restart_count{0};
     std::uint32_t restarts_in_window{0};
     std::uint32_t missed_heartbeats{0};
     TimePoint window_start{Clock::now()};
     std::unique_ptr<IProcessHandle> process;
+    std::vector<UnitId> direct_dependents;
 
     // Per-unit budget limits copied from supervisor construction.
     std::uint32_t max_restarts{kDefaultMaxRestarts};
@@ -239,6 +263,10 @@ public:
     {
         std::lock_guard lock(mutex_);
 
+        if (launcher_path.empty()) {
+            return kInvalidUnitId;
+        }
+
         // Reject duplicate registrations: a live unit with this name already exists.
         for (const auto& [existing_id, record] : records_) {
             if (record.name == unit_name &&
@@ -250,21 +278,53 @@ public:
         const UnitId id = next_id_++;
         UnitRecord record;
         record.name = std::string(unit_name);
+        record.launcher_path = std::string(launcher_path);
+        record.args = std::string(args);
         record.state = RuntimeState::kRunning;
         record.max_restarts = max_restarts_;
         record.restart_window = restart_window_;
         record.window_start = Clock::now();
 
-        if (!launcher_path.empty()) {
-            record.process = SpawnProcess(launcher_path, args);
-            if (!record.process) {
-                // Process failed to launch — unit starts in failed state.
-                record.state = RuntimeState::kFailed;
-            }
+        record.process = SpawnProcess(launcher_path, args);
+        if (!record.process) {
+            return kInvalidUnitId;
         }
 
         records_.emplace(id, std::move(record));
         return id;
+    }
+
+    [[nodiscard]] bool RegisterDependency(
+        UnitId dependent_id,
+        UnitId dependency_id) override
+    {
+        std::lock_guard lock(mutex_);
+        if (!HasRecord(dependent_id) || !HasRecord(dependency_id)) {
+            return false;
+        }
+        auto& dependency = GetRecord(dependency_id);
+        dependency.direct_dependents.push_back(dependent_id);
+        return true;
+    }
+
+    [[nodiscard]] bool RestartUnit(UnitId id) override {
+        std::lock_guard lock(mutex_);
+        auto& record = GetRecord(id);
+        if (record.state != RuntimeState::kRecovering) {
+            return false;
+        }
+
+        auto process = SpawnProcess(record.launcher_path, record.args);
+        if (!process) {
+            record.state = RuntimeState::kFailed;
+            DegradeDirectDependents(record);
+            return false;
+        }
+
+        record.process = std::move(process);
+        record.missed_heartbeats = 0;
+        record.state = RuntimeState::kRunning;
+        return true;
     }
 
     void StopUnit(UnitId id, std::chrono::milliseconds grace_period) override {
@@ -278,6 +338,7 @@ public:
             record.process->Terminate(grace_period);
         }
         record.state = RuntimeState::kFailed;
+        DegradeDirectDependents(record);
     }
 
     void RecordHeartbeat(UnitId id) override {
@@ -305,6 +366,7 @@ public:
         if (record.missed_heartbeats >= 3U) {
             ++record.restart_count;
             ApplyBudget(record);
+            DegradeDirectDependents(record);
             return;
         }
         if (record.missed_heartbeats >= 2U) {
@@ -320,6 +382,7 @@ public:
         }
         ++record.restart_count;
         ApplyBudget(record);
+        DegradeDirectDependents(record);
     }
 
     [[nodiscard]] RuntimeState EnforceRestartBudget(UnitId id) override {
@@ -329,20 +392,52 @@ public:
 
     [[nodiscard]] UnitSnapshot GetSnapshot(UnitId id) const override {
         std::lock_guard lock(mutex_);
-        const auto& record = GetRecord(id);
-        UnitSnapshot snap;
-        snap.id = id;
-        snap.state = record.state;
-        snap.restart_count = record.restart_count;
-        snap.restarts_in_window = record.restarts_in_window;
-        snap.missed_heartbeats = record.missed_heartbeats;
-        snap.process_alive = record.process && record.process->IsAlive();
-        return snap;
+        return MakeSnapshot(id, GetRecord(id));
+    }
+
+    [[nodiscard]] std::vector<UnitSnapshot> GetSnapshots() const override {
+        std::lock_guard lock(mutex_);
+        std::vector<UnitId> ids;
+        ids.reserve(records_.size());
+        for (const auto& [id, record] : records_) {
+            (void)record;
+            ids.push_back(id);
+        }
+        std::sort(ids.begin(), ids.end());
+
+        std::vector<UnitSnapshot> snapshots;
+        snapshots.reserve(ids.size());
+        for (const UnitId id : ids) {
+            snapshots.push_back(MakeSnapshot(id, GetRecord(id)));
+        }
+        return snapshots;
     }
 
     [[nodiscard]] RuntimeState GetState(UnitId id) const override {
         std::lock_guard lock(mutex_);
         return GetRecord(id).state;
+    }
+
+    std::uint32_t PollProcessLiveness() override {
+        std::lock_guard lock(mutex_);
+        std::uint32_t transitioned = 0;
+        for (auto& [id, record] : records_) {
+            (void)id;
+            // Only units the supervisor still believes are live are candidates.
+            // kFailed and kRecovering units are already past their crash, so a
+            // dead process there is expected and must not be re-counted.
+            if (record.state != RuntimeState::kRunning &&
+                record.state != RuntimeState::kDegraded) {
+                continue;
+            }
+            if (record.process && !record.process->IsAlive()) {
+                ++record.restart_count;
+                ApplyBudget(record);
+                DegradeDirectDependents(record);
+                ++transitioned;
+            }
+        }
+        return transitioned;
     }
 
 private:
@@ -362,6 +457,34 @@ private:
                                     std::to_string(id));
         }
         return it->second;
+    }
+
+    [[nodiscard]] bool HasRecord(UnitId id) const {
+        return records_.find(id) != records_.end();
+    }
+
+    void DegradeDirectDependents(const UnitRecord& record) {
+        for (const UnitId dependent_id : record.direct_dependents) {
+            auto& dependent = GetRecord(dependent_id);
+            if (dependent.state != RuntimeState::kFailed) {
+                dependent.state = RuntimeState::kDegraded;
+            }
+        }
+    }
+
+    [[nodiscard]] UnitSnapshot MakeSnapshot(
+        UnitId id,
+        const UnitRecord& record) const
+    {
+        UnitSnapshot snap;
+        snap.id = id;
+        snap.state = record.state;
+        snap.restart_count = record.restart_count;
+        snap.restarts_in_window = record.restarts_in_window;
+        snap.missed_heartbeats = record.missed_heartbeats;
+        snap.max_restarts = record.max_restarts;
+        snap.process_alive = record.process && record.process->IsAlive();
+        return snap;
     }
 
     // Evaluate the restart budget for the record and update its state.
@@ -387,5 +510,77 @@ private:
     std::uint32_t max_restarts_{kDefaultMaxRestarts};
     std::chrono::seconds restart_window_{kDefaultRestartWindow};
 };
+
+std::unique_ptr<IWorkerSupervisor> CreateWorkerSupervisor(
+    std::uint32_t max_restarts,
+    std::chrono::seconds restart_window)
+{
+    return std::make_unique<WorkerSupervisorImpl>(max_restarts, restart_window);
+}
+
+// ---------------------------------------------------------------------------
+// WorkerWatchdog — host-owned liveness polling driver
+// ---------------------------------------------------------------------------
+
+class WorkerWatchdog::Impl {
+public:
+    Impl(IWorkerSupervisor& supervisor, std::chrono::milliseconds interval)
+        : supervisor_(supervisor), interval_(interval) {}
+
+    ~Impl() { Stop(); }
+
+    void Start() {
+        if (running_.exchange(true)) {
+            return;  // Already running.
+        }
+        thread_ = std::thread([this] { Loop(); });
+    }
+
+    void Stop() {
+        if (!running_.exchange(false)) {
+            return;  // Not running.
+        }
+        {
+            std::lock_guard lock(wake_mutex_);
+        }
+        wake_.notify_all();
+        if (thread_.joinable()) {
+            thread_.join();
+        }
+    }
+
+    std::uint32_t PollOnce() { return supervisor_.PollProcessLiveness(); }
+
+private:
+    void Loop() {
+        std::unique_lock lock(wake_mutex_);
+        while (running_.load()) {
+            supervisor_.PollProcessLiveness();
+            wake_.wait_for(lock, interval_, [this] { return !running_.load(); });
+        }
+    }
+
+    IWorkerSupervisor& supervisor_;
+    std::chrono::milliseconds interval_;
+    std::atomic<bool> running_{false};
+    std::thread thread_;
+    std::mutex wake_mutex_;
+    std::condition_variable wake_;
+};
+
+WorkerWatchdog::WorkerWatchdog(
+    IWorkerSupervisor& supervisor,
+    std::chrono::milliseconds interval)
+    : impl_(std::make_unique<Impl>(supervisor, interval))
+{
+}
+
+WorkerWatchdog::~WorkerWatchdog() = default;
+
+void WorkerWatchdog::Start() { impl_->Start(); }
+
+void WorkerWatchdog::Stop() { impl_->Stop(); }
+
+std::uint32_t WorkerWatchdog::PollOnce() { return impl_->PollOnce(); }
 
 }  // namespace aetherflow::supervisor
