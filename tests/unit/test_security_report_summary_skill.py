@@ -13,7 +13,9 @@ def _write_bandit_report(tmp_path: Path, html_body: str) -> Path:
 
 
 def _run_summary_script(report_path: Path) -> subprocess.CompletedProcess[str]:
-    script_path = Path(__file__).resolve().parents[2] / 'tools' / 'summarize_security_report.py'
+    script_path = (
+        Path(__file__).resolve().parents[2] / 'tools' / 'summarize_security_report.py'
+    )
     return subprocess.run(
         [sys.executable, str(script_path), str(report_path)],
         capture_output=True,

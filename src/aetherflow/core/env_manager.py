@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 
 
 class GpuProbeStatus(StrEnum):
@@ -27,27 +29,48 @@ class EnvironmentRecord:
     validation_status: str = 'pending'
     missing_imports: list[str] = field(default_factory=list)
     gpu_probe_status: GpuProbeStatus = GpuProbeStatus.NOT_RUN
+    environment_path: Path | None = None
+    requirements_path: Path | None = None
 
 
 class EnvironmentManager:
     """Manage named Python environments."""
 
-    def __init__(self) -> None:
+    def __init__(self, runtime_root: Path | None = None) -> None:
         """Initialize an empty environment registry."""
         self._records: dict[str, EnvironmentRecord] = {}
+        self._runtime_root = runtime_root
 
-    def create(self, name: str, *, python_version: str) -> EnvironmentRecord:
+    def create(
+        self,
+        name: str,
+        *,
+        python_version: str,
+        requirements: list[str] | None = None,
+    ) -> EnvironmentRecord:
         """Create a new environment record.
 
         Args:
             name: Environment display name.
             python_version: Target Python version.
+            requirements: Optional requirement lines to write.
 
         Returns:
             The created environment record.
 
         """
         record = EnvironmentRecord(name=name, python_version=python_version)
+        if self._runtime_root is not None:
+            environment_path = self._runtime_root / name
+            environment_path.mkdir(parents=True, exist_ok=True)
+            requirements_path = environment_path / 'requirements.txt'
+            if requirements is not None:
+                requirements_path.write_text(
+                    ''.join(f'{requirement}\n' for requirement in requirements),
+                    encoding='utf-8',
+                )
+            record.environment_path = environment_path
+            record.requirements_path = requirements_path
         self._records[name] = record
         return record
 
@@ -64,7 +87,9 @@ class EnvironmentManager:
 
     def delete(self, name: str) -> None:
         """Delete an environment record."""
-        self._records.pop(name, None)
+        record = self._records.pop(name, None)
+        if record is not None and record.environment_path is not None:
+            shutil.rmtree(record.environment_path, ignore_errors=True)
 
     def list_names(self) -> list[str]:
         """Return the known environment names."""
@@ -86,6 +111,7 @@ class EnvironmentManager:
         record.dependency_count = dependency_count
         record.python_version = python_version
         record.gpu_probe_status = gpu_probe_status
+        record.disk_usage_mb = self._measure_disk_usage_mb(record)
         record.validation_status = 'failed' if missing else 'validated'
         return self.summary(name)
 
@@ -96,7 +122,29 @@ class EnvironmentManager:
             'name': record.name,
             'python_version': record.python_version,
             'dependency_count': record.dependency_count,
+            'disk_usage_mb': record.disk_usage_mb,
             'validation_status': record.validation_status,
             'missing_imports': list(record.missing_imports),
             'gpu_probe_status': record.gpu_probe_status.value,
         }
+
+    def _measure_disk_usage_mb(self, record: EnvironmentRecord) -> int:
+        """Measure managed environment disk usage in whole MiB.
+
+        Args:
+            record: Environment record to measure.
+
+        Returns:
+            Rounded-up disk usage in MiB.
+
+        """
+        if record.environment_path is None or not record.environment_path.exists():
+            return 0
+        total_bytes = sum(
+            path.stat().st_size
+            for path in record.environment_path.rglob('*')
+            if path.is_file()
+        )
+        if total_bytes == 0:
+            return 0
+        return (total_bytes + 1024 * 1024 - 1) // (1024 * 1024)
