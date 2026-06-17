@@ -9,8 +9,7 @@ from the host via the gRPC control plane and surfaces them to shell consumers.
 All transition logic (missed-heartbeat escalation, restart-budget enforcement,
 failure isolation) lives in the native host.
 
-``WorkerSupervisor`` is retained as a transitional alias. New code must use
-``WorkerStateView`` directly.
+New code must use ``WorkerStateView`` directly.
 """
 
 from __future__ import annotations
@@ -141,6 +140,3 @@ class WorkerStateView:
             )
             for worker_id, record in sorted(self._records.items())
         ]
-
-
-WorkerSupervisor = WorkerStateView

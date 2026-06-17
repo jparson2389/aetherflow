@@ -1,5 +1,6 @@
 from aetherflow.core.entitlements import EntitlementState
 from aetherflow.core.runtime_state import RuntimeState
+from aetherflow.core.worker_supervisor import WorkerHealth, WorkerStateView
 from aetherflow.ui.status_hud import StatusHUDModel
 
 
@@ -47,3 +48,29 @@ def test_status_hud_marks_locked_expiry_modal_state() -> None:
     assert payload['entitlements']['show_grace_badge'] is False
     assert payload['hud']['show_degraded_indicator'] is True
     assert payload['hud']['show_expiry_modal'] is True
+
+
+def test_status_hud_builds_worker_health_from_host_state_view() -> None:
+    state_view = WorkerStateView()
+    state_view.register('vision-worker')
+    state_view.apply_crash_result(
+        'vision-worker',
+        health=WorkerHealth.FAILED,
+        restart_count=3,
+        restart_attempts_in_window=3,
+    )
+
+    hud = StatusHUDModel.from_host_state(
+        input_plugin='xinput',
+        output_plugin='vigem',
+        capture_plugin='capture.opencv',
+        display_plugin='render.cpu',
+        measured_fps=0.0,
+        jitter_ms=0.0,
+        entitlement_state=EntitlementState.LOADED,
+        worker_state=state_view,
+    )
+
+    payload = hud.to_payload()
+    assert payload['workers']['health'] == 'FAILED'
+    assert payload['runtime_state'] == 'FAILED'
