@@ -1,18 +1,21 @@
-# Python / tooling
-.venv
-.ruff_cache
-__pycache__
-dist
+# Node
+node_modules/
 
-# Local agent tooling (not published docs)
-.agents/
-.codex/
-.cursor/
+# Python / build
+.venv/
+build/
+dist/
+
+# AI agent workspaces
 .claude/
+.codex/
+.agents/
+.cursor/
+.tmp/
 
-# Generated reports
+# Logs
+logs/
+
+# Specific generated/noisy docs
 docs/requirements-report.md
-
-# Agent-generated audit output (same patterns as .gitignore: ** = all under tree)
-logs/audit/**
-**/logs/audit/**
+docs/evidence/
