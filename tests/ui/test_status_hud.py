@@ -74,3 +74,36 @@ def test_status_hud_builds_worker_health_from_host_state_view() -> None:
     payload = hud.to_payload()
     assert payload['workers']['health'] == 'FAILED'
     assert payload['runtime_state'] == 'FAILED'
+
+
+def test_status_hud_starting_worker_is_not_reported_running() -> None:
+    state_view = WorkerStateView()
+    state_view.register('vision-worker')  # defaults to STARTING, no heartbeat yet
+
+    hud = StatusHUDModel.from_host_state(
+        input_plugin='xinput',
+        output_plugin='vigem',
+        capture_plugin='capture.opencv',
+        display_plugin='render.cpu',
+        measured_fps=0.0,
+        jitter_ms=0.0,
+        entitlement_state=EntitlementState.LOADED,
+        worker_state=state_view,
+    )
+
+    assert hud.to_payload()['runtime_state'] == 'DEGRADED'
+
+
+def test_status_hud_empty_worker_set_is_not_reported_running() -> None:
+    hud = StatusHUDModel.from_host_state(
+        input_plugin='xinput',
+        output_plugin='vigem',
+        capture_plugin='capture.opencv',
+        display_plugin='render.cpu',
+        measured_fps=0.0,
+        jitter_ms=0.0,
+        entitlement_state=EntitlementState.LOADED,
+        worker_state=WorkerStateView(),
+    )
+
+    assert hud.to_payload()['runtime_state'] == 'DEGRADED'

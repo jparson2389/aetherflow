@@ -113,3 +113,18 @@ def test_successful_reload_restores_only_affected_unit() -> None:
 
     assert view.status('capture-worker') is WorkerHealth.RUNNING
     assert view.status('output-worker') is WorkerHealth.RUNNING
+
+
+def test_host_report_for_unregistered_worker_does_not_crash_view() -> None:
+    """A host report for an unseen worker auto-registers instead of raising.
+
+    Shell durability (PRD §9.7): a state report from the authoritative host
+    for a worker the view has not registered must not crash the shell.
+    """
+    view = WorkerStateView()
+
+    view.apply_heartbeat(
+        'late-worker', health=WorkerHealth.RUNNING, missed_heartbeats=0
+    )
+
+    assert view.status('late-worker') is WorkerHealth.RUNNING

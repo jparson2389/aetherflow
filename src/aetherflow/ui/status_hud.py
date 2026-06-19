@@ -118,8 +118,14 @@ def _runtime_state_from_worker_health(states: list[WorkerHealth]) -> RuntimeStat
         Aggregate runtime state for the HUD.
 
     """
+    if not states:
+        return RuntimeState.DEGRADED
     if WorkerHealth.FAILED in states:
         return RuntimeState.FAILED
-    if WorkerHealth.DEGRADED in states or WorkerHealth.RECOVERING in states:
+    if (
+        WorkerHealth.DEGRADED in states
+        or WorkerHealth.RECOVERING in states
+        or WorkerHealth.STARTING in states
+    ):
         return RuntimeState.DEGRADED
     return RuntimeState.RUNNING

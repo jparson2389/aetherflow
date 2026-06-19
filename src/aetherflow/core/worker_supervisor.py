@@ -14,8 +14,11 @@ New code must use ``WorkerStateView`` directly.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from enum import StrEnum
+
+_logger = logging.getLogger(__name__)
 
 
 class WorkerHealth(StrEnum):
@@ -70,6 +73,30 @@ class WorkerStateView:
         """
         self._records[worker_id] = WorkerRecord()
 
+    def _record_for(self, worker_id: str) -> WorkerRecord:
+        """Return the record for a worker, auto-registering if the host reports a new one.
+
+        The host supervisor is the authority for which workers exist; a report
+        for an unregistered id means the shell view simply has not seen it yet,
+        so it is registered rather than allowed to crash the shell.
+
+        Args:
+            worker_id: Stable identifier for the worker unit.
+
+        Returns:
+            The existing or newly created worker record.
+
+        """
+        record = self._records.get(worker_id)
+        if record is None:
+            _logger.warning(
+                'host reported state for unregistered worker %s; auto-registering',
+                worker_id,
+            )
+            record = WorkerRecord()
+            self._records[worker_id] = record
+        return record
+
     def apply_heartbeat(
         self,
         worker_id: str,
@@ -85,7 +112,7 @@ class WorkerStateView:
             missed_heartbeats: Missed-heartbeat count reported by the host.
 
         """
-        record = self._records[worker_id]
+        record = self._record_for(worker_id)
         record.health = health
         record.missed_heartbeats = missed_heartbeats
 
@@ -106,7 +133,7 @@ class WorkerStateView:
             restart_attempts_in_window: Restart attempts within the current window.
 
         """
-        record = self._records[worker_id]
+        record = self._record_for(worker_id)
         record.health = health
         record.restart_count = restart_count
         record.restart_attempts_in_window = restart_attempts_in_window
