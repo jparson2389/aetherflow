@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+
+_logger = logging.getLogger(__name__)
 
 
 class GpuProbeStatus(StrEnum):
@@ -16,6 +19,27 @@ class GpuProbeStatus(StrEnum):
     SUPPORTED = 'supported'
     UNSUPPORTED = 'unsupported'
     ERROR = 'error'
+
+
+def _validate_env_name(name: str) -> None:
+    """Reject environment names that could escape the managed root.
+
+    Args:
+        name: Caller-supplied environment name.
+
+    Raises:
+        ValueError: If the name is empty, absolute, or contains path
+            separators or parent-directory segments.
+
+    """
+    if (
+        not name
+        or name in {'.', '..'}
+        or '/' in name
+        or '\\' in name
+        or Path(name).name != name
+    ):
+        raise ValueError(f'invalid environment name: {name!r}')
 
 
 @dataclass(slots=True)
@@ -59,9 +83,12 @@ class EnvironmentManager:
             The created environment record.
 
         """
+        _validate_env_name(name)
         record = EnvironmentRecord(name=name, python_version=python_version)
         if self._runtime_root is not None:
             environment_path = self._runtime_root / name
+            if environment_path.resolve().parent != self._runtime_root.resolve():
+                raise ValueError(f'environment escapes runtime root: {name!r}')
             environment_path.mkdir(parents=True, exist_ok=True)
             requirements_path = environment_path / 'requirements.txt'
             if requirements is not None:
@@ -69,8 +96,8 @@ class EnvironmentManager:
                     ''.join(f'{requirement}\n' for requirement in requirements),
                     encoding='utf-8',
                 )
+                record.requirements_path = requirements_path
             record.environment_path = environment_path
-            record.requirements_path = requirements_path
         self._records[name] = record
         return record
 
@@ -89,7 +116,11 @@ class EnvironmentManager:
         """Delete an environment record."""
         record = self._records.pop(name, None)
         if record is not None and record.environment_path is not None:
-            shutil.rmtree(record.environment_path, ignore_errors=True)
+
+            def _on_error(_func: object, path: str, _exc: object) -> None:
+                _logger.warning('failed to remove %s during env delete', path)
+
+            shutil.rmtree(record.environment_path, onexc=_on_error)
 
     def list_names(self) -> list[str]:
         """Return the known environment names."""
@@ -140,11 +171,14 @@ class EnvironmentManager:
         """
         if record.environment_path is None or not record.environment_path.exists():
             return 0
-        total_bytes = sum(
-            path.stat().st_size
-            for path in record.environment_path.rglob('*')
-            if path.is_file()
-        )
+        total_bytes = 0
+        for path in record.environment_path.rglob('*'):
+            if path.is_symlink() or not path.is_file():
+                continue
+            try:
+                total_bytes += path.stat().st_size
+            except OSError:
+                continue
         if total_bytes == 0:
             return 0
         return (total_bytes + 1024 * 1024 - 1) // (1024 * 1024)

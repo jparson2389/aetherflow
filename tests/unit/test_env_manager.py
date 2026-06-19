@@ -1,3 +1,5 @@
+import pytest
+
 from aetherflow.core.env_manager import EnvironmentManager, GpuProbeStatus
 
 
@@ -62,6 +64,44 @@ def test_environment_manager_deletes_runtime_environment_files(tmp_path) -> None
 
     assert manager.list_names() == []
     assert not (tmp_path / 'vision-cpu').exists()
+
+
+@pytest.mark.parametrize('bad_name', ['../victim', 'a/b', '/etc/passwd', '..', '.'])
+def test_environment_manager_rejects_traversal_names(tmp_path, bad_name) -> None:
+    manager = EnvironmentManager(runtime_root=tmp_path)
+
+    with pytest.raises(ValueError):
+        manager.create(bad_name, python_version='3.12')
+
+    assert not (tmp_path / 'victim').exists()
+
+
+def test_environment_manager_skips_requirements_path_when_no_requirements(
+    tmp_path,
+) -> None:
+    manager = EnvironmentManager(runtime_root=tmp_path)
+
+    record = manager.create('vision-cpu', python_version='3.12')
+
+    assert record.requirements_path is None
+
+
+def test_environment_manager_disk_usage_ignores_symlinks(tmp_path) -> None:
+    manager = EnvironmentManager(runtime_root=tmp_path)
+    record = manager.create('vision-cpu', python_version='3.12')
+    target = tmp_path / 'external.bin'
+    target.write_bytes(b'x' * 1024 * 1024)
+    (record.environment_path / 'link.bin').symlink_to(target)
+
+    report = manager.validate(
+        'vision-cpu',
+        required_imports={'numpy': True},
+        dependency_count=1,
+        python_version='3.12',
+        gpu_probe_status=GpuProbeStatus.SUPPORTED,
+    )
+
+    assert report['disk_usage_mb'] == 0
 
 
 def test_environment_manager_validation_measures_disk_usage(tmp_path) -> None:
