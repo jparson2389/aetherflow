@@ -41,11 +41,20 @@ LaunchSpecParts ParseLaunchSpec(std::string_view raw)
     return parts;
 }
 
+bool IsLoopbackAddress(std::string_view address)
+{
+    return address.rfind("127.0.0.1:", 0) == 0 ||
+           address.rfind("[::1]:", 0) == 0 ||
+           address.rfind("localhost:", 0) == 0 ||
+           address.rfind("unix:", 0) == 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv)
 {
     std::string listen_address = "127.0.0.1:50051";
+    bool allow_remote = false;
 
     auto supervisor = aetherflow::supervisor::CreateWorkerSupervisor(
         3U,
@@ -60,6 +69,10 @@ int main(int argc, char** argv)
                     throw std::invalid_argument("--listen requires an address");
                 }
                 listen_address = argv[index];
+                continue;
+            }
+            if (arg == "--allow-remote") {
+                allow_remote = true;
                 continue;
             }
             if (arg == "--launch-spec") {
@@ -79,6 +92,17 @@ int main(int argc, char** argv)
     } catch (const std::exception& exc) {
         std::cerr << "Aetherflow CaptureControl server argument error: "
                   << exc.what() << '\n';
+        return 2;
+    }
+
+    // The gRPC server uses insecure credentials; refuse to expose the
+    // start/stop/control RPCs on a routable address unless explicitly opted in.
+    if (!allow_remote && !IsLoopbackAddress(listen_address)) {
+        std::cerr << "Aetherflow CaptureControl server refusing non-loopback "
+                     "address "
+                  << listen_address
+                  << " without --allow-remote (control plane uses insecure "
+                     "credentials)\n";
         return 2;
     }
 

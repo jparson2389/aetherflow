@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -132,6 +133,11 @@ private:
         bool applied{false};
     };
 
+    // Guards all endpoint container state below. gRPC dispatches RPC handlers
+    // concurrently, so every public method serializes through this mutex. Lock
+    // order is always endpoint mutex -> supervisor's internal mutex; no path
+    // acquires them in the reverse order.
+    mutable std::mutex mutex_;
     supervisor::IWorkerSupervisor& supervisor_;
     std::unordered_map<std::string, LaunchSpec> launch_specs_;
     std::unordered_map<std::string, supervisor::UnitId> unit_ids_;
