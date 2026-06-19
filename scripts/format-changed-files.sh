@@ -17,13 +17,13 @@ if [ "$TOOL_NAME" != "editFiles" ] && [ "$TOOL_NAME" != "createFile" ]; then
   exit 0
 fi
 
-FILES=$(echo "$INPUT" | jq -r '.tool_input.files[]? // .tool_input.path // empty')
+mapfile -t FILES < <(printf '%s' "$INPUT" | jq -r '.tool_input.files[]? // .tool_input.path // empty')
 
 PYTHON_FILES=()
 MARKDOWN_FILES=()
 PRETTIER_FILES=()
 
-for FILE in $FILES; do
+for FILE in "${FILES[@]}"; do
   # Skip if file doesn't exist
   [ -f "$FILE" ] || continue
 

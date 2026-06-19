@@ -3,21 +3,20 @@ INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name')
 
 if [ "$TOOL_NAME" = "editFiles" ] || [ "$TOOL_NAME" = "createFile" ]; then
-  FILES=$(echo "$INPUT" | jq -r '.tool_input.files[]? // .tool_input.path // empty')
+  mapfile -t FILES < <(printf '%s' "$INPUT" | jq -r '.tool_input.files[]? // .tool_input.path // empty')
   TESTS_TO_RUN=()
 
-  for FILE in $FILES; do
+  for FILE in "${FILES[@]}"; do
     # Skip proto files and non-python files
     if echo "$FILE" | grep -qE '(_pb2\.py|_pb2_grpc\.py)$'; then continue; fi
     if [[ "$FILE" != *.py ]]; then continue; fi
 
-    # Derive test file path: src/aetherflow/foo/bar.py -> tests/foo/test_bar.py
+    # Tests are organized by type (tests/unit/, tests/integration/, ...), not by
+    # mirroring src/aetherflow/. Locate any test_<module>.py under tests/.
     BASENAME=$(basename "$FILE" .py)
-    POSSIBLE_TEST="tests/$(dirname "$FILE" | sed 's|src/aetherflow/||')/test_${BASENAME}.py"
-
-    if [ -f "$POSSIBLE_TEST" ]; then
-      TESTS_TO_RUN+=("$POSSIBLE_TEST")
-    fi
+    while IFS= read -r MATCH; do
+      [ -n "$MATCH" ] && TESTS_TO_RUN+=("$MATCH")
+    done < <(find tests -type f -name "test_${BASENAME}.py" 2>/dev/null)
   done
 
   if [ ${#TESTS_TO_RUN[@]} -gt 0 ]; then

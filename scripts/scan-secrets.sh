@@ -3,9 +3,9 @@ INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name')
 
 if [ "$TOOL_NAME" = "editFiles" ] || [ "$TOOL_NAME" = "createFile" ]; then
-  FILES=$(echo "$INPUT" | jq -r '.tool_input.files[]? // .tool_input.path // empty')
+  mapfile -t FILES < <(printf '%s' "$INPUT" | jq -r '.tool_input.files[]? // .tool_input.path // empty')
 
-  for FILE in $FILES; do
+  for FILE in "${FILES[@]}"; do
     if [[ "$FILE" == *.py ]] || [[ "$FILE" == *.env ]] || [[ "$FILE" == *.yaml ]] || [[ "$FILE" == *.yml ]]; then
       if [ -f "$FILE" ]; then
         RESULT=$(uv run detect-secrets scan --all-files "$FILE" 2>/dev/null)
