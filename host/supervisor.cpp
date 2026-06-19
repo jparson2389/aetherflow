@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -89,7 +90,10 @@ static std::unique_ptr<IProcessHandle> SpawnProcess(
     std::string_view launcher_path,
     std::string_view args)
 {
-    std::string cmdline = std::string(launcher_path);
+    // Quote argv[0] so launcher paths containing spaces (e.g. under
+    // "C:\Program Files\...") are parsed as a single executable token rather
+    // than split by CreateProcessA's whitespace-delimited resolution.
+    std::string cmdline = '"' + std::string(launcher_path) + '"';
     if (!args.empty()) {
         cmdline += ' ';
         cmdline += args;
@@ -123,6 +127,15 @@ static std::unique_ptr<IProcessHandle> SpawnProcess(
 class PosixProcessHandle final : public IProcessHandle {
 public:
     explicit PosixProcessHandle(pid_t pid) : pid_(pid) {}
+
+    ~PosixProcessHandle() override {
+        // Non-blocking reap so a handle discarded without an explicit
+        // Terminate/IsAlive does not leak a zombie process.
+        if (pid_ > 0) {
+            int status = 0;
+            ::waitpid(pid_, &status, WNOHANG);
+        }
+    }
 
     [[nodiscard]] bool IsAlive() const override {
         if (pid_ <= 0) {
@@ -190,17 +203,32 @@ static std::unique_ptr<IProcessHandle> SpawnProcess(
     std::string_view launcher_path,
     std::string_view args)
 {
+    // Split the args string into whitespace-separated tokens per the
+    // IWorkerSupervisor contract, so each becomes a distinct argv entry.
+    std::vector<std::string> tokens;
+    {
+        std::istringstream iss{std::string(args)};
+        std::string token;
+        while (iss >> token) {
+            tokens.push_back(std::move(token));
+        }
+    }
+
     const pid_t pid = ::fork();
     if (pid < 0) {
         return nullptr;  // fork failed
     }
     if (pid == 0) {
-        // Child: exec the launcher.
+        // Child: exec the launcher with a null-terminated argv vector.
         const std::string path_str(launcher_path);
-        const std::string args_str(args);
-        ::execl(path_str.c_str(), path_str.c_str(),
-                args_str.empty() ? nullptr : args_str.c_str(),
-                nullptr);
+        std::vector<char*> argv;
+        argv.reserve(tokens.size() + 2);
+        argv.push_back(const_cast<char*>(path_str.c_str()));
+        for (std::string& token : tokens) {
+            argv.push_back(const_cast<char*>(token.c_str()));
+        }
+        argv.push_back(nullptr);
+        ::execv(path_str.c_str(), argv.data());
         // exec failed — exit the child immediately so the parent can detect it.
         ::_exit(127);
     }
@@ -309,7 +337,11 @@ public:
 
     [[nodiscard]] bool RestartUnit(UnitId id) override {
         std::lock_guard lock(mutex_);
-        auto& record = GetRecord(id);
+        auto it = records_.find(id);
+        if (it == records_.end()) {
+            return false;  // Unknown id: contract returns false, not throw.
+        }
+        auto& record = it->second;
         if (record.state != RuntimeState::kRecovering) {
             return false;
         }
@@ -328,17 +360,25 @@ public:
     }
 
     void StopUnit(UnitId id, std::chrono::milliseconds grace_period) override {
-        std::lock_guard lock(mutex_);
-        auto& record = GetRecord(id);
+        std::unique_ptr<IProcessHandle> process;
+        {
+            std::lock_guard lock(mutex_);
+            auto& record = GetRecord(id);
 
-        if (record.state == RuntimeState::kFailed) {
-            return;
+            if (record.state == RuntimeState::kFailed) {
+                return;
+            }
+            // Move the handle out and mark the unit failed under the lock, then
+            // terminate outside it: Terminate() can block for the full grace
+            // window, and holding the supervisor mutex that long would stall
+            // heartbeats and liveness polling for every other unit.
+            process = std::move(record.process);
+            record.state = RuntimeState::kFailed;
+            DegradeDirectDependents(record);
         }
-        if (record.process && record.process->IsAlive()) {
-            record.process->Terminate(grace_period);
+        if (process && process->IsAlive()) {
+            process->Terminate(grace_period);
         }
-        record.state = RuntimeState::kFailed;
-        DegradeDirectDependents(record);
     }
 
     void RecordHeartbeat(UnitId id) override {

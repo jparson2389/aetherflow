@@ -135,7 +135,7 @@ public:
     //   - within budget: transitions to kRecovering
     //   - budget exhausted: transitions to kFailed (permanent until manual reload)
     // The supervisor does not automatically relaunch the process; the caller
-    // is responsible for calling StartUnit() again after kRecovering.
+    // is responsible for calling RestartUnit() again after kRecovering.
     virtual void RecordCrash(UnitId id, ExitStatus status) = 0;
 
     // Evaluate and apply the restart budget for the given unit.
