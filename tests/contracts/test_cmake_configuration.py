@@ -31,6 +31,7 @@ def test_default_cmake_configuration_does_not_require_grpc_toolchain(
         check=False,
         capture_output=True,
         text=True,
+        timeout=120,
     )
 
     assert result.returncode == 0, result.stdout + result.stderr

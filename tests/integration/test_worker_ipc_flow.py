@@ -78,4 +78,4 @@ def test_worker_heartbeat_and_logs_flow_through_capture_control_ipc() -> None:
         assert len(service.logs) == 1
         assert service.logs[0].message == 'frame ready'
     finally:
-        server.stop(grace=None)
+        server.stop(grace=None).wait()
