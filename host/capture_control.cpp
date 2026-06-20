@@ -194,6 +194,19 @@ OperationStatus CaptureControlEndpoint::ReportHeartbeat(
     if (request.missed_heartbeats > 0U) {
         const supervisor::UnitSnapshot before =
             supervisor_.GetSnapshot(unit_it->second);
+        // If the unit is already in a terminal or recovering state the host
+        // has already made its decision; do not replay missed ticks on top of
+        // that. A stale cumulative report arriving after a crash must not
+        // consume additional restart budget or re-escalate the unit.
+        if (before.state == supervisor::RuntimeState::kRecovering ||
+            before.state == supervisor::RuntimeState::kFailed) {
+            return OperationStatus{
+                true,
+                RuntimeStateText(before.state),
+                "heartbeat skipped: unit already escalated",
+                RetryBudgetRemaining(before),
+            };
+        }
         // Bound the replay so a large client-supplied count cannot block the
         // request thread, and stop at the first escalation so one outage costs
         // at most one restart-budget transition rather than draining it.

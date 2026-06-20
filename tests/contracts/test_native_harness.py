@@ -1355,10 +1355,152 @@ int main() {
     assert run_result.returncode == 0, run_result.stdout + run_result.stderr
 
 
-def test_native_capture_control_registers_dependency_from_manifest(
+def test_native_capture_control_stale_missed_heartbeat_does_not_drain_budget(
     tmp_path: Path,
 ) -> None:
     compiler = shutil.which('g++') or shutil.which('clang++')
+    if compiler is None:
+        pytest.skip('C++ compiler not available')
+
+    test_source = tmp_path / 'capture_control_stale_heartbeat_contract.cpp'
+    test_binary = tmp_path / 'capture_control_stale_heartbeat_contract'
+    test_source.write_text(
+        """
+#include "capture_control.hpp"
+#include "supervisor.hpp"
+
+#include <chrono>
+#include <memory>
+
+int main() {
+#ifdef _WIN32
+    return 0;
+#else
+    using aetherflow::capture::CaptureControlEndpoint;
+    using aetherflow::capture::CaptureMode;
+    using aetherflow::capture::CaptureStartRequest;
+    using aetherflow::capture::WorkerHeartbeat;
+    using aetherflow::plugins::RuntimeState;
+    using aetherflow::supervisor::CreateWorkerSupervisor;
+    using aetherflow::supervisor::ExitStatus;
+
+    // Budget of 2 restarts so we can verify it is not additionally consumed.
+    auto supervisor = CreateWorkerSupervisor(2U, std::chrono::seconds{60});
+    CaptureControlEndpoint endpoint(*supervisor);
+    endpoint.RegisterLaunchSpec("vision-worker", "/bin/true", "");
+    const auto start_status = endpoint.StartCapture(CaptureStartRequest{
+        "vision-worker",
+        "camera-0",
+        CaptureMode{640U, 480U, 60U, "BGR24", 1920U},
+        500U,
+    });
+    if (!start_status.ok) {
+        return 1;
+    }
+
+    // Simulate a crash: unit enters kRecovering and consumes one budget slot.
+    const auto unit_id = endpoint.GetUnitId("vision-worker");
+    supervisor->RecordCrash(unit_id, ExitStatus{1, true});
+    if (supervisor->GetState(unit_id) != RuntimeState::kRecovering) {
+        return 2;
+    }
+    const auto snapshot_after_crash = supervisor->GetSnapshot(unit_id);
+    if (snapshot_after_crash.restarts_in_window != 1U) {
+        return 3;
+    }
+
+    // Stale cumulative heartbeat report with 3 missed ticks: the unit is
+    // already kRecovering so the host must short-circuit and NOT replay
+    // missed heartbeats or consume additional restart budget.
+    const auto status3 = endpoint.ReportHeartbeat(WorkerHeartbeat{
+        "vision-worker",
+        "RECOVERING",
+        3U,
+        1000000ULL,
+    });
+    if (!status3.ok) {
+        return 4;
+    }
+    if (status3.runtime_state != "RECOVERING") {
+        return 5;
+    }
+    // Budget must remain at the value set by the crash, not decremented again.
+    if (supervisor->GetSnapshot(unit_id).restarts_in_window != 1U) {
+        return 6;
+    }
+
+    // Subsequent stale reports with higher cumulative counts (4, then 5) must
+    // also be ignored while the unit stays in kRecovering.
+    const auto status4 = endpoint.ReportHeartbeat(WorkerHeartbeat{
+        "vision-worker",
+        "RECOVERING",
+        4U,
+        2000000ULL,
+    });
+    if (status4.runtime_state != "RECOVERING") {
+        return 7;
+    }
+    if (supervisor->GetSnapshot(unit_id).restarts_in_window != 1U) {
+        return 8;
+    }
+
+    const auto status5 = endpoint.ReportHeartbeat(WorkerHeartbeat{
+        "vision-worker",
+        "RECOVERING",
+        5U,
+        3000000ULL,
+    });
+    if (status5.runtime_state != "RECOVERING") {
+        return 9;
+    }
+    if (supervisor->GetSnapshot(unit_id).restarts_in_window != 1U) {
+        return 10;
+    }
+    // Unit must still be kRecovering, not pushed to kFailed by stale replay.
+    if (supervisor->GetState(unit_id) != RuntimeState::kRecovering) {
+        return 11;
+    }
+
+    return 0;
+#endif
+}
+""",
+        encoding='utf-8',
+    )
+
+    compile_result = subprocess.run(
+        [
+            compiler,
+            '-std=c++20',
+            '-I',
+            str(PROJECT_ROOT / 'include'),
+            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
+            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
+            str(test_source),
+            '-o',
+            str(test_binary),
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
+
+    run_result = subprocess.run(
+        [str(test_binary)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+
+
+def test_native_capture_control_registers_dependency_from_manifest(
+    tmp_path: Path,
+) -> None:
+
     if compiler is None:
         pytest.skip('C++ compiler not available')
 
