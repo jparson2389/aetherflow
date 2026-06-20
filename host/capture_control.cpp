@@ -130,7 +130,18 @@ OperationStatus CaptureControlEndpoint::StartCapture(
         };
     }
 
+    const bool replaced = unit_ids_.count(request.capture_plugin_id) > 0;
     unit_ids_[request.capture_plugin_id] = unit_id;
+    // When reloading a runtime whose UnitId changes, reset dependency edges so
+    // ApplyDependencyManifest re-registers them against the new UnitId.
+    if (replaced) {
+        for (auto& spec : dependency_specs_) {
+            if (spec.dependent_runtime_id == request.capture_plugin_id ||
+                spec.dependency_runtime_id == request.capture_plugin_id) {
+                spec.applied = false;
+            }
+        }
+    }
     return OperationStatus{
         true,
         RuntimeStateText(supervisor_.GetState(unit_id)),
