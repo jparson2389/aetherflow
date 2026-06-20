@@ -121,5 +121,14 @@ int main(int argc, char** argv)
     server.Wait();
 
     watchdog.Stop();
+
+    // Stop all active supervised units before returning so that worker
+    // processes are terminated rather than orphaned on host exit.
+    for (const auto& snapshot : supervisor->GetSnapshots()) {
+        if (snapshot.state != aetherflow::supervisor::RuntimeState::kFailed) {
+            supervisor->StopUnit(snapshot.id, std::chrono::milliseconds{250});
+        }
+    }
+
     return 0;
 }

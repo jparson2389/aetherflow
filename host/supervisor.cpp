@@ -349,21 +349,25 @@ public:
                 return false;
             }
 
+            // Move the old handle out before spawning so it is terminated on
+            // both success and failure paths — a recovering unit's process may
+            // still be alive and must not be abandoned when spawn fails.
+            old_process = std::move(record.process);
+
             auto process = SpawnProcess(record.launcher_path, record.args);
             if (!process) {
                 record.state = RuntimeState::kFailed;
                 DegradeDirectDependents(record);
-                return false;
+                result = false;
+            } else {
+                record.process = std::move(process);
+                record.missed_heartbeats = 0;
+                record.state = RuntimeState::kRunning;
+                result = true;
             }
-
-            old_process = std::move(record.process);
-            record.process = std::move(process);
-            record.missed_heartbeats = 0;
-            record.state = RuntimeState::kRunning;
-            result = true;
         }
-        // Terminate the displaced handle outside the lock: Terminate() can
-        // block on the grace window and we must not stall other units.
+        // Terminate the displaced handle outside the lock (both paths): Terminate()
+        // can block on the grace window and must not stall other units.
         if (old_process && old_process->IsAlive()) {
             old_process->Terminate(std::chrono::milliseconds{0});
         }
