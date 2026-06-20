@@ -14,9 +14,14 @@ if [ "$TOOL_NAME" = "editFiles" ] || [ "$TOOL_NAME" = "createFile" ]; then
     # Tests are organized by type (tests/unit/, tests/integration/, ...), not by
     # mirroring src/aetherflow/. Locate any test_<module>.py under tests/.
     BASENAME=$(basename "$FILE" .py)
+    if [[ "$BASENAME" == test_* ]]; then
+      PATTERN="${BASENAME}.py"
+    else
+      PATTERN="test_${BASENAME}.py"
+    fi
     while IFS= read -r MATCH; do
       [ -n "$MATCH" ] && TESTS_TO_RUN+=("$MATCH")
-    done < <(find tests -type f -name "test_${BASENAME}.py" 2>/dev/null)
+    done < <(find tests -type f -name "$PATTERN" 2>/dev/null)
   done
 
   if [ ${#TESTS_TO_RUN[@]} -gt 0 ]; then

@@ -1187,6 +1187,218 @@ int main() {
     assert run_result.returncode == 0, run_result.stdout + run_result.stderr
 
 
+def test_native_capture_control_heartbeat_uses_worker_alias(
+    tmp_path: Path,
+) -> None:
+    compiler = shutil.which('g++') or shutil.which('clang++')
+    if compiler is None:
+        pytest.skip('C++ compiler not available')
+
+    test_source = tmp_path / 'capture_control_worker_alias_contract.cpp'
+    test_binary = tmp_path / 'capture_control_worker_alias_contract'
+    test_source.write_text(
+        """
+#include "capture_control.hpp"
+#include "supervisor.hpp"
+
+#include <chrono>
+#include <memory>
+
+int main() {
+#ifdef _WIN32
+    return 0;
+#else
+    using aetherflow::capture::CaptureControlEndpoint;
+    using aetherflow::capture::CaptureMode;
+    using aetherflow::capture::CaptureStartRequest;
+    using aetherflow::capture::WorkerHeartbeat;
+    using aetherflow::supervisor::CreateWorkerSupervisor;
+
+    auto supervisor = CreateWorkerSupervisor(3U, std::chrono::seconds{60});
+    CaptureControlEndpoint endpoint(*supervisor);
+    endpoint.RegisterLaunchSpec(
+        "opencv-capture",
+        "/bin/true",
+        "",
+        "vision-worker");
+
+    const auto start_status = endpoint.StartCapture(CaptureStartRequest{
+        "opencv-capture",
+        "camera-0",
+        CaptureMode{640U, 480U, 60U, "BGR24", 1920U},
+        500U,
+    });
+    if (!start_status.ok) {
+        return 1;
+    }
+
+    const auto heartbeat_status = endpoint.ReportHeartbeat(WorkerHeartbeat{
+        "vision-worker",
+        "RUNNING",
+        0U,
+        123456789ULL,
+    });
+    if (!heartbeat_status.ok) {
+        return 2;
+    }
+    if (heartbeat_status.runtime_state != "RUNNING") {
+        return 3;
+    }
+
+    return 0;
+#endif
+}
+""",
+        encoding='utf-8',
+    )
+
+    compile_result = subprocess.run(
+        [
+            compiler,
+            '-std=c++20',
+            '-I',
+            str(PROJECT_ROOT / 'include'),
+            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
+            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
+            str(test_source),
+            '-o',
+            str(test_binary),
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
+
+    run_result = subprocess.run(
+        [str(test_binary)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+
+
+def test_native_capture_control_heartbeat_replay_guards_recovering_state(
+    tmp_path: Path,
+) -> None:
+    compiler = shutil.which('g++') or shutil.which('clang++')
+    if compiler is None:
+        pytest.skip('C++ compiler not available')
+
+    test_source = tmp_path / 'capture_control_replay_guard_contract.cpp'
+    test_binary = tmp_path / 'capture_control_replay_guard_contract'
+    test_source.write_text(
+        """
+#include "capture_control.hpp"
+#include "supervisor.hpp"
+
+#include <chrono>
+#include <memory>
+
+int main() {
+#ifdef _WIN32
+    return 0;
+#else
+    using aetherflow::capture::CaptureControlEndpoint;
+    using aetherflow::capture::CaptureMode;
+    using aetherflow::capture::CaptureStartRequest;
+    using aetherflow::capture::WorkerHeartbeat;
+    using aetherflow::supervisor::CreateWorkerSupervisor;
+
+    auto supervisor = CreateWorkerSupervisor(2U, std::chrono::seconds{60});
+    CaptureControlEndpoint endpoint(*supervisor);
+    endpoint.RegisterLaunchSpec("vision-worker", "/bin/true", "");
+    const auto start_status = endpoint.StartCapture(CaptureStartRequest{
+        "vision-worker",
+        "camera-0",
+        CaptureMode{640U, 480U, 60U, "BGR24", 1920U},
+        500U,
+    });
+    if (!start_status.ok || start_status.retry_budget_remaining != 2U) {
+        return 1;
+    }
+
+    const auto recovering_status = endpoint.ReportHeartbeat(WorkerHeartbeat{
+        "vision-worker",
+        "RECOVERING",
+        3U,
+        100000000ULL,
+    });
+    if (!recovering_status.ok) {
+        return 2;
+    }
+    if (recovering_status.runtime_state != "RECOVERING") {
+        return 3;
+    }
+    if (recovering_status.retry_budget_remaining != 1U) {
+        return 4;
+    }
+
+    const auto stale4_status = endpoint.ReportHeartbeat(WorkerHeartbeat{
+        "vision-worker",
+        "RECOVERING",
+        4U,
+        200000000ULL,
+    });
+    if (!stale4_status.ok || stale4_status.runtime_state != "RECOVERING") {
+        return 5;
+    }
+    if (stale4_status.retry_budget_remaining != 1U) {
+        return 6;
+    }
+
+    const auto stale5_status = endpoint.ReportHeartbeat(WorkerHeartbeat{
+        "vision-worker",
+        "RECOVERING",
+        5U,
+        300000000ULL,
+    });
+    if (!stale5_status.ok || stale5_status.runtime_state != "RECOVERING") {
+        return 7;
+    }
+    if (stale5_status.retry_budget_remaining != 1U) {
+        return 8;
+    }
+
+    return 0;
+#endif
+}
+""",
+        encoding='utf-8',
+    )
+
+    compile_result = subprocess.run(
+        [
+            compiler,
+            '-std=c++20',
+            '-I',
+            str(PROJECT_ROOT / 'include'),
+            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
+            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
+            str(test_source),
+            '-o',
+            str(test_binary),
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
+
+    run_result = subprocess.run(
+        [str(test_binary)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+
+
 def test_native_watchdog_detects_exited_process_and_transitions(
     tmp_path: Path,
 ) -> None:
@@ -1244,6 +1456,8 @@ int main() {
     if (watchdog.PollOnce() != 0U) {
         return 5;
     }
+
+    supervisor->StopUnit(living, std::chrono::milliseconds{250});
 
     return 0;
 #endif

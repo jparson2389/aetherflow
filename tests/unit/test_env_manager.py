@@ -95,7 +95,10 @@ def test_environment_manager_disk_usage_ignores_symlinks(tmp_path) -> None:
     target = tmp_path / 'external.bin'
     target.write_bytes(b'x' * 1024 * 1024)
     assert record.environment_path is not None
-    (record.environment_path / 'link.bin').symlink_to(target)
+    try:
+        (record.environment_path / 'link.bin').symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip('symlink creation is not supported in this environment')
 
     report = manager.validate(
         'vision-cpu',

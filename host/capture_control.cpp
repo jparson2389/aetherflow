@@ -56,12 +56,14 @@ CaptureControlEndpoint::CaptureControlEndpoint(
 void CaptureControlEndpoint::RegisterLaunchSpec(
     std::string_view runtime_id,
     std::string_view launcher_path,
-    std::string_view args)
+    std::string_view args,
+    std::string_view worker_id)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     launch_specs_[std::string(runtime_id)] = LaunchSpec{
         std::string(launcher_path),
         std::string(args),
+        worker_id.empty() ? std::string(runtime_id) : std::string(worker_id),
     };
 }
 
@@ -132,6 +134,7 @@ OperationStatus CaptureControlEndpoint::StartCapture(
 
     const bool replaced = unit_ids_.count(request.capture_plugin_id) > 0;
     unit_ids_[request.capture_plugin_id] = unit_id;
+    unit_ids_[spec_it->second.worker_id] = unit_id;
     // When reloading a runtime whose UnitId changes, reset dependency edges so
     // ApplyDependencyManifest re-registers them against the new UnitId.
     if (replaced) {
@@ -194,6 +197,15 @@ OperationStatus CaptureControlEndpoint::ReportHeartbeat(
     if (request.missed_heartbeats > 0U) {
         const supervisor::UnitSnapshot before =
             supervisor_.GetSnapshot(unit_it->second);
+        if (before.state == supervisor::RuntimeState::kRecovering ||
+            before.state == supervisor::RuntimeState::kFailed) {
+            return OperationStatus{
+                true,
+                RuntimeStateText(before.state),
+                "heartbeat ignored: unit already recovering or failed",
+                RetryBudgetRemaining(before),
+            };
+        }
         // Bound the replay so a large client-supplied count cannot block the
         // request thread, and stop at the first escalation so one outage costs
         // at most one restart-budget transition rather than draining it.
@@ -247,14 +259,14 @@ OperationStatus CaptureControlEndpoint::ReportPluginLoadResult(
     };
 }
 
-const std::vector<WorkerLog>& CaptureControlEndpoint::GetWorkerLogs() const
+std::vector<WorkerLog> CaptureControlEndpoint::GetWorkerLogs() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return worker_logs_;
 }
 
-const std::vector<PluginLoadResult>&
-CaptureControlEndpoint::GetPluginLoadResults() const
+std::vector<PluginLoadResult> CaptureControlEndpoint::GetPluginLoadResults()
+    const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return plugin_load_results_;

@@ -78,7 +78,8 @@ public:
     void RegisterLaunchSpec(
         std::string_view runtime_id,
         std::string_view launcher_path,
-        std::string_view args);
+        std::string_view args,
+        std::string_view worker_id = {});
 
     // Declare a host-side dependency edge from the static unit manifest:
     // dependent_runtime_id directly depends on dependency_runtime_id. This is
@@ -110,10 +111,9 @@ public:
     [[nodiscard]] OperationStatus ReportPluginLoadResult(
         const PluginLoadResult& request);
 
-    [[nodiscard]] const std::vector<WorkerLog>& GetWorkerLogs() const;
+    [[nodiscard]] std::vector<WorkerLog> GetWorkerLogs() const;
 
-    [[nodiscard]] const std::vector<PluginLoadResult>&
-    GetPluginLoadResults() const;
+    [[nodiscard]] std::vector<PluginLoadResult> GetPluginLoadResults() const;
 
     [[nodiscard]] DiagnosticsExportResponse ExportDiagnostics(
         const DiagnosticsExportRequest& request) const;
@@ -125,6 +125,7 @@ private:
     struct LaunchSpec {
         std::string launcher_path;
         std::string args;
+        std::string worker_id;
     };
 
     struct DependencySpec {
