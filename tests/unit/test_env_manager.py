@@ -69,6 +69,27 @@ def test_environment_manager_deletes_runtime_environment_files(tmp_path) -> None
     assert not (tmp_path / 'vision-cpu').exists()
 
 
+def test_environment_manager_recreate_clears_runtime_environment_files(
+    tmp_path,
+) -> None:
+    manager = EnvironmentManager(runtime_root=tmp_path)
+    record = manager.create(
+        'vision-cpu',
+        python_version='3.12',
+        requirements=['stale==1.0'],
+    )
+    assert record.environment_path is not None
+    assert record.requirements_path is not None
+    (record.environment_path / 'artifact.txt').write_text('stale', encoding='utf-8')
+
+    recreated = manager.recreate('vision-cpu', python_version='3.12')
+
+    assert recreated.environment_path == tmp_path / 'vision-cpu'
+    assert recreated.requirements_path is None
+    assert not (tmp_path / 'vision-cpu' / 'artifact.txt').exists()
+    assert not (tmp_path / 'vision-cpu' / 'requirements.txt').exists()
+
+
 @pytest.mark.parametrize('bad_name', ['../victim', 'a/b', '/etc/passwd', '..', '.'])
 def test_environment_manager_rejects_traversal_names(tmp_path, bad_name) -> None:
     manager = EnvironmentManager(runtime_root=tmp_path)

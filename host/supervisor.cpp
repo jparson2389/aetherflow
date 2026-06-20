@@ -380,16 +380,15 @@ public:
             std::lock_guard lock(mutex_);
             auto& record = GetRecord(id);
 
-            if (record.state == RuntimeState::kFailed) {
-                return;
-            }
             // Move the handle out and mark the unit failed under the lock, then
             // terminate outside it: Terminate() can block for the full grace
             // window, and holding the supervisor mutex that long would stall
             // heartbeats and liveness polling for every other unit.
             process = std::move(record.process);
-            record.state = RuntimeState::kFailed;
-            DegradeDirectDependents(record);
+            if (record.state != RuntimeState::kFailed) {
+                record.state = RuntimeState::kFailed;
+                DegradeDirectDependents(record);
+            }
         }
         if (process && process->IsAlive()) {
             process->Terminate(grace_period);

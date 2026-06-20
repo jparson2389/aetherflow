@@ -14,6 +14,12 @@ from aetherflow.proto import capture_pb2
 sys.modules.setdefault('capture_pb2', capture_pb2)
 capture_pb2_grpc = importlib.import_module('aetherflow.proto.capture_pb2_grpc')
 
+DEFAULT_UNARY_TIMEOUT_S = 0.750
+_RETRYABLE_STATUS_CODES = {
+    grpc.StatusCode.DEADLINE_EXCEEDED,
+    grpc.StatusCode.UNAVAILABLE,
+}
+
 
 class CaptureControlStubProtocol(Protocol):
     """Subset of the generated CaptureControl stub used by the client."""
@@ -21,11 +27,14 @@ class CaptureControlStubProtocol(Protocol):
     def StartCapture(
         self,
         request: capture_pb2.CaptureStartRequest,
+        *,
+        timeout: float | None = None,
     ) -> capture_pb2.OperationStatus:
         """Start capture through the generated gRPC method.
 
         Args:
             request: Capture start parameters including plugin id and device.
+            timeout: Unary RPC deadline in seconds.
 
         Returns:
             Operation status with runtime state and retry budget.
@@ -35,11 +44,14 @@ class CaptureControlStubProtocol(Protocol):
     def StopCapture(
         self,
         request: capture_pb2.CaptureStopRequest,
+        *,
+        timeout: float | None = None,
     ) -> capture_pb2.OperationStatus:
         """Stop capture through the generated gRPC method.
 
         Args:
             request: Capture stop parameters including plugin id and reason.
+            timeout: Unary RPC deadline in seconds.
 
         Returns:
             Operation status with runtime state and retry budget.
@@ -49,11 +61,14 @@ class CaptureControlStubProtocol(Protocol):
     def ReportHeartbeat(
         self,
         request: capture_pb2.WorkerHeartbeat,
+        *,
+        timeout: float | None = None,
     ) -> capture_pb2.OperationStatus:
         """Report worker heartbeat through the generated gRPC method.
 
         Args:
             request: Heartbeat payload including worker id and missed count.
+            timeout: Unary RPC deadline in seconds.
 
         Returns:
             Operation status reflecting the resulting supervisor state.
@@ -63,11 +78,14 @@ class CaptureControlStubProtocol(Protocol):
     def ForwardWorkerLog(
         self,
         request: capture_pb2.WorkerLog,
+        *,
+        timeout: float | None = None,
     ) -> capture_pb2.OperationStatus:
         """Forward worker log through the generated gRPC method.
 
         Args:
             request: Log payload including worker id, level, and message.
+            timeout: Unary RPC deadline in seconds.
 
         Returns:
             Operation status confirming log was received.
@@ -77,11 +95,14 @@ class CaptureControlStubProtocol(Protocol):
     def ReportPluginLoadResult(
         self,
         request: capture_pb2.PluginLoadResult,
+        *,
+        timeout: float | None = None,
     ) -> capture_pb2.OperationStatus:
         """Report plugin load result through the generated gRPC method.
 
         Args:
             request: Load result including plugin id and success flag.
+            timeout: Unary RPC deadline in seconds.
 
         Returns:
             Operation status reflecting the resulting supervisor state.
@@ -91,11 +112,14 @@ class CaptureControlStubProtocol(Protocol):
     def ExportDiagnostics(
         self,
         request: capture_pb2.DiagnosticsExportRequest,
+        *,
+        timeout: float | None = None,
     ) -> capture_pb2.DiagnosticsExportResponse:
         """Export diagnostics through the generated gRPC method.
 
         Args:
             request: Diagnostics export parameters.
+            timeout: Unary RPC deadline in seconds.
 
         Returns:
             Diagnostics export response with current endpoint state.
@@ -114,6 +138,55 @@ class CaptureControlClient:
 
         """
         self._stub = stub
+
+    def _call_operation(
+        self,
+        method_name: str,
+        request: object,
+        *,
+        timeout_s: float = DEFAULT_UNARY_TIMEOUT_S,
+        retry_once: bool = False,
+    ) -> capture_pb2.OperationStatus:
+        """Call one OperationStatus RPC with the frozen timeout policy.
+
+        Args:
+            method_name: Generated stub method name.
+            request: Protobuf request object.
+            timeout_s: Unary RPC deadline in seconds.
+            retry_once: Whether to retry once for transient transport errors.
+
+        Returns:
+            Operation status returned by the host.
+
+        Raises:
+            grpc.RpcError: If transport fails and retry policy is exhausted.
+
+        """
+        method = getattr(self._stub, method_name)
+        try:
+            return method(request, timeout=timeout_s)
+        except grpc.RpcError as exc:
+            if not retry_once or exc.code() not in _RETRYABLE_STATUS_CODES:
+                raise
+            return method(request, timeout=timeout_s)
+
+    def _call_diagnostics(
+        self,
+        request: capture_pb2.DiagnosticsExportRequest,
+        *,
+        timeout_s: float = DEFAULT_UNARY_TIMEOUT_S,
+    ) -> capture_pb2.DiagnosticsExportResponse:
+        """Call ExportDiagnostics with the frozen timeout policy.
+
+        Args:
+            request: Diagnostics request.
+            timeout_s: Unary RPC deadline in seconds.
+
+        Returns:
+            Diagnostics export response.
+
+        """
+        return self._stub.ExportDiagnostics(request, timeout=timeout_s)
 
     @classmethod
     def connect(cls, target: str) -> CaptureControlClient:
@@ -169,7 +242,15 @@ class CaptureControlClient:
             ),
             timeout_ms=timeout_ms,
         )
-        return self._stub.StartCapture(request)
+        timeout_s = DEFAULT_UNARY_TIMEOUT_S
+        if timeout_ms > 0:
+            timeout_s = min(DEFAULT_UNARY_TIMEOUT_S, timeout_ms / 1000)
+        return self._call_operation(
+            'StartCapture',
+            request,
+            timeout_s=timeout_s,
+            retry_once=True,
+        )
 
     def stop_capture(
         self,
@@ -194,7 +275,7 @@ class CaptureControlClient:
             device_id=device_id,
             reason=reason,
         )
-        return self._stub.StopCapture(request)
+        return self._call_operation('StopCapture', request, retry_once=True)
 
     def report_heartbeat(
         self,
@@ -222,7 +303,7 @@ class CaptureControlClient:
             missed_heartbeats=missed_heartbeats,
             timestamp_ns=timestamp_ns,
         )
-        return self._stub.ReportHeartbeat(request)
+        return self._call_operation('ReportHeartbeat', request)
 
     def forward_worker_log(
         self,
@@ -250,7 +331,7 @@ class CaptureControlClient:
             message=message,
             timestamp_ns=timestamp_ns,
         )
-        return self._stub.ForwardWorkerLog(request)
+        return self._call_operation('ForwardWorkerLog', request)
 
     def report_plugin_load_result(
         self,
@@ -281,7 +362,11 @@ class CaptureControlClient:
             error_code=error_code,
             error_message=error_message,
         )
-        return self._stub.ReportPluginLoadResult(request)
+        return self._call_operation(
+            'ReportPluginLoadResult',
+            request,
+            retry_once=True,
+        )
 
     def export_diagnostics(
         self,
@@ -303,7 +388,7 @@ class CaptureControlClient:
             include_sections=list(include_sections),
             include_recent_logs=include_recent_logs,
         )
-        return self._stub.ExportDiagnostics(request)
+        return self._call_diagnostics(request)
 
 
-__all__ = ['CaptureControlClient']
+__all__ = ['DEFAULT_UNARY_TIMEOUT_S', 'CaptureControlClient']

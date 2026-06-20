@@ -1281,6 +1281,190 @@ int main() {
     assert run_result.returncode == 0, run_result.stdout + run_result.stderr
 
 
+def test_native_capture_control_separates_runtime_and_worker_lookup_domains(
+    tmp_path: Path,
+) -> None:
+    compiler = shutil.which('g++') or shutil.which('clang++')
+    if compiler is None:
+        pytest.skip('C++ compiler not available')
+
+    test_source = tmp_path / 'capture_control_lookup_domains_contract.cpp'
+    test_binary = tmp_path / 'capture_control_lookup_domains_contract'
+    test_source.write_text(
+        """
+#include "capture_control.hpp"
+#include "supervisor.hpp"
+
+#include <chrono>
+#include <memory>
+
+int main() {
+#ifdef _WIN32
+    return 0;
+#else
+    using aetherflow::capture::CaptureControlEndpoint;
+    using aetherflow::capture::CaptureMode;
+    using aetherflow::capture::CaptureStartRequest;
+    using aetherflow::capture::WorkerHeartbeat;
+    using aetherflow::plugins::RuntimeState;
+    using aetherflow::supervisor::CreateWorkerSupervisor;
+
+    auto supervisor = CreateWorkerSupervisor(3U, std::chrono::seconds{60});
+    CaptureControlEndpoint endpoint(*supervisor);
+    endpoint.RegisterLaunchSpec("camera-runtime", "/bin/true", "", "shared-id");
+    endpoint.RegisterLaunchSpec("shared-id", "/bin/true", "", "other-worker");
+
+    if (!endpoint.StartCapture(CaptureStartRequest{
+            "camera-runtime",
+            "camera-0",
+            CaptureMode{640U, 480U, 60U, "BGR24", 1920U},
+            500U,
+        }).ok) {
+        return 1;
+    }
+    if (!endpoint.StartCapture(CaptureStartRequest{
+            "shared-id",
+            "camera-1",
+            CaptureMode{640U, 480U, 60U, "BGR24", 1920U},
+            500U,
+        }).ok) {
+        return 2;
+    }
+
+    const auto status = endpoint.ReportHeartbeat(WorkerHeartbeat{
+        "shared-id",
+        "RECOVERING",
+        3U,
+        123456789ULL,
+    });
+    if (!status.ok || status.runtime_state != "RECOVERING") {
+        return 3;
+    }
+
+    const auto runtime_unit = endpoint.GetUnitId("shared-id");
+    if (supervisor->GetState(runtime_unit) != RuntimeState::kRunning) {
+        return 4;
+    }
+
+    return 0;
+#endif
+}
+""",
+        encoding='utf-8',
+    )
+
+    compile_result = subprocess.run(
+        [
+            compiler,
+            '-std=c++20',
+            '-I',
+            str(PROJECT_ROOT / 'include'),
+            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
+            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
+            str(test_source),
+            '-o',
+            str(test_binary),
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
+
+    run_result = subprocess.run(
+        [str(test_binary)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+
+
+def test_native_capture_control_bounds_worker_log_buffer(tmp_path: Path) -> None:
+    compiler = shutil.which('g++') or shutil.which('clang++')
+    if compiler is None:
+        pytest.skip('C++ compiler not available')
+
+    test_source = tmp_path / 'capture_control_log_buffer_contract.cpp'
+    test_binary = tmp_path / 'capture_control_log_buffer_contract'
+    test_source.write_text(
+        """
+#include "capture_control.hpp"
+#include "supervisor.hpp"
+
+#include <chrono>
+#include <memory>
+#include <string>
+
+int main() {
+#ifdef _WIN32
+    return 0;
+#else
+    using aetherflow::capture::CaptureControlEndpoint;
+    using aetherflow::capture::WorkerLog;
+    using aetherflow::supervisor::CreateWorkerSupervisor;
+
+    auto supervisor = CreateWorkerSupervisor(3U, std::chrono::seconds{60});
+    CaptureControlEndpoint endpoint(*supervisor);
+
+    for (std::uint32_t index = 0; index < 1030U; ++index) {
+        endpoint.ForwardWorkerLog(WorkerLog{
+            "vision-worker",
+            "INFO",
+            "log-" + std::to_string(index),
+            index,
+        });
+    }
+
+    const auto logs = endpoint.GetWorkerLogs();
+    if (logs.size() != 1024U) {
+        return 1;
+    }
+    if (logs.front().message != "log-6") {
+        return 2;
+    }
+    if (logs.back().message != "log-1029") {
+        return 3;
+    }
+
+    return 0;
+#endif
+}
+""",
+        encoding='utf-8',
+    )
+
+    compile_result = subprocess.run(
+        [
+            compiler,
+            '-std=c++20',
+            '-I',
+            str(PROJECT_ROOT / 'include'),
+            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
+            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
+            str(test_source),
+            '-o',
+            str(test_binary),
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
+
+    run_result = subprocess.run(
+        [str(test_binary)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+
+
 def test_native_capture_control_heartbeat_replay_guards_recovering_state(
     tmp_path: Path,
 ) -> None:
@@ -1381,6 +1565,85 @@ int main() {
             str(test_source),
             '-o',
             str(test_binary),
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
+
+    run_result = subprocess.run(
+        [str(test_binary)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+
+
+def test_native_stop_unit_terminates_failed_unit_process(tmp_path: Path) -> None:
+    compiler = shutil.which('g++') or shutil.which('clang++')
+    if compiler is None:
+        pytest.skip('C++ compiler not available')
+
+    test_source = tmp_path / 'failed_unit_stop_contract.cpp'
+    test_binary = tmp_path / 'failed_unit_stop_contract'
+    test_source.write_text(
+        """
+#include "supervisor.hpp"
+
+#include <chrono>
+#include <memory>
+
+int main() {
+#ifdef _WIN32
+    return 0;
+#else
+    using aetherflow::plugins::RuntimeState;
+    using aetherflow::supervisor::CreateWorkerSupervisor;
+    using aetherflow::supervisor::kInvalidUnitId;
+
+    auto supervisor = CreateWorkerSupervisor(0U, std::chrono::seconds{60});
+    const auto unit = supervisor->StartUnit("hung-worker", "/bin/sleep", "30");
+    if (unit == kInvalidUnitId) {
+        return 1;
+    }
+
+    supervisor->RecordMissedHeartbeat(unit);
+    supervisor->RecordMissedHeartbeat(unit);
+    supervisor->RecordMissedHeartbeat(unit);
+    if (supervisor->GetState(unit) != RuntimeState::kFailed) {
+        return 2;
+    }
+    if (!supervisor->GetSnapshot(unit).process_alive) {
+        return 3;
+    }
+
+    supervisor->StopUnit(unit, std::chrono::milliseconds{250});
+    if (supervisor->GetSnapshot(unit).process_alive) {
+        return 4;
+    }
+
+    return 0;
+#endif
+}
+""",
+        encoding='utf-8',
+    )
+
+    compile_result = subprocess.run(
+        [
+            compiler,
+            '-std=c++20',
+            '-I',
+            str(PROJECT_ROOT / 'include'),
+            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
+            str(test_source),
+            '-o',
+            str(test_binary),
+            '-pthread',
         ],
         cwd=PROJECT_ROOT,
         check=False,

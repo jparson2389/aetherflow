@@ -24,8 +24,6 @@ def test_default_cmake_configuration_does_not_require_grpc_toolchain(
             str(PROJECT_ROOT),
             '-B',
             str(build_dir),
-            '-G',
-            'Unix Makefiles',
         ],
         cwd=PROJECT_ROOT,
         check=False,

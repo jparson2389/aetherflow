@@ -1,6 +1,7 @@
 #include "capture_control.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -14,6 +15,8 @@ namespace {
 // arbitrarily long replay) and, combined with breaking on escalation, ensures
 // one continuous outage costs at most one restart-budget transition.
 constexpr std::uint32_t kMaxMissedHeartbeatReplay = 3U;
+constexpr std::size_t kMaxBufferedWorkerLogs = 1024U;
+constexpr std::size_t kMaxBufferedPluginLoadResults = 256U;
 
 std::uint32_t RetryBudgetRemaining(const supervisor::UnitSnapshot& snapshot)
 {
@@ -87,12 +90,14 @@ bool CaptureControlEndpoint::ApplyDependencyManifest()
         if (spec.applied) {
             continue;
         }
-        const auto dependent_it = unit_ids_.find(spec.dependent_runtime_id);
-        const auto dependency_it = unit_ids_.find(spec.dependency_runtime_id);
+        const auto dependent_it =
+            runtime_unit_ids_.find(spec.dependent_runtime_id);
+        const auto dependency_it =
+            runtime_unit_ids_.find(spec.dependency_runtime_id);
         // Skip edges whose units are not both started yet; a later re-apply
         // (after their StartCapture) will bind them.
-        if (dependent_it == unit_ids_.end() ||
-            dependency_it == unit_ids_.end()) {
+        if (dependent_it == runtime_unit_ids_.end() ||
+            dependency_it == runtime_unit_ids_.end()) {
             continue;
         }
         if (supervisor_.RegisterDependency(
@@ -132,9 +137,10 @@ OperationStatus CaptureControlEndpoint::StartCapture(
         };
     }
 
-    const bool replaced = unit_ids_.count(request.capture_plugin_id) > 0;
-    unit_ids_[request.capture_plugin_id] = unit_id;
-    unit_ids_[spec_it->second.worker_id] = unit_id;
+    const bool replaced =
+        runtime_unit_ids_.count(request.capture_plugin_id) > 0;
+    runtime_unit_ids_[request.capture_plugin_id] = unit_id;
+    worker_unit_ids_[spec_it->second.worker_id] = unit_id;
     // When reloading a runtime whose UnitId changes, reset dependency edges so
     // ApplyDependencyManifest re-registers them against the new UnitId.
     if (replaced) {
@@ -157,8 +163,8 @@ OperationStatus CaptureControlEndpoint::StopCapture(
     const CaptureStopRequest& request)
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    const auto unit_it = unit_ids_.find(request.capture_plugin_id);
-    if (unit_it == unit_ids_.end()) {
+    const auto unit_it = runtime_unit_ids_.find(request.capture_plugin_id);
+    if (unit_it == runtime_unit_ids_.end()) {
         return OperationStatus{
             false,
             "FAILED",
@@ -180,8 +186,8 @@ OperationStatus CaptureControlEndpoint::ReportHeartbeat(
     const WorkerHeartbeat& request)
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    const auto unit_it = unit_ids_.find(request.worker_id);
-    if (unit_it == unit_ids_.end()) {
+    const auto unit_it = worker_unit_ids_.find(request.worker_id);
+    if (unit_it == worker_unit_ids_.end()) {
         return OperationStatus{
             false,
             "FAILED",
@@ -238,6 +244,13 @@ OperationStatus CaptureControlEndpoint::ForwardWorkerLog(
 {
     std::lock_guard<std::mutex> lock(mutex_);
     worker_logs_.push_back(request);
+    if (worker_logs_.size() > kMaxBufferedWorkerLogs) {
+        worker_logs_.erase(
+            worker_logs_.begin(),
+            worker_logs_.begin() +
+                static_cast<std::ptrdiff_t>(
+                    worker_logs_.size() - kMaxBufferedWorkerLogs));
+    }
     return OperationStatus{
         true,
         "RUNNING",
@@ -251,6 +264,14 @@ OperationStatus CaptureControlEndpoint::ReportPluginLoadResult(
 {
     std::lock_guard<std::mutex> lock(mutex_);
     plugin_load_results_.push_back(request);
+    if (plugin_load_results_.size() > kMaxBufferedPluginLoadResults) {
+        plugin_load_results_.erase(
+            plugin_load_results_.begin(),
+            plugin_load_results_.begin() +
+                static_cast<std::ptrdiff_t>(
+                    plugin_load_results_.size() -
+                    kMaxBufferedPluginLoadResults));
+    }
     return OperationStatus{
         true,
         request.runtime_state,
@@ -290,8 +311,8 @@ supervisor::UnitId CaptureControlEndpoint::GetUnitId(
     std::string_view runtime_id) const
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    const auto unit_it = unit_ids_.find(std::string(runtime_id));
-    if (unit_it == unit_ids_.end()) {
+    const auto unit_it = runtime_unit_ids_.find(std::string(runtime_id));
+    if (unit_it == runtime_unit_ids_.end()) {
         return supervisor::kInvalidUnitId;
     }
     return unit_it->second;

@@ -70,6 +70,27 @@ class EnvironmentManager:
         self._records: dict[str, EnvironmentRecord] = {}
         self._runtime_root = runtime_root
 
+    def _environment_path_for(self, name: str) -> Path:
+        """Return the managed filesystem path for an environment name.
+
+        Args:
+            name: Environment display name.
+
+        Returns:
+            Path under the configured runtime root.
+
+        Raises:
+            ValueError: If the name would escape the runtime root.
+
+        """
+        _validate_env_name(name)
+        if self._runtime_root is None:
+            raise ValueError('runtime root is not configured')
+        environment_path = self._runtime_root / name
+        if environment_path.resolve().parent != self._runtime_root.resolve():
+            raise ValueError(f'environment escapes runtime root: {name!r}')
+        return environment_path
+
     def create(
         self,
         name: str,
@@ -91,9 +112,7 @@ class EnvironmentManager:
         _validate_env_name(name)
         record = EnvironmentRecord(name=name, python_version=python_version)
         if self._runtime_root is not None:
-            environment_path = self._runtime_root / name
-            if environment_path.resolve().parent != self._runtime_root.resolve():
-                raise ValueError(f'environment escapes runtime root: {name!r}')
+            environment_path = self._environment_path_for(name)
             environment_path.mkdir(parents=True, exist_ok=True)
             requirements_path = environment_path / 'requirements.txt'
             if requirements is not None:
@@ -114,7 +133,11 @@ class EnvironmentManager:
 
     def recreate(self, name: str, *, python_version: str) -> EnvironmentRecord:
         """Delete and recreate an environment record."""
-        self._records.pop(name, None)
+        self.delete(name)
+        if self._runtime_root is not None:
+            environment_path = self._environment_path_for(name)
+            if environment_path.exists():
+                shutil.rmtree(environment_path)
         return self.create(name, python_version=python_version)
 
     def delete(self, name: str) -> None:

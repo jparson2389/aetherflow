@@ -141,7 +141,8 @@ private:
     mutable std::mutex mutex_;
     supervisor::IWorkerSupervisor& supervisor_;
     std::unordered_map<std::string, LaunchSpec> launch_specs_;
-    std::unordered_map<std::string, supervisor::UnitId> unit_ids_;
+    std::unordered_map<std::string, supervisor::UnitId> runtime_unit_ids_;
+    std::unordered_map<std::string, supervisor::UnitId> worker_unit_ids_;
     std::vector<DependencySpec> dependency_specs_;
     std::vector<WorkerLog> worker_logs_;
     std::vector<PluginLoadResult> plugin_load_results_;
