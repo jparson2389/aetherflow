@@ -22,37 +22,85 @@ class CaptureControlStubProtocol(Protocol):
         self,
         request: capture_pb2.CaptureStartRequest,
     ) -> capture_pb2.OperationStatus:
-        """Start capture through the generated gRPC method."""
+        """Start capture through the generated gRPC method.
+
+        Args:
+            request: Capture start parameters including plugin id and device.
+
+        Returns:
+            Operation status with runtime state and retry budget.
+
+        """
 
     def StopCapture(
         self,
         request: capture_pb2.CaptureStopRequest,
     ) -> capture_pb2.OperationStatus:
-        """Stop capture through the generated gRPC method."""
+        """Stop capture through the generated gRPC method.
+
+        Args:
+            request: Capture stop parameters including plugin id and reason.
+
+        Returns:
+            Operation status with runtime state and retry budget.
+
+        """
 
     def ReportHeartbeat(
         self,
         request: capture_pb2.WorkerHeartbeat,
     ) -> capture_pb2.OperationStatus:
-        """Report worker heartbeat through the generated gRPC method."""
+        """Report worker heartbeat through the generated gRPC method.
+
+        Args:
+            request: Heartbeat payload including worker id and missed count.
+
+        Returns:
+            Operation status reflecting the resulting supervisor state.
+
+        """
 
     def ForwardWorkerLog(
         self,
         request: capture_pb2.WorkerLog,
     ) -> capture_pb2.OperationStatus:
-        """Forward worker log through the generated gRPC method."""
+        """Forward worker log through the generated gRPC method.
+
+        Args:
+            request: Log payload including worker id, level, and message.
+
+        Returns:
+            Operation status confirming log was received.
+
+        """
 
     def ReportPluginLoadResult(
         self,
         request: capture_pb2.PluginLoadResult,
     ) -> capture_pb2.OperationStatus:
-        """Report plugin load result through the generated gRPC method."""
+        """Report plugin load result through the generated gRPC method.
+
+        Args:
+            request: Load result including plugin id and success flag.
+
+        Returns:
+            Operation status reflecting the resulting supervisor state.
+
+        """
 
     def ExportDiagnostics(
         self,
         request: capture_pb2.DiagnosticsExportRequest,
     ) -> capture_pb2.DiagnosticsExportResponse:
-        """Export diagnostics through the generated gRPC method."""
+        """Export diagnostics through the generated gRPC method.
+
+        Args:
+            request: Diagnostics export parameters.
+
+        Returns:
+            Diagnostics export response with current endpoint state.
+
+        """
 
 
 class CaptureControlClient:

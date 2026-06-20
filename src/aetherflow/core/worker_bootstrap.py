@@ -20,7 +20,18 @@ class WorkerBootstrapClient(Protocol):
         missed_heartbeats: int,
         timestamp_ns: int,
     ) -> capture_pb2.OperationStatus:
-        """Report a worker heartbeat to the host."""
+        """Report a worker heartbeat to the host.
+
+        Args:
+            worker_id: Stable identifier for this worker process.
+            health: Self-reported health string (e.g. "RUNNING").
+            missed_heartbeats: Number of heartbeat intervals missed.
+            timestamp_ns: Monotonic timestamp in nanoseconds.
+
+        Returns:
+            Operation status from the host supervisor.
+
+        """
 
     def forward_worker_log(
         self,
@@ -30,7 +41,18 @@ class WorkerBootstrapClient(Protocol):
         message: str,
         timestamp_ns: int,
     ) -> capture_pb2.OperationStatus:
-        """Forward a worker log line to the host."""
+        """Forward a worker log line to the host.
+
+        Args:
+            worker_id: Stable identifier for this worker process.
+            level: Log level string (e.g. "INFO", "ERROR").
+            message: Log message text.
+            timestamp_ns: Monotonic timestamp in nanoseconds.
+
+        Returns:
+            Operation status confirming log was received.
+
+        """
 
 
 class WorkerBootstrap:

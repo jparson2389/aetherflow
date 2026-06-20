@@ -61,7 +61,12 @@ class EnvironmentManager:
     """Manage named Python environments."""
 
     def __init__(self, runtime_root: Path | None = None) -> None:
-        """Initialize an empty environment registry."""
+        """Initialize an empty environment registry.
+
+        Args:
+            runtime_root: Optional filesystem root for managed environments.
+
+        """
         self._records: dict[str, EnvironmentRecord] = {}
         self._runtime_root = runtime_root
 
