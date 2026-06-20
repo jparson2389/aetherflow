@@ -336,27 +336,38 @@ public:
     }
 
     [[nodiscard]] bool RestartUnit(UnitId id) override {
-        std::lock_guard lock(mutex_);
-        auto it = records_.find(id);
-        if (it == records_.end()) {
-            return false;  // Unknown id: contract returns false, not throw.
-        }
-        auto& record = it->second;
-        if (record.state != RuntimeState::kRecovering) {
-            return false;
-        }
+        std::unique_ptr<IProcessHandle> old_process;
+        bool result = false;
+        {
+            std::lock_guard lock(mutex_);
+            auto it = records_.find(id);
+            if (it == records_.end()) {
+                return false;  // Unknown id: contract returns false, not throw.
+            }
+            auto& record = it->second;
+            if (record.state != RuntimeState::kRecovering) {
+                return false;
+            }
 
-        auto process = SpawnProcess(record.launcher_path, record.args);
-        if (!process) {
-            record.state = RuntimeState::kFailed;
-            DegradeDirectDependents(record);
-            return false;
-        }
+            auto process = SpawnProcess(record.launcher_path, record.args);
+            if (!process) {
+                record.state = RuntimeState::kFailed;
+                DegradeDirectDependents(record);
+                return false;
+            }
 
-        record.process = std::move(process);
-        record.missed_heartbeats = 0;
-        record.state = RuntimeState::kRunning;
-        return true;
+            old_process = std::move(record.process);
+            record.process = std::move(process);
+            record.missed_heartbeats = 0;
+            record.state = RuntimeState::kRunning;
+            result = true;
+        }
+        // Terminate the displaced handle outside the lock: Terminate() can
+        // block on the grace window and we must not stall other units.
+        if (old_process && old_process->IsAlive()) {
+            old_process->Terminate(std::chrono::milliseconds{0});
+        }
+        return result;
     }
 
     void StopUnit(UnitId id, std::chrono::milliseconds grace_period) override {
@@ -389,8 +400,7 @@ public:
             return;
         }
         record.missed_heartbeats = 0;
-        if (record.state == RuntimeState::kDegraded ||
-            record.state == RuntimeState::kRecovering) {
+        if (record.state == RuntimeState::kDegraded) {
             record.state = RuntimeState::kRunning;
         }
     }
