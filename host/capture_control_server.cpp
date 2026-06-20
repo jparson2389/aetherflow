@@ -2,14 +2,22 @@
 #include "capture_control_service.hpp"
 #include "supervisor.hpp"
 
+#include <csignal>
 #include <chrono>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
+
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 
 namespace {
+
+volatile std::sig_atomic_t g_shutdown_requested = 0;
 
 struct LaunchSpecParts {
     std::string runtime_id;
@@ -48,6 +56,27 @@ bool IsLoopbackAddress(std::string_view address)
            address.rfind("localhost:", 0) == 0 ||
            address.rfind("unix:", 0) == 0;
 }
+
+#ifdef _WIN32
+BOOL WINAPI ConsoleShutdownHandler(DWORD control_type)
+{
+    switch (control_type) {
+    case CTRL_C_EVENT:
+    case CTRL_BREAK_EVENT:
+    case CTRL_CLOSE_EVENT:
+    case CTRL_SHUTDOWN_EVENT:
+        g_shutdown_requested = 1;
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+#else
+void RequestShutdown(int)
+{
+    g_shutdown_requested = 1;
+}
+#endif
 
 }  // namespace
 
@@ -116,9 +145,35 @@ int main(int argc, char** argv)
     aetherflow::supervisor::WorkerWatchdog watchdog(*supervisor);
     watchdog.Start();
 
+#ifdef _WIN32
+    SetConsoleCtrlHandler(ConsoleShutdownHandler, TRUE);
+#else
+    std::signal(SIGINT, RequestShutdown);
+    std::signal(SIGTERM, RequestShutdown);
+#endif
+
+    std::thread shutdown_watcher([&server]() {
+        while (g_shutdown_requested == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds{50});
+        }
+        server.Shutdown();
+    });
+
     std::cerr << "AETHERFLOW_CAPTURE_CONTROL_LISTENING " << listen_address
               << '\n';
     server.Wait();
+
+    g_shutdown_requested = 1;
+    if (shutdown_watcher.joinable()) {
+        shutdown_watcher.join();
+    }
+
+#ifdef _WIN32
+    SetConsoleCtrlHandler(ConsoleShutdownHandler, FALSE);
+#else
+    std::signal(SIGINT, SIG_DFL);
+    std::signal(SIGTERM, SIG_DFL);
+#endif
 
     watchdog.Stop();
 
