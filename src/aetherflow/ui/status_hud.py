@@ -122,10 +122,8 @@ def _runtime_state_from_worker_health(states: list[WorkerHealth]) -> RuntimeStat
         return RuntimeState.DEGRADED
     if WorkerHealth.FAILED in states:
         return RuntimeState.FAILED
-    if (
-        WorkerHealth.DEGRADED in states
-        or WorkerHealth.RECOVERING in states
-        or WorkerHealth.STARTING in states
-    ):
+    if WorkerHealth.RECOVERING in states:
+        return RuntimeState.RECOVERING
+    if WorkerHealth.DEGRADED in states or WorkerHealth.STARTING in states:
         return RuntimeState.DEGRADED
     return RuntimeState.RUNNING
