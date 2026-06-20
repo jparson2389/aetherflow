@@ -49,6 +49,8 @@ def test_environment_manager_creates_runtime_environment_files(tmp_path) -> None
 
     assert record.environment_path == tmp_path / 'vision-cpu'
     assert record.requirements_path == tmp_path / 'vision-cpu' / 'requirements.txt'
+    assert record.environment_path is not None
+    assert record.requirements_path is not None
     assert record.environment_path.is_dir()
     assert record.requirements_path.read_text(encoding='utf-8') == (
         'numpy==2.4.3\nopencv-python==4.13.0.92\n'
@@ -58,6 +60,7 @@ def test_environment_manager_creates_runtime_environment_files(tmp_path) -> None
 def test_environment_manager_deletes_runtime_environment_files(tmp_path) -> None:
     manager = EnvironmentManager(runtime_root=tmp_path)
     record = manager.create('vision-cpu', python_version='3.12')
+    assert record.environment_path is not None
     (record.environment_path / 'artifact.txt').write_text('payload', encoding='utf-8')
 
     manager.delete('vision-cpu')
@@ -91,6 +94,7 @@ def test_environment_manager_disk_usage_ignores_symlinks(tmp_path) -> None:
     record = manager.create('vision-cpu', python_version='3.12')
     target = tmp_path / 'external.bin'
     target.write_bytes(b'x' * 1024 * 1024)
+    assert record.environment_path is not None
     (record.environment_path / 'link.bin').symlink_to(target)
 
     report = manager.validate(
@@ -107,6 +111,7 @@ def test_environment_manager_disk_usage_ignores_symlinks(tmp_path) -> None:
 def test_environment_manager_validation_measures_disk_usage(tmp_path) -> None:
     manager = EnvironmentManager(runtime_root=tmp_path)
     record = manager.create('vision-cpu', python_version='3.12')
+    assert record.environment_path is not None
     (record.environment_path / 'artifact.bin').write_bytes(b'x' * 1024 * 1024)
 
     report = manager.validate(
