@@ -113,8 +113,13 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    aetherflow::supervisor::WorkerWatchdog watchdog(*supervisor);
+    watchdog.Start();
+
     std::cerr << "AETHERFLOW_CAPTURE_CONTROL_LISTENING " << listen_address
               << '\n';
     server.Wait();
+
+    watchdog.Stop();
     return 0;
 }
