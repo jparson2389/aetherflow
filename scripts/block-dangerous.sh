@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
+set -euo pipefail
+
+# Fail closed: a security gate must never silently allow when it cannot parse
+# its input. Missing jq or an unparseable payload exits non-zero (deny) rather
+# than emitting a permissive result.
+command -v jq >/dev/null 2>&1 || {
+  echo "block-dangerous: jq not available; refusing to continue" >&2
+  exit 1
+}
+
 INPUT=$(cat)
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name')
+TOOL_NAME=$(printf '%s' "$INPUT" | jq -er '.tool_name')
 
 # Block dangerous terminal commands
 if [ "$TOOL_NAME" = "runTerminalCommand" ]; then

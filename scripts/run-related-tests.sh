@@ -26,7 +26,7 @@ if [ "$TOOL_NAME" = "editFiles" ] || [ "$TOOL_NAME" = "createFile" ]; then
 
   if [ ${#TESTS_TO_RUN[@]} -gt 0 ]; then
     echo "Running related tests: ${TESTS_TO_RUN[*]}" >&2
-    uv run pytest "${TESTS_TO_RUN[@]}" 2>&1 >&2
+    uv run pytest "${TESTS_TO_RUN[@]}" >&2
     if [ $? -ne 0 ]; then
       echo '{"systemMessage":"⚠️ Related tests failed after this edit. Review the test output in the terminal."}'
       exit 0

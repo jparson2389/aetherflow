@@ -50,8 +50,8 @@ done
 if [ ${#PYTHON_FILES[@]} -gt 0 ]; then
   for FILE in "${PYTHON_FILES[@]}"; do
     echo "Ruff: formatting $FILE" >&2
-    uv run ruff format "$FILE" 2>&1 >&2
-    uv run ruff check --fix "$FILE" 2>&1 >&2
+    uv run ruff format "$FILE" >&2
+    uv run ruff check --fix "$FILE" >&2
   done
 fi
 
@@ -59,11 +59,11 @@ fi
 if [ ${#MARKDOWN_FILES[@]} -gt 0 ]; then
   for FILE in "${MARKDOWN_FILES[@]}"; do
     echo "Prettier: formatting $FILE" >&2
-    npx prettier --write "$FILE" 2>&1 >&2
+    npx prettier --write "$FILE" >&2
 
     echo "markdownlint: linting $FILE" >&2
     # markdownlint-cli2 exits non-zero on lint errors — capture and warn, don't block
-    if ! npx markdownlint-cli2 "$FILE" 2>&1 >&2; then
+    if ! npx markdownlint-cli2 "$FILE" >&2; then
       LINT_WARNINGS="${LINT_WARNINGS:-}\\n- $FILE"
     fi
   done
@@ -73,7 +73,7 @@ fi
 if [ ${#PRETTIER_FILES[@]} -gt 0 ]; then
   for FILE in "${PRETTIER_FILES[@]}"; do
     echo "Prettier: formatting $FILE" >&2
-    npx prettier --write "$FILE" 2>&1 >&2
+    npx prettier --write "$FILE" >&2
   done
 fi
 
