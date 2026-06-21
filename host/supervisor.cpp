@@ -133,7 +133,7 @@ public:
         // Terminate/IsAlive does not leak a zombie process.
         if (pid_ > 0) {
             int status = 0;
-            ::waitpid(pid_, &status, WNOHANG);
+            (void)WaitNoHang(pid_, status);
         }
     }
 
@@ -146,7 +146,7 @@ public:
         // zombie — so kill() alone would falsely report it alive. waitpid()
         // collects the exit status and lets the watchdog see the real death.
         int status = 0;
-        const pid_t result = ::waitpid(pid_, &status, WNOHANG);
+        const pid_t result = WaitNoHang(pid_, status);
         if (result == pid_) {
             exit_code_ = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
             pid_ = -1;
@@ -172,9 +172,13 @@ public:
             std::chrono::steady_clock::now() + grace_period;
         while (std::chrono::steady_clock::now() < deadline) {
             int status = 0;
-            const pid_t result = ::waitpid(pid_, &status, WNOHANG);
+            const pid_t result = WaitNoHang(pid_, status);
             if (result == pid_) {
                 exit_code_ = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+                pid_ = -1;
+                return true;
+            }
+            if (result < 0) {
                 pid_ = -1;
                 return true;
             }
@@ -184,7 +188,8 @@ public:
         // Grace period elapsed — send SIGKILL.
         ::kill(pid_, SIGKILL);
         int status = 0;
-        ::waitpid(pid_, &status, 0);
+        while (::waitpid(pid_, &status, 0) < 0 && errno == EINTR) {
+        }
         exit_code_ = -1;
         pid_ = -1;
         return false;
@@ -195,6 +200,14 @@ public:
     }
 
 private:
+    static pid_t WaitNoHang(pid_t pid, int& status) {
+        pid_t result = 0;
+        do {
+            result = ::waitpid(pid, &status, WNOHANG);
+        } while (result < 0 && errno == EINTR);
+        return result;
+    }
+
     mutable pid_t pid_;
     mutable int exit_code_{-1};
 };
@@ -204,7 +217,10 @@ static std::unique_ptr<IProcessHandle> SpawnProcess(
     std::string_view args)
 {
     // Split the args string into whitespace-separated tokens per the
-    // IWorkerSupervisor contract, so each becomes a distinct argv entry.
+    // IWorkerSupervisor contract, so each becomes a distinct argv entry. Build
+    // all argv storage before fork(): the production server is multi-threaded,
+    // so the child must avoid allocator-backed C++ runtime work before execv().
+    std::string path_str(launcher_path);
     std::vector<std::string> tokens;
     {
         std::istringstream iss{std::string(args)};
@@ -213,21 +229,20 @@ static std::unique_ptr<IProcessHandle> SpawnProcess(
             tokens.push_back(std::move(token));
         }
     }
+    std::vector<char*> argv;
+    argv.reserve(tokens.size() + 2);
+    argv.push_back(path_str.data());
+    for (std::string& token : tokens) {
+        argv.push_back(token.data());
+    }
+    argv.push_back(nullptr);
 
     const pid_t pid = ::fork();
     if (pid < 0) {
         return nullptr;  // fork failed
     }
     if (pid == 0) {
-        // Child: exec the launcher with a null-terminated argv vector.
-        const std::string path_str(launcher_path);
-        std::vector<char*> argv;
-        argv.reserve(tokens.size() + 2);
-        argv.push_back(const_cast<char*>(path_str.c_str()));
-        for (std::string& token : tokens) {
-            argv.push_back(const_cast<char*>(token.c_str()));
-        }
-        argv.push_back(nullptr);
+        // Child: only exec using argv storage prepared before fork.
         ::execv(path_str.c_str(), argv.data());
         // exec failed — exit the child immediately so the parent can detect it.
         ::_exit(127);
