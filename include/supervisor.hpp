@@ -119,8 +119,11 @@ public:
     virtual void StopUnit(UnitId id, std::chrono::milliseconds grace_period) = 0;
 
     // Record a successful heartbeat tick received from the given unit.
-    // Resets the missed-heartbeat counter. Transitions the unit from kDegraded
-    // or kRecovering back to kRunning. No-op for units in kFailed state.
+    // Resets the missed-heartbeat counter and transitions the unit from
+    // kDegraded back to kRunning. A unit in kRecovering is NOT cleared by a
+    // heartbeat: a stale in-flight heartbeat from an already-crashed worker
+    // must not mask the outage, so kRecovering is cleared only by RestartUnit.
+    // No-op for units in kFailed state.
     virtual void RecordHeartbeat(UnitId id) = 0;
 
     // Record a missed heartbeat tick (no heartbeat received within the expected
