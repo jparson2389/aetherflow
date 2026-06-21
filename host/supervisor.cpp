@@ -20,9 +20,12 @@
 #include <cerrno>
 #include <csignal>
 #include <cstring>
+#include <spawn.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+extern char** environ;
 #endif
 
 namespace aetherflow::supervisor {
@@ -217,9 +220,10 @@ static std::unique_ptr<IProcessHandle> SpawnProcess(
     std::string_view args)
 {
     // Split the args string into whitespace-separated tokens per the
-    // IWorkerSupervisor contract, so each becomes a distinct argv entry. Build
-    // all argv storage before fork(): the production server is multi-threaded,
-    // so the child must avoid allocator-backed C++ runtime work before execv().
+    // IWorkerSupervisor contract, so each becomes a distinct argv entry. Use
+    // posix_spawn instead of fork+exec because the production server is
+    // multi-threaded and the child must not run allocator-backed C++ runtime
+    // code before exec.
     std::string path_str(launcher_path);
     std::vector<std::string> tokens;
     {
@@ -237,15 +241,16 @@ static std::unique_ptr<IProcessHandle> SpawnProcess(
     }
     argv.push_back(nullptr);
 
-    const pid_t pid = ::fork();
-    if (pid < 0) {
-        return nullptr;  // fork failed
-    }
-    if (pid == 0) {
-        // Child: only exec using argv storage prepared before fork.
-        ::execv(path_str.c_str(), argv.data());
-        // exec failed — exit the child immediately so the parent can detect it.
-        ::_exit(127);
+    pid_t pid = -1;
+    const int spawn_result = ::posix_spawn(
+        &pid,
+        path_str.c_str(),
+        nullptr,
+        nullptr,
+        argv.data(),
+        ::environ);
+    if (spawn_result != 0) {
+        return nullptr;
     }
     return std::make_unique<PosixProcessHandle>(pid);
 }

@@ -207,6 +207,76 @@ int main() {
     assert run_result.returncode == 0, run_result.stdout + run_result.stderr
 
 
+def test_native_supervisor_rejects_missing_posix_launcher_synchronously(
+    tmp_path: Path,
+) -> None:
+    compiler = shutil.which('g++') or shutil.which('clang++')
+    if compiler is None:
+        pytest.skip('C++ compiler not available')
+
+    test_source = tmp_path / 'supervisor_missing_launcher_contract.cpp'
+    test_binary = tmp_path / 'supervisor_missing_launcher_contract'
+    test_source.write_text(
+        """
+#include "supervisor.hpp"
+
+#include <chrono>
+#include <memory>
+
+int main() {
+#ifdef _WIN32
+    return 0;
+#else
+    using aetherflow::supervisor::CreateWorkerSupervisor;
+    using aetherflow::supervisor::kInvalidUnitId;
+
+    std::unique_ptr<aetherflow::supervisor::IWorkerSupervisor> supervisor =
+        CreateWorkerSupervisor(2U, std::chrono::seconds{60});
+
+    const auto unit_id = supervisor->StartUnit(
+        "missing-worker",
+        "/tmp/aetherflow-definitely-missing-launcher",
+        "--flag value"
+    );
+    if (unit_id != kInvalidUnitId) {
+        return 1;
+    }
+
+    return 0;
+#endif
+}
+""",
+        encoding='utf-8',
+    )
+
+    compile_result = subprocess.run(
+        [
+            compiler,
+            '-std=c++20',
+            '-I',
+            str(PROJECT_ROOT / 'include'),
+            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
+            str(test_source),
+            '-o',
+            str(test_binary),
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
+
+    run_result = subprocess.run(
+        [str(test_binary)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+
+
 def test_native_supervisor_degrades_only_direct_dependents(
     tmp_path: Path,
 ) -> None:
