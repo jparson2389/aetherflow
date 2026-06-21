@@ -1,4 +1,5 @@
 import grpc
+import pytest
 
 from aetherflow.core.ipc import DEFAULT_UNARY_TIMEOUT_S, CaptureControlClient
 from aetherflow.proto import capture_pb2
@@ -126,6 +127,28 @@ class FakeCaptureControlStub:
             artifact_path='diagnostics.zip',
             summary='exported',
         )
+
+
+@pytest.mark.parametrize(
+    'target',
+    ['127.0.0.1:50051', '[::1]:50051', 'localhost:50051', 'unix:/tmp/cc.sock'],
+)
+def test_connect_accepts_loopback_targets(target: str) -> None:
+    """connect() permits loopback/localhost/unix targets without opt-in."""
+    client = CaptureControlClient.connect(target)
+    assert isinstance(client, CaptureControlClient)
+
+
+def test_connect_rejects_non_loopback_target() -> None:
+    """connect() refuses a routable target over insecure credentials."""
+    with pytest.raises(ValueError, match='non-loopback'):
+        CaptureControlClient.connect('10.0.0.5:50051')
+
+
+def test_connect_allows_non_loopback_with_opt_in() -> None:
+    """connect(allow_remote=True) permits a non-loopback target."""
+    client = CaptureControlClient.connect('10.0.0.5:50051', allow_remote=True)
+    assert isinstance(client, CaptureControlClient)
 
 
 def test_start_capture_sends_frozen_proto_request() -> None:

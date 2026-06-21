@@ -20,6 +20,23 @@ _RETRYABLE_STATUS_CODES = {
     grpc.StatusCode.UNAVAILABLE,
 }
 
+# Mirrors the server-side IsLoopbackAddress check in
+# host/capture_control_server.cpp so client and server enforce the same policy.
+_LOOPBACK_PREFIXES = ('127.0.0.1:', '[::1]:', 'localhost:', 'unix:')
+
+
+def _is_loopback_target(target: str) -> bool:
+    """Return whether a gRPC target addresses the local loopback interface.
+
+    Args:
+        target: gRPC target string such as ``127.0.0.1:50051``.
+
+    Returns:
+        True if the target is a loopback/localhost/unix-socket address.
+
+    """
+    return target.startswith(_LOOPBACK_PREFIXES)
+
 
 class CaptureControlStubProtocol(Protocol):
     """Subset of the generated CaptureControl stub used by the client."""
@@ -189,16 +206,32 @@ class CaptureControlClient:
         return self._stub.ExportDiagnostics(request, timeout=timeout_s)
 
     @classmethod
-    def connect(cls, target: str) -> CaptureControlClient:
+    def connect(
+        cls, target: str, *, allow_remote: bool = False
+    ) -> CaptureControlClient:
         """Create a client connected to a host CaptureControl endpoint.
+
+        The control plane uses insecure (plaintext) gRPC, so by default the
+        client refuses non-loopback targets — symmetric with the server, which
+        rejects non-loopback binds unless ``--allow-remote`` is passed.
 
         Args:
             target: gRPC target such as ``127.0.0.1:50051``.
+            allow_remote: Permit a non-loopback target. Off by default.
 
         Returns:
             CaptureControl client bound to the generated stub.
 
+        Raises:
+            ValueError: If ``target`` is non-loopback and ``allow_remote`` is
+                False.
+
         """
+        if not allow_remote and not _is_loopback_target(target):
+            raise ValueError(
+                f'refusing non-loopback CaptureControl target {target!r} '
+                'over insecure credentials; pass allow_remote=True to override'
+            )
         channel = grpc.insecure_channel(target)
         return cls(capture_pb2_grpc.CaptureControlStub(channel))
 
