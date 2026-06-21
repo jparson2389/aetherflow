@@ -178,8 +178,26 @@ def test_python_client_talks_to_native_capture_control_grpc_service(
             include_recent_logs=True,
         )
 
+        # Idempotent duplicate start (issue #134): a retried StartCapture for an
+        # already-running unit must report success with the live state, not a
+        # spurious "capture start failed". This guards the client's
+        # DEADLINE_EXCEEDED retry against a start whose deadline fired after the
+        # host had already launched the worker.
+        duplicate = client.start_capture(
+            capture_plugin_id='opencv-capture',
+            device_id='camera-0',
+            width=640,
+            height=480,
+            target_fps=60,
+            pixel_format='BGR24',
+            stride_bytes=1920,
+            timeout_ms=500,
+        )
+
         assert status.ok is True
         assert status.runtime_state == 'RUNNING'
+        assert duplicate.ok is True
+        assert duplicate.runtime_state == 'RUNNING'
         assert log_status.ok is True
         assert diagnostics.artifact_path == 'aetherflow-diagnostics.zip'
         assert 'worker_logs=1' in diagnostics.summary

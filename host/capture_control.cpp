@@ -124,6 +124,25 @@ OperationStatus CaptureControlEndpoint::StartCapture(
         };
     }
 
+    // Idempotent duplicate start: if a live unit already backs this runtime id,
+    // a retried StartCapture — e.g. one whose deadline fired after the host had
+    // already launched the worker — must report the running unit rather than a
+    // spurious failure. A failed unit falls through so reload spawns afresh.
+    const auto existing_it = runtime_unit_ids_.find(request.capture_plugin_id);
+    if (existing_it != runtime_unit_ids_.end()) {
+        const supervisor::RuntimeState existing_state =
+            supervisor_.GetState(existing_it->second);
+        if (existing_state != supervisor::RuntimeState::kFailed) {
+            return OperationStatus{
+                true,
+                RuntimeStateText(existing_state),
+                "capture already running",
+                RetryBudgetRemaining(
+                    supervisor_.GetSnapshot(existing_it->second)),
+            };
+        }
+    }
+
     const supervisor::UnitId unit_id = supervisor_.StartUnit(
         request.capture_plugin_id,
         spec_it->second.launcher_path,
