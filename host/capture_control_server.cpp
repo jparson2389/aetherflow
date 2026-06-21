@@ -2,6 +2,7 @@
 #include "capture_control_service.hpp"
 #include "supervisor.hpp"
 
+#include <atomic>
 #include <csignal>
 #include <chrono>
 #include <iostream>
@@ -17,7 +18,11 @@
 
 namespace {
 
-volatile std::sig_atomic_t g_shutdown_requested = 0;
+// Lock-free atomic so the main thread, signal handlers, and the watcher thread
+// can communicate shutdown safely. A lock-free std::atomic store is
+// async-signal-safe; volatile sig_atomic_t would only cover the handler case,
+// not the cross-thread read by the watcher below.
+std::atomic<bool> g_shutdown_requested{false};
 
 struct LaunchSpecParts {
     std::string runtime_id;
@@ -65,7 +70,7 @@ BOOL WINAPI ConsoleShutdownHandler(DWORD control_type)
     case CTRL_BREAK_EVENT:
     case CTRL_CLOSE_EVENT:
     case CTRL_SHUTDOWN_EVENT:
-        g_shutdown_requested = 1;
+        g_shutdown_requested.store(true, std::memory_order_relaxed);
         return TRUE;
     default:
         return FALSE;
@@ -74,7 +79,7 @@ BOOL WINAPI ConsoleShutdownHandler(DWORD control_type)
 #else
 void RequestShutdown(int)
 {
-    g_shutdown_requested = 1;
+    g_shutdown_requested.store(true, std::memory_order_relaxed);
 }
 #endif
 
@@ -153,7 +158,7 @@ int main(int argc, char** argv)
 #endif
 
     std::thread shutdown_watcher([&server]() {
-        while (g_shutdown_requested == 0) {
+        while (!g_shutdown_requested.load(std::memory_order_relaxed)) {
             std::this_thread::sleep_for(std::chrono::milliseconds{50});
         }
         server.Shutdown();
@@ -163,7 +168,7 @@ int main(int argc, char** argv)
               << '\n';
     server.Wait();
 
-    g_shutdown_requested = 1;
+    g_shutdown_requested.store(true, std::memory_order_relaxed);
     if (shutdown_watcher.joinable()) {
         shutdown_watcher.join();
     }
