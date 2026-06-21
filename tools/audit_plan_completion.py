@@ -243,6 +243,8 @@ def run_validation(command: str, *, repo_root: Path) -> ValidationResult:
         shell=True,
         capture_output=True,
         text=True,
+        encoding='utf-8',
+        errors='replace',
         check=False,
     )
     output = (completed.stdout or '') + (completed.stderr or '')
@@ -310,14 +312,17 @@ def repo_identifier_hits(text: str, *, repo_root: Path) -> list[str]:
                     cwd=repo_root,
                     capture_output=True,
                     text=True,
+                    encoding='utf-8',
+                    errors='replace',
                     check=False,
                 )
             except FileNotFoundError:
                 token_hits = _fallback_identifier_hits(token, repo_root=repo_root)
             else:
-                if completed.returncode != 0 or not completed.stdout.strip():
+                stdout = completed.stdout or ''
+                if completed.returncode != 0 or not stdout.strip():
                     continue
-                token_hits = [completed.stdout.splitlines()[0]]
+                token_hits = [stdout.splitlines()[0]]
         for line in token_hits:
             if line in seen:
                 continue
