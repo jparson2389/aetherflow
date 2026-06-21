@@ -15,8 +15,6 @@ from pathlib import Path
 
 import pytest
 
-from tools import audit_plan_completion
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PENDING_PATH = PROJECT_ROOT / 'logs' / 'verification' / 'pending_app_checks.json'
 VERIFICATION_DIR = PROJECT_ROOT / 'logs' / 'verification'
@@ -27,6 +25,11 @@ def test_audit_plan_completion_identifier_search_uses_utf8_replacement(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Identifier search must not depend on Windows default text decoding."""
+    # Deferred import: importing tools.audit_plan_completion at module scope
+    # executes its REPO_ROOT computation at collection time, which raises in
+    # shallow checkouts and would fail collection of this whole module.
+    from tools import audit_plan_completion
+
     run_kwargs: dict[str, object] = {}
 
     def fake_which(name: str) -> str | None:
