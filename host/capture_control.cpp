@@ -132,6 +132,28 @@ OperationStatus CaptureControlEndpoint::StartCapture(
     if (existing_it != runtime_unit_ids_.end()) {
         const supervisor::RuntimeState existing_state =
             supervisor_.GetState(existing_it->second);
+        // A unit in kRecovering has a dead process and is only relaunched by
+        // RestartUnit; the server path's watchdog merely polls liveness. Treat
+        // a StartCapture during recovery as the relaunch trigger rather than
+        // reporting a still-running unit whose worker is actually down.
+        if (existing_state == supervisor::RuntimeState::kRecovering) {
+            if (!supervisor_.RestartUnit(existing_it->second)) {
+                return OperationStatus{
+                    false,
+                    "FAILED",
+                    "capture restart failed",
+                    RetryBudgetRemaining(
+                        supervisor_.GetSnapshot(existing_it->second)),
+                };
+            }
+            return OperationStatus{
+                true,
+                RuntimeStateText(supervisor_.GetState(existing_it->second)),
+                "capture restarted",
+                RetryBudgetRemaining(
+                    supervisor_.GetSnapshot(existing_it->second)),
+            };
+        }
         if (existing_state != supervisor::RuntimeState::kFailed) {
             return OperationStatus{
                 true,
