@@ -41,10 +41,13 @@ def test_audit_plan_completion_identifier_search_uses_utf8_replacement(
     monkeypatch.setattr(audit_plan_completion.shutil, 'which', fake_which)
     monkeypatch.setattr(audit_plan_completion.subprocess, 'run', fake_run)
 
-    assert audit_plan_completion.repo_identifier_hits(
-        'AuditProbeToken',
-        repo_root=tmp_path,
-    ) == []
+    assert (
+        audit_plan_completion.repo_identifier_hits(
+            'AuditProbeToken',
+            repo_root=tmp_path,
+        )
+        == []
+    )
     assert run_kwargs['encoding'] == 'utf-8'
     assert run_kwargs['errors'] == 'replace'
 
