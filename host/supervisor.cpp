@@ -532,7 +532,12 @@ private:
     void DegradeDirectDependents(const UnitRecord& record) {
         for (const UnitId dependent_id : record.direct_dependents) {
             auto& dependent = GetRecord(dependent_id);
-            if (dependent.state != RuntimeState::kFailed) {
+            // Only downgrade dependents that are still running or already
+            // degraded. A dependent in kRecovering (from its own crash) is
+            // higher precedence and must stay RestartUnit-eligible; kFailed is
+            // terminal. Overwriting either would strand the dependent.
+            if (dependent.state == RuntimeState::kRunning ||
+                dependent.state == RuntimeState::kDegraded) {
                 dependent.state = RuntimeState::kDegraded;
             }
         }
