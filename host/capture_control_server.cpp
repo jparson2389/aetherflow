@@ -177,12 +177,13 @@ int main(int argc, char** argv)
 
     watchdog.Stop();
 
-    // Stop all active supervised units before returning so that worker
-    // processes are terminated rather than orphaned on host exit.
+    // Stop all supervised units before returning so that worker processes are
+    // terminated rather than orphaned on host exit. kFailed units are included:
+    // missed-heartbeat budget exhaustion can leave a failed unit holding a live,
+    // hung process handle. StopUnit is idempotent and its IsAlive() guard makes
+    // it a no-op for units without a live handle.
     for (const auto& snapshot : supervisor->GetSnapshots()) {
-        if (snapshot.state != aetherflow::supervisor::RuntimeState::kFailed) {
-            supervisor->StopUnit(snapshot.id, std::chrono::milliseconds{250});
-        }
+        supervisor->StopUnit(snapshot.id, std::chrono::milliseconds{250});
     }
 
     return 0;
