@@ -163,6 +163,13 @@ OperationStatus CaptureControlEndpoint::StartCapture(
                     supervisor_.GetSnapshot(existing_it->second)),
             };
         }
+        // kFailed reload: the old UnitRecord may still own a live, hung process
+        // (e.g. missed-heartbeat budget exhaustion). Stop it before spawning a
+        // replacement so the orphaned worker can't keep capture devices or
+        // shared memory locked until shutdown. StopUnit is a no-op when no live
+        // handle remains.
+        supervisor_.StopUnit(
+            existing_it->second, std::chrono::milliseconds{250});
     }
 
     const supervisor::UnitId unit_id = supervisor_.StartUnit(
