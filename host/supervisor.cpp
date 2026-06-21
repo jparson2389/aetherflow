@@ -332,12 +332,14 @@ public:
         }
         auto& dependency = GetRecord(dependency_id);
         dependency.direct_dependents.push_back(dependent_id);
-        // Late binding: if the dependency is already failed when the edge is
-        // registered (e.g. a manifest applied after the dependency crashed),
-        // degrade the new dependent now. DegradeDirectDependents only fires on
-        // a live failure transition, so without this the dependent would stay
-        // RUNNING until some unrelated future transition.
-        if (dependency.state == RuntimeState::kFailed) {
+        // Late binding: if the dependency is already unavailable when the edge
+        // is registered (e.g. a manifest applied after the dependency crashed),
+        // degrade the new dependent now. kFailed and kRecovering are exactly the
+        // states a provider is left in when DegradeDirectDependents fires on a
+        // live transition, so without this the dependent would stay RUNNING
+        // until some unrelated future transition.
+        if (dependency.state == RuntimeState::kFailed ||
+            dependency.state == RuntimeState::kRecovering) {
             auto& dependent = GetRecord(dependent_id);
             if (dependent.state != RuntimeState::kFailed) {
                 dependent.state = RuntimeState::kDegraded;
