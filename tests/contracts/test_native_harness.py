@@ -721,6 +721,217 @@ int main() {
     assert run_result.returncode == 0, run_result.stdout + run_result.stderr
 
 
+def test_native_capture_control_endpoint_releases_lock_before_stop_unit(
+    tmp_path: Path,
+) -> None:
+    compiler = shutil.which('g++') or shutil.which('clang++')
+    if compiler is None:
+        pytest.skip('C++ compiler not available')
+
+    test_source = tmp_path / 'capture_control_stop_lock_contract.cpp'
+    test_binary = tmp_path / 'capture_control_stop_lock_contract'
+    test_source.write_text(
+        """
+#include "capture_control.hpp"
+#include "supervisor.hpp"
+
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+#include <vector>
+
+class BlockingSupervisor final : public aetherflow::supervisor::IWorkerSupervisor {
+public:
+    aetherflow::supervisor::UnitId StartUnit(
+        std::string_view,
+        std::string_view,
+        std::string_view) override {
+        return unit_id_;
+    }
+
+    bool RegisterDependency(
+        aetherflow::supervisor::UnitId,
+        aetherflow::supervisor::UnitId) override {
+        return true;
+    }
+
+    bool RestartUnit(aetherflow::supervisor::UnitId) override {
+        return true;
+    }
+
+    void StopUnit(
+        aetherflow::supervisor::UnitId,
+        std::chrono::milliseconds) override {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            stop_entered_ = true;
+        }
+        cv_.notify_all();
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this] { return allow_stop_; });
+        state_ = aetherflow::supervisor::RuntimeState::kFailed;
+    }
+
+    void RecordHeartbeat(aetherflow::supervisor::UnitId) override {}
+
+    void RecordMissedHeartbeat(aetherflow::supervisor::UnitId) override {}
+
+    void RecordCrash(
+        aetherflow::supervisor::UnitId,
+        aetherflow::supervisor::ExitStatus) override {}
+
+    aetherflow::supervisor::RuntimeState EnforceRestartBudget(
+        aetherflow::supervisor::UnitId) override {
+        return state_;
+    }
+
+    aetherflow::supervisor::UnitSnapshot GetSnapshot(
+        aetherflow::supervisor::UnitId id) const override {
+        return aetherflow::supervisor::UnitSnapshot{
+            id,
+            state_,
+            0U,
+            0U,
+            0U,
+            aetherflow::supervisor::kDefaultMaxRestarts,
+            false,
+        };
+    }
+
+    std::vector<aetherflow::supervisor::UnitSnapshot> GetSnapshots()
+        const override {
+        return {GetSnapshot(unit_id_)};
+    }
+
+    aetherflow::supervisor::RuntimeState GetState(
+        aetherflow::supervisor::UnitId) const override {
+        return state_;
+    }
+
+    std::uint32_t PollProcessLiveness() override {
+        return 0U;
+    }
+
+    bool WaitForStopEntered(std::chrono::milliseconds timeout) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        return cv_.wait_for(lock, timeout, [this] { return stop_entered_; });
+    }
+
+    void AllowStop() {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            allow_stop_ = true;
+        }
+        cv_.notify_all();
+    }
+
+private:
+    static constexpr aetherflow::supervisor::UnitId unit_id_{1U};
+    mutable std::mutex mutex_;
+    std::condition_variable cv_;
+    bool stop_entered_{false};
+    bool allow_stop_{false};
+    aetherflow::supervisor::RuntimeState state_{
+        aetherflow::supervisor::RuntimeState::kRunning};
+};
+
+int main() {
+    using aetherflow::capture::CaptureControlEndpoint;
+    using aetherflow::capture::CaptureMode;
+    using aetherflow::capture::CaptureStartRequest;
+    using aetherflow::capture::CaptureStopRequest;
+    using aetherflow::capture::WorkerLog;
+
+    BlockingSupervisor supervisor;
+    CaptureControlEndpoint endpoint(supervisor);
+    endpoint.RegisterLaunchSpec("opencv-capture", "/bin/sleep", "10");
+
+    const auto start_status = endpoint.StartCapture(CaptureStartRequest{
+        "opencv-capture",
+        "camera-0",
+        CaptureMode{1920U, 1080U, 120U, "BGR24", 5760U},
+        500U,
+    });
+    if (!start_status.ok) {
+        return 1;
+    }
+
+    std::thread stop_thread([&endpoint] {
+        endpoint.StopCapture(CaptureStopRequest{
+            "opencv-capture",
+            "camera-0",
+            "user-request",
+        });
+    });
+    if (!supervisor.WaitForStopEntered(std::chrono::seconds{1})) {
+        supervisor.AllowStop();
+        stop_thread.join();
+        return 2;
+    }
+
+    std::atomic<bool> log_recorded{false};
+    std::thread log_thread([&endpoint, &log_recorded] {
+        const auto status = endpoint.ForwardWorkerLog(WorkerLog{
+            "worker-0",
+            "INFO",
+            "still responsive",
+            1U,
+        });
+        log_recorded.store(status.ok);
+    });
+
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds{250};
+    while (!log_recorded.load() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds{5});
+    }
+    if (!log_recorded.load()) {
+        supervisor.AllowStop();
+        stop_thread.join();
+        log_thread.join();
+        return 3;
+    }
+
+    supervisor.AllowStop();
+    stop_thread.join();
+    log_thread.join();
+    return 0;
+}
+""",
+        encoding='utf-8',
+    )
+
+    compile_result = subprocess.run(
+        [
+            compiler,
+            '-std=c++20',
+            '-pthread',
+            '-I',
+            str(PROJECT_ROOT / 'include'),
+            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
+            str(test_source),
+            '-o',
+            str(test_binary),
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
+
+    run_result = subprocess.run(
+        [str(test_binary)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+
+
 def test_native_capture_control_endpoint_records_worker_heartbeat(
     tmp_path: Path,
 ) -> None:

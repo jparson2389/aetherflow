@@ -210,23 +210,27 @@ OperationStatus CaptureControlEndpoint::StartCapture(
 OperationStatus CaptureControlEndpoint::StopCapture(
     const CaptureStopRequest& request)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    const auto unit_it = runtime_unit_ids_.find(request.capture_plugin_id);
-    if (unit_it == runtime_unit_ids_.end()) {
-        return OperationStatus{
-            false,
-            "FAILED",
-            "unknown capture unit",
-            0U,
-        };
+    supervisor::UnitId unit_id = supervisor::kInvalidUnitId;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto unit_it = runtime_unit_ids_.find(request.capture_plugin_id);
+        if (unit_it == runtime_unit_ids_.end()) {
+            return OperationStatus{
+                false,
+                "FAILED",
+                "unknown capture unit",
+                0U,
+            };
+        }
+        unit_id = unit_it->second;
     }
 
-    supervisor_.StopUnit(unit_it->second, std::chrono::milliseconds{250});
+    supervisor_.StopUnit(unit_id, std::chrono::milliseconds{250});
     return OperationStatus{
         true,
-        RuntimeStateText(supervisor_.GetState(unit_it->second)),
+        RuntimeStateText(supervisor_.GetState(unit_id)),
         "capture stopped",
-        RetryBudgetRemaining(supervisor_.GetSnapshot(unit_it->second)),
+        RetryBudgetRemaining(supervisor_.GetSnapshot(unit_id)),
     };
 }
 
