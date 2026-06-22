@@ -10,13 +10,19 @@
     "endOfLine": "lf",
     "overrides": [
         {
-            "files": ["*.json", "*.jsonc"],
+            "files": [
+                "*.json",
+                "*.jsonc"
+            ],
             "options": {
                 "trailingComma": "none"
             }
         },
         {
-            "files": ["*.yaml", "*.yml"],
+            "files": [
+                "*.yaml",
+                "*.yml"
+            ],
             "options": {
                 "tabWidth": 2
             }
@@ -24,6 +30,7 @@
         {
             "files": "*.md",
             "options": {
+                "printWidth": 1000,
                 "tabWidth": 2,
                 "proseWrap": "preserve"
             }

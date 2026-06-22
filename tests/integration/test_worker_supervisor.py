@@ -6,6 +6,7 @@ state transitions) are made by the host C++ supervisor and are not re-tested
 here.
 """
 
+import aetherflow.core.worker_supervisor as worker_supervisor
 from aetherflow.core.worker_supervisor import WorkerHealth, WorkerStateView
 
 
@@ -80,3 +81,8 @@ def test_snapshot_reflects_host_reported_state() -> None:
     assert snap.health is WorkerHealth.RECOVERING
     assert snap.restart_count == 2
     assert snap.restart_attempts_in_window == 2
+
+
+def test_python_module_no_longer_exports_supervisor_of_record_alias() -> None:
+    """Python consumers only receive a host state view, not a supervisor alias."""
+    assert not hasattr(worker_supervisor, 'WorkerSupervisor')

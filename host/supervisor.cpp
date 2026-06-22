@@ -1,5 +1,6 @@
 #include "supervisor.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <mutex>
@@ -7,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -199,12 +201,15 @@ using TimePoint = Clock::time_point;
 
 struct UnitRecord {
     std::string name;
+    std::string launcher_path;
+    std::string args;
     RuntimeState state{RuntimeState::kRunning};
     std::uint32_t restart_count{0};
     std::uint32_t restarts_in_window{0};
     std::uint32_t missed_heartbeats{0};
     TimePoint window_start{Clock::now()};
     std::unique_ptr<IProcessHandle> process;
+    std::vector<UnitId> direct_dependents;
 
     // Per-unit budget limits copied from supervisor construction.
     std::uint32_t max_restarts{kDefaultMaxRestarts};
@@ -239,6 +244,10 @@ public:
     {
         std::lock_guard lock(mutex_);
 
+        if (launcher_path.empty()) {
+            return kInvalidUnitId;
+        }
+
         // Reject duplicate registrations: a live unit with this name already exists.
         for (const auto& [existing_id, record] : records_) {
             if (record.name == unit_name &&
@@ -250,21 +259,53 @@ public:
         const UnitId id = next_id_++;
         UnitRecord record;
         record.name = std::string(unit_name);
+        record.launcher_path = std::string(launcher_path);
+        record.args = std::string(args);
         record.state = RuntimeState::kRunning;
         record.max_restarts = max_restarts_;
         record.restart_window = restart_window_;
         record.window_start = Clock::now();
 
-        if (!launcher_path.empty()) {
-            record.process = SpawnProcess(launcher_path, args);
-            if (!record.process) {
-                // Process failed to launch — unit starts in failed state.
-                record.state = RuntimeState::kFailed;
-            }
+        record.process = SpawnProcess(launcher_path, args);
+        if (!record.process) {
+            return kInvalidUnitId;
         }
 
         records_.emplace(id, std::move(record));
         return id;
+    }
+
+    [[nodiscard]] bool RegisterDependency(
+        UnitId dependent_id,
+        UnitId dependency_id) override
+    {
+        std::lock_guard lock(mutex_);
+        if (!HasRecord(dependent_id) || !HasRecord(dependency_id)) {
+            return false;
+        }
+        auto& dependency = GetRecord(dependency_id);
+        dependency.direct_dependents.push_back(dependent_id);
+        return true;
+    }
+
+    [[nodiscard]] bool RestartUnit(UnitId id) override {
+        std::lock_guard lock(mutex_);
+        auto& record = GetRecord(id);
+        if (record.state != RuntimeState::kRecovering) {
+            return false;
+        }
+
+        auto process = SpawnProcess(record.launcher_path, record.args);
+        if (!process) {
+            record.state = RuntimeState::kFailed;
+            DegradeDirectDependents(record);
+            return false;
+        }
+
+        record.process = std::move(process);
+        record.missed_heartbeats = 0;
+        record.state = RuntimeState::kRunning;
+        return true;
     }
 
     void StopUnit(UnitId id, std::chrono::milliseconds grace_period) override {
@@ -278,6 +319,7 @@ public:
             record.process->Terminate(grace_period);
         }
         record.state = RuntimeState::kFailed;
+        DegradeDirectDependents(record);
     }
 
     void RecordHeartbeat(UnitId id) override {
@@ -305,6 +347,7 @@ public:
         if (record.missed_heartbeats >= 3U) {
             ++record.restart_count;
             ApplyBudget(record);
+            DegradeDirectDependents(record);
             return;
         }
         if (record.missed_heartbeats >= 2U) {
@@ -320,6 +363,7 @@ public:
         }
         ++record.restart_count;
         ApplyBudget(record);
+        DegradeDirectDependents(record);
     }
 
     [[nodiscard]] RuntimeState EnforceRestartBudget(UnitId id) override {
@@ -329,15 +373,25 @@ public:
 
     [[nodiscard]] UnitSnapshot GetSnapshot(UnitId id) const override {
         std::lock_guard lock(mutex_);
-        const auto& record = GetRecord(id);
-        UnitSnapshot snap;
-        snap.id = id;
-        snap.state = record.state;
-        snap.restart_count = record.restart_count;
-        snap.restarts_in_window = record.restarts_in_window;
-        snap.missed_heartbeats = record.missed_heartbeats;
-        snap.process_alive = record.process && record.process->IsAlive();
-        return snap;
+        return MakeSnapshot(id, GetRecord(id));
+    }
+
+    [[nodiscard]] std::vector<UnitSnapshot> GetSnapshots() const override {
+        std::lock_guard lock(mutex_);
+        std::vector<UnitId> ids;
+        ids.reserve(records_.size());
+        for (const auto& [id, record] : records_) {
+            (void)record;
+            ids.push_back(id);
+        }
+        std::sort(ids.begin(), ids.end());
+
+        std::vector<UnitSnapshot> snapshots;
+        snapshots.reserve(ids.size());
+        for (const UnitId id : ids) {
+            snapshots.push_back(MakeSnapshot(id, GetRecord(id)));
+        }
+        return snapshots;
     }
 
     [[nodiscard]] RuntimeState GetState(UnitId id) const override {
@@ -364,6 +418,33 @@ private:
         return it->second;
     }
 
+    [[nodiscard]] bool HasRecord(UnitId id) const {
+        return records_.find(id) != records_.end();
+    }
+
+    void DegradeDirectDependents(const UnitRecord& record) {
+        for (const UnitId dependent_id : record.direct_dependents) {
+            auto& dependent = GetRecord(dependent_id);
+            if (dependent.state != RuntimeState::kFailed) {
+                dependent.state = RuntimeState::kDegraded;
+            }
+        }
+    }
+
+    [[nodiscard]] UnitSnapshot MakeSnapshot(
+        UnitId id,
+        const UnitRecord& record) const
+    {
+        UnitSnapshot snap;
+        snap.id = id;
+        snap.state = record.state;
+        snap.restart_count = record.restart_count;
+        snap.restarts_in_window = record.restarts_in_window;
+        snap.missed_heartbeats = record.missed_heartbeats;
+        snap.process_alive = record.process && record.process->IsAlive();
+        return snap;
+    }
+
     // Evaluate the restart budget for the record and update its state.
     // Returns the resulting RuntimeState.
     RuntimeState ApplyBudget(UnitRecord& record) {
@@ -387,5 +468,12 @@ private:
     std::uint32_t max_restarts_{kDefaultMaxRestarts};
     std::chrono::seconds restart_window_{kDefaultRestartWindow};
 };
+
+std::unique_ptr<IWorkerSupervisor> CreateWorkerSupervisor(
+    std::uint32_t max_restarts,
+    std::chrono::seconds restart_window)
+{
+    return std::make_unique<WorkerSupervisorImpl>(max_restarts, restart_window);
+}
 
 }  // namespace aetherflow::supervisor

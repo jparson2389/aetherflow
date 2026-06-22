@@ -2,7 +2,9 @@
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <string_view>
+#include <vector>
 
 #include "plugin_system.hpp"
 
@@ -85,12 +87,26 @@ public:
     // unit_name: human-readable label used in diagnostics and logs.
     // launcher_path: absolute path to the process executable to spawn.
     // args: whitespace-separated command-line arguments for the process.
+    // Precondition: launcher_path names an OS process executable; thread-only
+    // or in-memory worker units are not valid supervision targets.
     // Precondition: unit_name must not already be registered as a live unit.
     // Returns kInvalidUnitId if the unit could not be started.
     [[nodiscard]] virtual UnitId StartUnit(
         std::string_view unit_name,
         std::string_view launcher_path,
         std::string_view args) = 0;
+
+    // Register that dependent_id directly depends on dependency_id. When the
+    // dependency crashes or stops, only its direct dependents are degraded;
+    // unrelated units keep their current state.
+    [[nodiscard]] virtual bool RegisterDependency(
+        UnitId dependent_id,
+        UnitId dependency_id) = 0;
+
+    // Relaunch a unit that is in RuntimeState::kRecovering using its original
+    // OS process launcher. Returns false for unknown, failed, or non-recovering
+    // units and never restarts unrelated units.
+    [[nodiscard]] virtual bool RestartUnit(UnitId id) = 0;
 
     // Request orderly shutdown of the given unit.
     // The process receives a graceful termination signal and is waited on for
@@ -127,8 +143,17 @@ public:
     // Return an immutable snapshot of the given unit's complete state.
     [[nodiscard]] virtual UnitSnapshot GetSnapshot(UnitId id) const = 0;
 
+    // Return immutable snapshots for all known units. This is the stable
+    // shell-facing state export; consumers must render these records rather
+    // than infer the runtime unit set locally.
+    [[nodiscard]] virtual std::vector<UnitSnapshot> GetSnapshots() const = 0;
+
     // Return the current RuntimeState of the given unit.
     [[nodiscard]] virtual RuntimeState GetState(UnitId id) const = 0;
 };
+
+[[nodiscard]] std::unique_ptr<IWorkerSupervisor> CreateWorkerSupervisor(
+    std::uint32_t max_restarts = kDefaultMaxRestarts,
+    std::chrono::seconds restart_window = kDefaultRestartWindow);
 
 }  // namespace aetherflow::supervisor

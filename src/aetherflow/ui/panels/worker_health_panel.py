@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from aetherflow.core.worker_supervisor import (
     WorkerHealth,
     WorkerSnapshot,
-    WorkerSupervisor,
+    WorkerStateView,
 )
 
 
@@ -51,17 +51,17 @@ class WorkerHealthPanelModel:
         )
 
     @classmethod
-    def list_from_supervisor(
+    def list_from_state_view(
         cls,
-        supervisor: WorkerSupervisor,
+        state_view: WorkerStateView,
     ) -> list[WorkerHealthPanelModel]:
-        """Build panel models from supervisor state.
+        """Build panel models from host-reported worker state.
 
         Args:
-            supervisor: Worker supervisor to snapshot.
+            state_view: Host-reported worker state view to snapshot.
 
         Returns:
             List of worker health panel models.
 
         """
-        return [cls.from_snapshot(snapshot) for snapshot in supervisor.snapshot()]
+        return [cls.from_snapshot(snapshot) for snapshot in state_view.snapshot()]
