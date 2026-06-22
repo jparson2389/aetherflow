@@ -1,0 +1,195 @@
+#include "capture_control.hpp"
+#include "capture_control_service.hpp"
+#include "supervisor.hpp"
+
+#include <atomic>
+#include <csignal>
+#include <chrono>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <thread>
+
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
+namespace {
+
+// Lock-free atomic so the main thread, signal handlers, and the watcher thread
+// can communicate shutdown safely. A lock-free std::atomic store is
+// async-signal-safe; volatile sig_atomic_t would only cover the handler case,
+// not the cross-thread read by the watcher below.
+std::atomic<bool> g_shutdown_requested{false};
+
+struct LaunchSpecParts {
+    std::string runtime_id;
+    std::string launcher_path;
+    std::string args;
+};
+
+LaunchSpecParts ParseLaunchSpec(std::string_view raw)
+{
+    const std::size_t equals = raw.find('=');
+    if (equals == std::string_view::npos || equals == 0 ||
+        equals == raw.size() - 1) {
+        throw std::invalid_argument(
+            "--launch-spec must use runtime_id=launcher_path[,args]");
+    }
+
+    LaunchSpecParts parts;
+    parts.runtime_id = std::string(raw.substr(0, equals));
+
+    const std::string_view remainder = raw.substr(equals + 1);
+    const std::size_t comma = remainder.find(',');
+    if (comma == std::string_view::npos) {
+        parts.launcher_path = std::string(remainder);
+        return parts;
+    }
+
+    parts.launcher_path = std::string(remainder.substr(0, comma));
+    parts.args = std::string(remainder.substr(comma + 1));
+    return parts;
+}
+
+bool IsLoopbackAddress(std::string_view address)
+{
+    return address.rfind("127.0.0.1:", 0) == 0 ||
+           address.rfind("[::1]:", 0) == 0 ||
+           address.rfind("localhost:", 0) == 0 ||
+           address.rfind("unix:", 0) == 0;
+}
+
+#ifdef _WIN32
+BOOL WINAPI ConsoleShutdownHandler(DWORD control_type)
+{
+    switch (control_type) {
+    case CTRL_C_EVENT:
+    case CTRL_BREAK_EVENT:
+    case CTRL_CLOSE_EVENT:
+    case CTRL_SHUTDOWN_EVENT:
+        g_shutdown_requested.store(true, std::memory_order_relaxed);
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+#else
+void RequestShutdown(int)
+{
+    g_shutdown_requested.store(true, std::memory_order_relaxed);
+}
+#endif
+
+}  // namespace
+
+int main(int argc, char** argv)
+{
+    std::string listen_address = "127.0.0.1:50051";
+    bool allow_remote = false;
+
+    auto supervisor = aetherflow::supervisor::CreateWorkerSupervisor(
+        3U,
+        std::chrono::seconds{60});
+    aetherflow::capture::CaptureControlEndpoint endpoint(*supervisor);
+
+    try {
+        for (int index = 1; index < argc; ++index) {
+            const std::string_view arg(argv[index]);
+            if (arg == "--listen") {
+                if (++index >= argc) {
+                    throw std::invalid_argument("--listen requires an address");
+                }
+                listen_address = argv[index];
+                continue;
+            }
+            if (arg == "--allow-remote") {
+                allow_remote = true;
+                continue;
+            }
+            if (arg == "--launch-spec") {
+                if (++index >= argc) {
+                    throw std::invalid_argument(
+                        "--launch-spec requires runtime_id=launcher_path[,args]");
+                }
+                const auto spec = ParseLaunchSpec(argv[index]);
+                endpoint.RegisterLaunchSpec(
+                    spec.runtime_id,
+                    spec.launcher_path,
+                    spec.args);
+                continue;
+            }
+            throw std::invalid_argument("unknown argument: " + std::string(arg));
+        }
+    } catch (const std::exception& exc) {
+        std::cerr << "Aetherflow CaptureControl server argument error: "
+                  << exc.what() << '\n';
+        return 2;
+    }
+
+    // The gRPC server uses insecure credentials; refuse to expose the
+    // start/stop/control RPCs on a routable address unless explicitly opted in.
+    if (!allow_remote && !IsLoopbackAddress(listen_address)) {
+        std::cerr << "Aetherflow CaptureControl server refusing non-loopback "
+                     "address "
+                  << listen_address
+                  << " without --allow-remote (control plane uses insecure "
+                     "credentials)\n";
+        return 2;
+    }
+
+    aetherflow::capture::CaptureControlGrpcServer server(endpoint);
+    if (!server.Start(listen_address)) {
+        std::cerr << "Aetherflow CaptureControl server failed to listen on "
+                  << listen_address << '\n';
+        return 1;
+    }
+
+    aetherflow::supervisor::WorkerWatchdog watchdog(*supervisor);
+    watchdog.Start();
+
+#ifdef _WIN32
+    SetConsoleCtrlHandler(ConsoleShutdownHandler, TRUE);
+#else
+    std::signal(SIGINT, RequestShutdown);
+    std::signal(SIGTERM, RequestShutdown);
+#endif
+
+    std::thread shutdown_watcher([&server]() {
+        while (!g_shutdown_requested.load(std::memory_order_relaxed)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds{50});
+        }
+        server.Shutdown();
+    });
+
+    std::cerr << "AETHERFLOW_CAPTURE_CONTROL_LISTENING " << listen_address
+              << '\n';
+    server.Wait();
+
+    g_shutdown_requested.store(true, std::memory_order_relaxed);
+    if (shutdown_watcher.joinable()) {
+        shutdown_watcher.join();
+    }
+
+#ifdef _WIN32
+    SetConsoleCtrlHandler(ConsoleShutdownHandler, FALSE);
+#else
+    std::signal(SIGINT, SIG_DFL);
+    std::signal(SIGTERM, SIG_DFL);
+#endif
+
+    watchdog.Stop();
+
+    // Stop all supervised units before returning so that worker processes are
+    // terminated rather than orphaned on host exit. kFailed units are included:
+    // missed-heartbeat budget exhaustion can leave a failed unit holding a live,
+    // hung process handle. StopUnit is idempotent and its IsAlive() guard makes
+    // it a no-op for units without a live handle.
+    for (const auto& snapshot : supervisor->GetSnapshots()) {
+        supervisor->StopUnit(snapshot.id, std::chrono::milliseconds{250});
+    }
+
+    return 0;
+}

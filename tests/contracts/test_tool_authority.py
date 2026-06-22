@@ -8,14 +8,51 @@ Advisory tools must not claim or promote a ``verified`` status.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import time
 from pathlib import Path
+
+import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PENDING_PATH = PROJECT_ROOT / 'logs' / 'verification' / 'pending_app_checks.json'
 VERIFICATION_DIR = PROJECT_ROOT / 'logs' / 'verification'
 REPORT_PATH = PROJECT_ROOT / 'docs' / 'requirements-report.md'
+
+
+def test_audit_plan_completion_identifier_search_uses_utf8_replacement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Identifier search must not depend on Windows default text decoding."""
+    # Deferred import: importing tools.audit_plan_completion at module scope
+    # executes its REPO_ROOT computation at collection time, which raises in
+    # shallow checkouts and would fail collection of this whole module.
+    from tools import audit_plan_completion
+
+    run_kwargs: dict[str, object] = {}
+
+    def fake_which(name: str) -> str | None:
+        if name == 'rg':
+            return 'rg'
+        return shutil.which(name)
+
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        run_kwargs.update(kwargs)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=None)
+
+    monkeypatch.setattr(audit_plan_completion.shutil, 'which', fake_which)
+    monkeypatch.setattr(audit_plan_completion.subprocess, 'run', fake_run)
+
+    assert (
+        audit_plan_completion.repo_identifier_hits(
+            'AuditProbeToken',
+            repo_root=tmp_path,
+        )
+        == []
+    )
+    assert run_kwargs['encoding'] == 'utf-8'
+    assert run_kwargs['errors'] == 'replace'
 
 
 def test_audit_plan_completion_does_not_write_verification_outputs() -> None:

@@ -31,10 +31,8 @@ jobs:
         run: uv run bandit -r src tools/validation_gate.py -s B106,B404,B603
 
       - name: Dependency audit
-        # CVE-2026-4539  (Pygments ReDoS): no patched release available yet; drop when pygments is updated.
         run: >-
           uv run pip-audit
-          --ignore-vuln CVE-2026-4539
           --skip-editable
 
       - name: Secret scan

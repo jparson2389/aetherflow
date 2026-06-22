@@ -1,9 +1,40 @@
+# Python / build
 .venv/
 .ruff_cache/
-__pycache__/
-node_modules/
-dist/
 build/
+dist/
 out/
+__pycache__/
+*.egg-info/
+
+# Proto-generated files
+**/*_pb2.py
+**/*_pb2_grpc.py
+src/aetherflow/proto/
+
+# Node
+node_modules/
+
+# AI agent workspaces
+.claude/
+.codex/
+.agents/
+.cursor/
+.tmp/
+
+# Generated logs and reports
+logs/
+
+# Git
+.git/
+
+# Lock files
+uv.lock
+package-lock.json
+
+# VS Code
+.vscode/
+
+# Generated docs
+docs/evidence/
 docs/requirements-report.md
-.claude/agents/plan-work-item-auditor.md

@@ -1,15 +1,28 @@
-"""Worker supervision state tracking."""
+"""Host-reported worker state view.
+
+The host C++ supervisor (``WorkerSupervisorImpl`` in ``host/supervisor.cpp``)
+is the sole authority for all supervision decisions. This module provides
+``WorkerStateView``, a read-only mirror that applies state reports received
+from the host via the gRPC control plane and surfaces them to shell consumers.
+
+``WorkerStateView`` must never make restart or health-transition decisions.
+All transition logic (missed-heartbeat escalation, restart-budget enforcement,
+failure isolation) lives in the native host.
+
+New code must use ``WorkerStateView`` directly.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from time import monotonic
+
+_logger = logging.getLogger(__name__)
 
 
 class WorkerHealth(StrEnum):
-    """Worker health states."""
+    """Worker health states as reported by the host supervisor."""
 
     STARTING = 'STARTING'
     RUNNING = 'RUNNING'
@@ -20,18 +33,17 @@ class WorkerHealth(StrEnum):
 
 @dataclass(slots=True)
 class WorkerRecord:
-    """Mutable state for a supervised worker."""
+    """Mutable state for a supervised worker unit."""
 
     health: WorkerHealth = WorkerHealth.STARTING
     missed_heartbeats: int = 0
     restart_count: int = 0
-    restart_window_start: float = 0.0
     restart_attempts_in_window: int = 0
 
 
 @dataclass(frozen=True, slots=True)
 class WorkerSnapshot:
-    """Immutable snapshot of worker health."""
+    """Immutable snapshot of worker health for a single unit."""
 
     worker_id: str
     health: WorkerHealth
@@ -40,66 +52,109 @@ class WorkerSnapshot:
     restart_attempts_in_window: int
 
 
-class WorkerSupervisor:
-    """Track worker health and restart budgets."""
+class WorkerStateView:
+    """Read-only mirror of host-reported worker state.
 
-    def __init__(
-        self,
-        *,
-        max_restarts: int = 3,
-        restart_window_s: float = 60.0,
-        clock: Callable[[], float] | None = None,
-    ) -> None:
-        """Initialize supervisor state.
+    The host supervisor is the single authority for all supervision decisions.
+    This class stores the state the host has reported and exposes it to shell
+    consumers. It must not compute state transitions independently.
+    """
+
+    def __init__(self) -> None:
+        """Initialize an empty worker state view."""
+        self._records: dict[str, WorkerRecord] = {}
+
+    def register(self, worker_id: str) -> None:
+        """Register a worker slot to receive host state reports.
 
         Args:
-            max_restarts: Restart attempts allowed before failure.
-            restart_window_s: Time window for restart budget enforcement.
-            clock: Monotonic time provider for testing.
+            worker_id: Stable identifier for the worker unit.
 
         """
-        self._records: dict[str, WorkerRecord] = {}
-        self._max_restarts = max_restarts
-        self._restart_window_s = restart_window_s
-        self._clock = clock or monotonic
+        self._records[worker_id] = WorkerRecord()
 
-    def start(self, worker_id: str) -> None:
-        """Start tracking a worker."""
-        self._records[worker_id] = WorkerRecord(health=WorkerHealth.RUNNING)
+    def _record_for(self, worker_id: str) -> WorkerRecord:
+        """Return the record for a worker, auto-registering if the host reports a new one.
 
-    def record_missed_heartbeat(self, worker_id: str) -> None:
-        """Record a missed heartbeat for a worker."""
-        record = self._records[worker_id]
-        record.missed_heartbeats += 1
-        if record.missed_heartbeats >= 3:
-            record.restart_count += 1
-            record.health = self._register_restart(record)
-            return
-        if record.missed_heartbeats >= 2:
-            record.health = WorkerHealth.DEGRADED
+        The host supervisor is the authority for which workers exist; a report
+        for an unregistered id means the shell view simply has not seen it yet,
+        so it is registered rather than allowed to crash the shell.
 
-    def record_crash(self, worker_id: str) -> None:
-        """Record a worker crash."""
-        record = self._records[worker_id]
-        record.restart_count += 1
-        record.health = self._register_restart(record)
+        Args:
+            worker_id: Stable identifier for the worker unit.
 
-    def record_heartbeat(self, worker_id: str) -> None:
-        """Record a successful heartbeat and clear degraded state."""
-        record = self._records[worker_id]
-        record.missed_heartbeats = 0
-        if record.health is not WorkerHealth.FAILED:
-            record.health = WorkerHealth.RUNNING
+        Returns:
+            The existing or newly created worker record.
+
+        """
+        record = self._records.get(worker_id)
+        if record is None:
+            _logger.warning(
+                'host reported state for unregistered worker %s; auto-registering',
+                worker_id,
+            )
+            record = WorkerRecord()
+            self._records[worker_id] = record
+        return record
+
+    def apply_heartbeat(
+        self,
+        worker_id: str,
+        *,
+        health: WorkerHealth,
+        missed_heartbeats: int,
+    ) -> None:
+        """Apply a heartbeat report received from the host supervisor.
+
+        Args:
+            worker_id: Stable identifier for the worker unit.
+            health: Health state as determined by the host supervisor.
+            missed_heartbeats: Missed-heartbeat count reported by the host.
+
+        """
+        record = self._record_for(worker_id)
+        record.health = health
+        record.missed_heartbeats = missed_heartbeats
+
+    def apply_crash_result(
+        self,
+        worker_id: str,
+        *,
+        health: WorkerHealth,
+        restart_count: int,
+        restart_attempts_in_window: int,
+    ) -> None:
+        """Apply a crash or restart-budget result reported by the host supervisor.
+
+        Args:
+            worker_id: Stable identifier for the worker unit.
+            health: Resulting health as decided by the host.
+            restart_count: Total restart count reported by the host.
+            restart_attempts_in_window: Restart attempts within the current window.
+
+        """
+        record = self._record_for(worker_id)
+        record.health = health
+        record.restart_count = restart_count
+        record.restart_attempts_in_window = restart_attempts_in_window
 
     def status(self, worker_id: str) -> WorkerHealth:
-        """Return the current worker health."""
+        """Return the last health state reported by the host for this worker.
+
+        Args:
+            worker_id: Stable identifier for the worker unit.
+
+        Returns:
+            Most recent WorkerHealth value applied from a host report.
+
+        """
         return self._records[worker_id].health
 
     def snapshot(self) -> list[WorkerSnapshot]:
-        """Return immutable snapshots of worker health.
+        """Return immutable snapshots of all registered workers.
 
         Returns:
-            List of worker health snapshots.
+            Worker snapshots sorted by worker identifier for deterministic output.
 
         """
         return [
@@ -112,13 +167,3 @@ class WorkerSupervisor:
             )
             for worker_id, record in sorted(self._records.items())
         ]
-
-    def _register_restart(self, record: WorkerRecord) -> WorkerHealth:
-        now = self._clock()
-        if now - record.restart_window_start > self._restart_window_s:
-            record.restart_window_start = now
-            record.restart_attempts_in_window = 0
-        record.restart_attempts_in_window += 1
-        if record.restart_attempts_in_window > self._max_restarts:
-            return WorkerHealth.FAILED
-        return WorkerHealth.RECOVERING

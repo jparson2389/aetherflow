@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "cryptography>=46.0.7",
+    "cryptography>=48.0.1",
     "grpcio>=1.78.0",
     "grpcio-tools>=1.78.0",
     "loguru>=0.7.3",
@@ -14,7 +14,7 @@ dependencies = [
     "opencv-python>=4.13.0.92",
     "protobuf>=6.33.5,<7.0.0",
     "pydantic>=2.12.5",
-    "pydantic-settings>=2.13.1",
+    "pydantic-settings>=2.14.2",
     "pyside6==6.9.1",
     "pynput>=1.7.7",
     "python-dotenv>=1.2.2",
