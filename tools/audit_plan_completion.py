@@ -24,7 +24,7 @@ AuditStatus = Literal[
     'satisfied', 'weak-evidence', 'missing', 'manual-review', 'structural'
 ]
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 PLAN_CANDIDATE_PATTERNS = ('*PLAN*.md', '*.plan.md')
 PLAN_EXCLUDE_TOKENS = (
     'report',
