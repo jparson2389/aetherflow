@@ -370,7 +370,8 @@ public:
 
     [[nodiscard]] bool RestartUnit(UnitId id) override {
         std::unique_ptr<IProcessHandle> old_process;
-        bool result = false;
+        std::string launcher_path;
+        std::string args;
         {
             std::lock_guard lock(mutex_);
             auto it = records_.find(id);
@@ -382,29 +383,44 @@ public:
                 return false;
             }
 
-            // Move the old handle out before spawning so it is terminated on
-            // both success and failure paths — a recovering unit's process may
-            // still be alive and must not be abandoned when spawn fails.
+            // Move the old handle out and capture the launcher args under the
+            // lock, then drop the lock to terminate the stale worker and spawn
+            // the replacement — neither blocking step should stall other units.
             old_process = std::move(record.process);
-
-            auto process = SpawnProcess(record.launcher_path, record.args);
-            if (!process) {
-                record.state = RuntimeState::kFailed;
-                DegradeDirectDependents(record);
-                result = false;
-            } else {
-                record.process = std::move(process);
-                record.missed_heartbeats = 0;
-                record.state = RuntimeState::kRunning;
-                result = true;
-            }
+            launcher_path = record.launcher_path;
+            args = record.args;
         }
-        // Terminate the displaced handle outside the lock (both paths): Terminate()
-        // can block on the grace window and must not stall other units.
+
+        // Terminate/reap the stale worker BEFORE launching the replacement: a
+        // unit that reached RECOVERING via missed heartbeats may be hung but
+        // still alive, owning the capture device or shared memory. Spawning the
+        // replacement first could briefly run two workers against the same
+        // resources or make the restart fail. Done outside the lock because
+        // Terminate() can block on the grace window.
         if (old_process && old_process->IsAlive()) {
             old_process->Terminate(std::chrono::milliseconds{0});
         }
-        return result;
+        old_process.reset();
+
+        // Spawn the replacement outside the lock for the same reason.
+        auto process = SpawnProcess(launcher_path, args);
+
+        // Reacquire the lock to install the new process and update state.
+        std::lock_guard lock(mutex_);
+        auto it = records_.find(id);
+        if (it == records_.end()) {
+            return false;  // Unit removed while spawning.
+        }
+        auto& record = it->second;
+        if (!process) {
+            record.state = RuntimeState::kFailed;
+            DegradeDirectDependents(record);
+            return false;
+        }
+        record.process = std::move(process);
+        record.missed_heartbeats = 0;
+        record.state = RuntimeState::kRunning;
+        return true;
     }
 
     void StopUnit(UnitId id, std::chrono::milliseconds grace_period) override {
