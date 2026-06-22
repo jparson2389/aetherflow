@@ -11,12 +11,11 @@ charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-# POSIX sh scripts
+# Shell scripts (bash, except install-uv.sh which is POSIX sh)
 [*.sh]
-indent_style = tab
-shell_variant = posix
+shell_variant = bash
+indent_size = 2
 switch_case_indent = true
-simplify = true
 
 # Windows scripts
 [*.{bat,cmd,ps1,vbs}]

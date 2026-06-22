@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Fail closed: a secret-scan gate must not coerce scanner/parser failures into a
-# clean result. Missing jq exits non-zero rather than allowing unscanned edits.
+# Secret-scan gate. Mirrors the CI convention in
+# .github/workflows/security.yml: detect-secrets-hook against the shared
+# .secrets.baseline with the same exclude pattern. Fails closed — if the
+# scanner or its baseline is unavailable, the gate refuses rather than
+# coercing an unscanned edit into a clean result.
 command -v jq >/dev/null 2>&1 || {
   echo "scan-secrets: jq not available; refusing to continue" >&2
   exit 1
@@ -11,27 +14,39 @@ command -v jq >/dev/null 2>&1 || {
 INPUT=$(cat)
 TOOL_NAME=$(printf '%s' "$INPUT" | jq -er '.tool_name')
 
-if [ "$TOOL_NAME" = "editFiles" ] || [ "$TOOL_NAME" = "createFile" ]; then
-  mapfile -t FILES < <(printf '%s' "$INPUT" | jq -r '.tool_input.files[]? // .tool_input.path // empty')
+if [ "$TOOL_NAME" != "editFiles" ] && [ "$TOOL_NAME" != "createFile" ]; then
+  echo '{"continue":true}'
+  exit 0
+fi
 
-  for FILE in "${FILES[@]}"; do
-    if [[ "$FILE" == *.py ]] || [[ "$FILE" == *.env ]] || [[ "$FILE" == *.yaml ]] || [[ "$FILE" == *.yml ]]; then
-      if [ -f "$FILE" ]; then
-        # Fail closed: a scanner crash must reject the edit, not pass as clean.
-        if ! RESULT=$(uv run detect-secrets scan --all-files "$FILE" 2>/dev/null); then
-          echo '{"systemMessage":"❌ Secret scan failed; refusing to continue."}'
-          exit 1
-        fi
-        # Check if any secrets were found (results array non-empty)
-        COUNT=$(printf '%s' "$RESULT" | jq -er '[.results | to_entries[].value[]] | length')
-        if [ "$COUNT" -gt "0" ]; then
-          MSG="detect-secrets found $COUNT potential secret(s) in $FILE. Review before committing."
-          echo "{\"systemMessage\": \"⚠️ $MSG\"}"
-          exit 0
-        fi
-      fi
-    fi
-  done
+mapfile -t FILES < <(printf '%s' "$INPUT" | jq -r '.tool_input.files[]? // .tool_input.path // empty')
+
+# Only scan files that still exist on disk.
+EXISTING=()
+for FILE in "${FILES[@]}"; do
+  [ -f "$FILE" ] && EXISTING+=("$FILE")
+done
+
+if [ ${#EXISTING[@]} -eq 0 ]; then
+  echo '{"continue":true}'
+  exit 0
+fi
+
+# Fail closed: the gate cannot run without its baseline.
+if [ ! -f .secrets.baseline ]; then
+  echo "scan-secrets: .secrets.baseline not found; refusing to continue" >&2
+  exit 1
+fi
+
+# detect-secrets-hook exits non-zero when it finds secrets not already
+# recorded in the baseline. Surface those to the agent without blocking
+# (this is a PostToolUse gate; the edit has already landed).
+if ! uv run detect-secrets-hook \
+  --baseline .secrets.baseline \
+  --exclude-files '(\.env(\.example)?$|agent_manifest\.json$|test_diagnostics_export\.py$|manifest_keys\.json$)' \
+  "${EXISTING[@]}" >&2; then
+  echo '{"systemMessage":"⚠️ detect-secrets found potential secret(s) not in .secrets.baseline. Review the scan output before committing."}'
+  exit 0
 fi
 
 echo '{"continue":true}'
