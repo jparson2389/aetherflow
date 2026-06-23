@@ -1,14 +1,27 @@
+"""Contract tests for the canonical C++/Python boundary native harness.
+
+The native harness is the single source of truth for boundary/token compliance.
+These tests build it (and the host libraries the behavioral checks link) through
+the project's CMake build system and run on the host platform, gated only on C++
+toolchain availability — never on the host OS — so the authoritative validator
+and the behavioral coverage contribute signal on Linux CI and Windows alike.
+
+Behavioral supervisor/capture-control tests compile their snippets against the
+shared CMake library targets rather than re-listing host sources in per-test
+compiler command lines, so the boundary is declared in exactly one place.
+"""
+
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
-import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
-from tools.shell_utils import resolve_powershell_executable
+if TYPE_CHECKING:
+    from tools.native_build import NativeBuild
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXPECTED_RUNTIME_STATES = [
@@ -20,85 +33,41 @@ EXPECTED_RUNTIME_STATES = [
     'GRACE',
 ]
 
+# Shared CMake library targets, in dependency-first link order. Host sources are
+# declared once in CMakeLists.txt; behavioral tests link these archives.
+SUPERVISOR_LIB = ('aetherflow_supervisor',)
+CAPTURE_CONTROL_LIB = ('aetherflow_capture_control', 'aetherflow_supervisor')
 
-def _run_build_script() -> subprocess.CompletedProcess[str]:
-    script_path = PROJECT_ROOT / 'scripts' / 'build-native.ps1'
-    assert script_path.exists()
+# A public supervisor-contract token the canonical validator requires. Named
+# here only so the drift test can remove it from a throwaway copy of the header;
+# the authoritative required-token set lives in host/native_harness.cpp.
+SUPERVISOR_CONTRACT_SYMBOL = 'RestartUnit'
 
+
+@pytest.fixture(scope='session')
+def native_harness(native_build: NativeBuild) -> Path:
+    """Build the canonical native harness once via the shared CMake build."""
+    return native_build.build_target('native_harness')
+
+
+@pytest.fixture(scope='session')
+def native_contract_build(native_build: NativeBuild) -> NativeBuild:
+    """Provide the shared build, skipping when no snippet compiler is present."""
+    from tools.native_build import find_gcc_style_compiler
+
+    if find_gcc_style_compiler() is None:
+        pytest.skip('C++ compiler not available')
+    return native_build
+
+
+def _run_harness(
+    binary: Path, repo_root: Path, output_path: Path
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
-            resolve_powershell_executable(),
-            '-ExecutionPolicy',
-            'Bypass',
-            '-File',
-            str(script_path),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-
-
-@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only: requires MSVC')
-def test_build_native_harness_creates_executable_and_report() -> None:
-    build_path = PROJECT_ROOT / 'build' / 'native_harness.exe'
-    report_path = PROJECT_ROOT / 'build' / 'native_harness_report.json'
-    if build_path.exists():
-        build_path.unlink()
-    if report_path.exists():
-        report_path.unlink()
-
-    result = _run_build_script()
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert build_path.exists()
-    assert report_path.exists()
-
-    report = json.loads(report_path.read_text(encoding='utf-8'))
-
-    assert report['header']['signature_scheme'] == 'Authenticode'
-    assert report['header']['digest_algorithm'] == 'SHA-256'
-    assert report['header']['rsa_key_bits'] == 3072
-    assert report['header']['runtime_states'] == EXPECTED_RUNTIME_STATES
-    assert report['proto']['service_name'] == 'CaptureControl'
-    assert report['proto']['rpc_count'] == 6
-    assert report['boundary']['src_native_files'] == []
-
-
-@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only: requires MSVC')
-def test_native_harness_rejects_cpp_sources_inside_src(tmp_path: Path) -> None:
-    result = _run_build_script()
-    assert result.returncode == 0, result.stdout + result.stderr
-
-    repo_root = tmp_path / 'repo'
-    (repo_root / 'src').mkdir(parents=True)
-    (repo_root / 'include').mkdir()
-    (repo_root / 'proto').mkdir()
-
-    header_path = repo_root / 'include' / 'plugin_system.hpp'
-    proto_path = repo_root / 'proto' / 'capture.proto'
-    output_path = repo_root / 'native_harness_report.json'
-
-    header_path.write_text(
-        (PROJECT_ROOT / 'include' / 'plugin_system.hpp').read_text(encoding='utf-8'),
-        encoding='utf-8',
-    )
-    proto_path.write_text(
-        (PROJECT_ROOT / 'proto' / 'capture.proto').read_text(encoding='utf-8'),
-        encoding='utf-8',
-    )
-    (repo_root / 'src' / 'engine.cpp').write_text('int leaked_native = 1;\n')
-
-    harness_result = subprocess.run(
-        [
-            str(PROJECT_ROOT / 'build' / 'native_harness.exe'),
+            str(binary),
             '--repo-root',
             str(repo_root),
-            '--header',
-            str(header_path),
-            '--proto',
-            str(proto_path),
             '--output',
             str(output_path),
         ],
@@ -106,24 +75,110 @@ def test_native_harness_rejects_cpp_sources_inside_src(tmp_path: Path) -> None:
         check=False,
         capture_output=True,
         text=True,
+        timeout=60,
     )
 
-    assert harness_result.returncode != 0
-    assert 'Native source files are not allowed under src/' in (
-        harness_result.stdout + harness_result.stderr
+
+def _materialize_contract_tree(dest: Path) -> None:
+    """Copy the public contract inputs into an isolated repo-shaped tree."""
+    (dest / 'src').mkdir(parents=True)
+    (dest / 'include').mkdir()
+    (dest / 'proto').mkdir()
+    for relative in (
+        'include/plugin_system.hpp',
+        'include/supervisor.hpp',
+        'proto/capture.proto',
+    ):
+        (dest / relative).write_text(
+            (PROJECT_ROOT / relative).read_text(encoding='utf-8'),
+            encoding='utf-8',
+        )
+
+
+def test_native_harness_reports_real_tree_contract_valid(
+    native_harness: Path, tmp_path: Path
+) -> None:
+    """The canonical validator runs on the host platform and passes the real tree."""
+    report_path = tmp_path / 'native_harness_report.json'
+
+    result = _run_harness(native_harness, PROJECT_ROOT, report_path)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert report_path.exists()
+
+    report = json.loads(report_path.read_text(encoding='utf-8'))
+
+    assert report['status'] == 'ok'
+    assert report['header']['signature_scheme'] == 'Authenticode'
+    assert report['header']['digest_algorithm'] == 'SHA-256'
+    assert report['header']['rsa_key_bits'] == 3072
+    assert report['header']['runtime_states'] == EXPECTED_RUNTIME_STATES
+    assert report['proto']['service_name'] == 'CaptureControl'
+    assert report['proto']['rpc_count'] == 6
+    assert report['boundary']['src_native_files'] == []
+    assert report['errors'] == []
+
+
+def test_native_harness_fails_when_supervisor_contract_symbol_removed(
+    native_harness: Path, tmp_path: Path
+) -> None:
+    """Dropping a public supervisor-contract symbol fails the validator report.
+
+    Drift detection: the validator owns the supervisor contract, so a renamed or
+    deleted public symbol must surface as a failing report (and therefore fail
+    CI), not slip through undetected.
+    """
+    repo_root = tmp_path / 'repo'
+    _materialize_contract_tree(repo_root)
+
+    supervisor_header = repo_root / 'include' / 'supervisor.hpp'
+    mutated = supervisor_header.read_text(encoding='utf-8').replace(
+        SUPERVISOR_CONTRACT_SYMBOL, 'Relaunch'
     )
+    assert SUPERVISOR_CONTRACT_SYMBOL not in mutated, 'mutation did not remove token'
+    supervisor_header.write_text(mutated, encoding='utf-8')
+
+    report_path = repo_root / 'native_harness_report.json'
+    result = _run_harness(native_harness, repo_root, report_path)
+
+    assert result.returncode != 0
+    report = json.loads(report_path.read_text(encoding='utf-8'))
+    assert report['status'] == 'failed'
+    assert any(SUPERVISOR_CONTRACT_SYMBOL in error for error in report['errors']), (
+        report['errors']
+    )
+
+
+def test_native_harness_rejects_cpp_sources_inside_src(
+    native_harness: Path, tmp_path: Path
+) -> None:
+    """A native source file under src/ is a boundary violation the validator fails."""
+    repo_root = tmp_path / 'repo'
+    _materialize_contract_tree(repo_root)
+    (repo_root / 'src' / 'engine.cpp').write_text(
+        'int leaked_native = 1;\n', encoding='utf-8'
+    )
+
+    report_path = repo_root / 'native_harness_report.json'
+    result = _run_harness(native_harness, repo_root, report_path)
+
+    assert result.returncode != 0
+    assert 'Native source files are not allowed under src/' in (
+        result.stdout + result.stderr
+    )
+    report = json.loads(report_path.read_text(encoding='utf-8'))
+    assert report['status'] == 'failed'
+    assert 'src/engine.cpp' in report['boundary']['src_native_files']
 
 
 def test_native_supervisor_factory_exposes_host_owned_state_machine(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'supervisor_contract.cpp'
-    test_binary = tmp_path / 'supervisor_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'supervisor_contract',
+        SUPERVISOR_LIB,
+        tmp_path,
         """
 #include "supervisor.hpp"
 
@@ -176,47 +231,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_supervisor_rejects_missing_posix_launcher_synchronously(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'supervisor_missing_launcher_contract.cpp'
-    test_binary = tmp_path / 'supervisor_missing_launcher_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'supervisor_missing_launcher_contract',
+        SUPERVISOR_LIB,
+        tmp_path,
         """
 #include "supervisor.hpp"
 
@@ -246,47 +272,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_supervisor_degrades_only_direct_dependents(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'supervisor_dependency_contract.cpp'
-    test_binary = tmp_path / 'supervisor_dependency_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'supervisor_dependency_contract',
+        SUPERVISOR_LIB,
+        tmp_path,
         """
 #include "supervisor.hpp"
 
@@ -334,47 +331,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_supervisor_restarts_only_target_unit(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'supervisor_restart_contract.cpp'
-    test_binary = tmp_path / 'supervisor_restart_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'supervisor_restart_contract',
+        SUPERVISOR_LIB,
+        tmp_path,
         """
 #include "supervisor.hpp"
 
@@ -426,47 +394,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_supervisor_exposes_authoritative_runtime_snapshots(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'supervisor_snapshots_contract.cpp'
-    test_binary = tmp_path / 'supervisor_snapshots_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'supervisor_snapshots_contract',
+        SUPERVISOR_LIB,
+        tmp_path,
         """
 #include "supervisor.hpp"
 
@@ -517,47 +456,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_starts_supervised_capture(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_contract.cpp'
-    test_binary = tmp_path / 'capture_control_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -599,48 +509,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_stops_supervised_capture(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_stop_contract.cpp'
-    test_binary = tmp_path / 'capture_control_stop_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_stop_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -689,48 +569,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_releases_lock_before_stop_unit(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_stop_lock_contract.cpp'
-    test_binary = tmp_path / 'capture_control_stop_lock_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_stop_lock_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -900,48 +750,18 @@ int main() {
     return 0;
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-pthread',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_records_worker_heartbeat(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_heartbeat_contract.cpp'
-    test_binary = tmp_path / 'capture_control_heartbeat_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_heartbeat_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -990,48 +810,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_records_worker_log(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_log_contract.cpp'
-    test_binary = tmp_path / 'capture_control_log_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_log_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1071,48 +861,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_records_plugin_load_result(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_plugin_result_contract.cpp'
-    test_binary = tmp_path / 'capture_control_plugin_result_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_plugin_result_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1153,48 +913,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_exports_diagnostics_summary(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_diagnostics_contract.cpp'
-    test_binary = tmp_path / 'capture_control_diagnostics_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_diagnostics_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1236,48 +966,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_wires_missed_heartbeats(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_missed_heartbeat_contract.cpp'
-    test_binary = tmp_path / 'capture_control_missed_heartbeat_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_missed_heartbeat_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1338,48 +1038,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_endpoint_populates_retry_budget(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_retry_budget_contract.cpp'
-    test_binary = tmp_path / 'capture_control_retry_budget_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_retry_budget_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1436,48 +1106,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_heartbeat_uses_worker_alias(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_worker_alias_contract.cpp'
-    test_binary = tmp_path / 'capture_control_worker_alias_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_worker_alias_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1530,48 +1170,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_separates_runtime_and_worker_lookup_domains(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_lookup_domains_contract.cpp'
-    test_binary = tmp_path / 'capture_control_lookup_domains_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_lookup_domains_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1631,46 +1241,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_native_capture_control_bounds_worker_log_buffer(tmp_path: Path) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_log_buffer_contract.cpp'
-    test_binary = tmp_path / 'capture_control_log_buffer_contract'
-    test_source.write_text(
+def test_native_capture_control_bounds_worker_log_buffer(
+    native_contract_build: NativeBuild,
+    tmp_path: Path,
+) -> None:
+    result = native_contract_build.compile_and_run(
+        'capture_control_log_buffer_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1714,48 +1296,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_heartbeat_replay_guards_recovering_state(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_replay_guard_contract.cpp'
-    test_binary = tmp_path / 'capture_control_replay_guard_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_replay_guard_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -1832,46 +1384,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_native_stop_unit_terminates_failed_unit_process(tmp_path: Path) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'failed_unit_stop_contract.cpp'
-    test_binary = tmp_path / 'failed_unit_stop_contract'
-    test_source.write_text(
+def test_native_stop_unit_terminates_failed_unit_process(
+    native_contract_build: NativeBuild,
+    tmp_path: Path,
+) -> None:
+    result = native_contract_build.compile_and_run(
+        'failed_unit_stop_contract',
+        SUPERVISOR_LIB,
+        tmp_path,
         """
 #include "supervisor.hpp"
 
@@ -1911,48 +1435,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-            '-pthread',
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_watchdog_detects_exited_process_and_transitions(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'watchdog_contract.cpp'
-    test_binary = tmp_path / 'watchdog_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'watchdog_contract',
+        SUPERVISOR_LIB,
+        tmp_path,
         """
 #include "supervisor.hpp"
 
@@ -2007,48 +1501,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-            '-pthread',
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_supervisor_rejects_threaded_in_process_units(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'process_isolation_contract.cpp'
-    test_binary = tmp_path / 'process_isolation_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'process_isolation_contract',
+        SUPERVISOR_LIB,
+        tmp_path,
         """
 #include "supervisor.hpp"
 
@@ -2081,48 +1545,18 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-            '-pthread',
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_capture_control_registers_dependency_from_manifest(
+    native_contract_build: NativeBuild,
     tmp_path: Path,
 ) -> None:
-    compiler = shutil.which('g++') or shutil.which('clang++')
-    if compiler is None:
-        pytest.skip('C++ compiler not available')
-
-    test_source = tmp_path / 'capture_control_dependency_contract.cpp'
-    test_binary = tmp_path / 'capture_control_dependency_contract'
-    test_source.write_text(
+    result = native_contract_build.compile_and_run(
+        'capture_control_dependency_contract',
+        CAPTURE_CONTROL_LIB,
+        tmp_path,
         """
 #include "capture_control.hpp"
 #include "supervisor.hpp"
@@ -2191,34 +1625,5 @@ int main() {
 #endif
 }
 """,
-        encoding='utf-8',
     )
-
-    compile_result = subprocess.run(
-        [
-            compiler,
-            '-std=c++20',
-            '-I',
-            str(PROJECT_ROOT / 'include'),
-            str(PROJECT_ROOT / 'host' / 'supervisor.cpp'),
-            str(PROJECT_ROOT / 'host' / 'capture_control.cpp'),
-            str(test_source),
-            '-o',
-            str(test_binary),
-            '-pthread',
-        ],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert compile_result.returncode == 0, compile_result.stdout + compile_result.stderr
-
-    run_result = subprocess.run(
-        [str(test_binary)],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert run_result.returncode == 0, run_result.stdout + run_result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
