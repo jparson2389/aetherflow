@@ -183,6 +183,15 @@ class NativeBuild:
         )
 
     def _build(self, target: str) -> None:
+        """Build a CMake target in the configured build directory.
+
+        Args:
+            target: CMake target name to build.
+
+        Raises:
+            RuntimeError: If the target build exits non-zero.
+
+        """
         result = subprocess.run(
             [self._cmake, '--build', str(self._build_dir), '--target', target],
             cwd=PROJECT_ROOT,
@@ -197,6 +206,19 @@ class NativeBuild:
             )
 
     def _resolve_artifact(self, target: str, names: set[str]) -> Path:
+        """Resolve a produced build artifact by candidate file names.
+
+        Args:
+            target: Logical target name, used only for error messages.
+            names: Candidate artifact file names to match.
+
+        Returns:
+            The first matching artifact path under the build directory.
+
+        Raises:
+            RuntimeError: If no matching artifact exists.
+
+        """
         matches = sorted(
             path
             for path in self._build_dir.rglob('*')
@@ -219,8 +241,10 @@ def configure_native_build(build_dir: Path) -> NativeBuild:
         A NativeBuild bound to the configured tree.
 
     Raises:
-        NativeToolchainUnavailable: If cmake or a C++ compiler is missing, or
-            the configure step fails for lack of a usable toolchain.
+        NativeToolchainUnavailable: If cmake or a C++ compiler is absent — the
+            only condition that should skip native tests rather than fail CI.
+        RuntimeError: If the toolchain is present but CMake configure fails (a
+            real configuration regression that must surface as a failure).
 
     """
     cmake = find_cmake()
@@ -237,8 +261,5 @@ def configure_native_build(build_dir: Path) -> NativeBuild:
         timeout=_BUILD_TIMEOUT_S,
     )
     if result.returncode != 0:
-        raise NativeToolchainUnavailable(
-            'CMake configure failed; no usable C++ toolchain:\n'
-            f'{result.stdout}{result.stderr}'
-        )
+        raise RuntimeError(f'CMake configure failed:\n{result.stdout}{result.stderr}')
     return NativeBuild(cmake, build_dir)
