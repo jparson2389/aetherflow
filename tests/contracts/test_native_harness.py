@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -52,9 +53,17 @@ def native_harness(native_build: NativeBuild) -> Path:
 
 @pytest.fixture(scope='session')
 def native_contract_build(native_build: NativeBuild) -> NativeBuild:
-    """Provide the shared build, skipping when no snippet compiler is present."""
+    """Provide the shared build for behavioral snippet tests.
+
+    Skips on Windows (the snippets are POSIX-oriented and short-circuit under
+    `#ifdef _WIN32`, so running them there would report false-green coverage)
+    and when no gcc/clang-style compiler is present. The canonical validator
+    tests do not use this fixture and still run on every platform.
+    """
     from tools.native_build import find_gcc_style_compiler
 
+    if sys.platform.startswith('win'):
+        pytest.skip('Behavioral native snippets short-circuit on _WIN32')
     if find_gcc_style_compiler() is None:
         pytest.skip('C++ compiler not available')
     return native_build
