@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 
 import pytest
 
 from aetherflow.vision.opencv_capture import CaptureDevice, CaptureMode
+
+if TYPE_CHECKING:
+    from tools.native_build import NativeBuild
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -109,3 +113,24 @@ class FakeCaptureProbe:
 def fake_capture_probe() -> FakeCaptureProbe:
     """Return a deterministic capture probe for integration and UI tests."""
     return FakeCaptureProbe()
+
+
+@pytest.fixture(scope='session')
+def native_build(tmp_path_factory: pytest.TempPathFactory) -> NativeBuild:
+    """Configure the native CMake project once for the whole test session.
+
+    This is the single shared build path that native contract and behavioral
+    tests consume. It is skipped only when no C++ toolchain is available, never
+    based on the host OS, so the canonical native harness runs on Linux CI and
+    Windows alike.
+    """
+    from tools.native_build import (
+        NativeToolchainUnavailable,
+        configure_native_build,
+    )
+
+    build_dir = tmp_path_factory.mktemp('native-build')
+    try:
+        return configure_native_build(build_dir)
+    except NativeToolchainUnavailable as exc:
+        pytest.skip(str(exc))
